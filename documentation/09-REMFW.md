@@ -112,14 +112,14 @@ ip access-list extended TO_INTERNET
 ## 3️⃣ Application des ACLs
 
 ```
-! Appliquer sur l'interface MAN (vers WANRTR)
-interface GigabitEthernet2
- description Connexion MAN vers WANRTR
+! Appliquer sur l'interface WAN (vers WANRTR) - GigabitEthernet1
+interface GigabitEthernet1
+ description TO-WANRTR-Fe0/0/0 (VRF MAN)
  ip access-group FROM_HQ in
 
-! Appliquer sur l'interface LAN (vers clients Remote)
-interface GigabitEthernet3
- description LAN Remote Site
+! Appliquer sur l'interface LAN (vers clients Remote) - GigabitEthernet2
+interface GigabitEthernet2
+ description TO-REMOTE-LAN
  ip access-group TO_INTERNET out
 ```
 

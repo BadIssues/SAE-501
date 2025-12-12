@@ -150,11 +150,28 @@ option domain-name "hq.wsl2025.org";
 option domain-name-servers 10.4.10.1;
 option ntp-servers 10.4.10.2;
 
+# Failover configuration (Primary)
+failover peer "dhcp-failover" {
+    primary;
+    address 10.4.10.2;
+    port 647;
+    peer address 10.4.10.3;
+    peer port 647;
+    max-response-delay 30;
+    max-unacked-updates 10;
+    load balance max seconds 3;
+    mclt 1800;
+    split 128;
+}
+
 # Subnet Clients (VLAN 20) - 10.4.20.0/23
 subnet 10.4.20.0 netmask 255.255.254.0 {
-    range 10.4.20.1 10.4.21.200;
     option routers 10.4.20.254;
     option broadcast-address 10.4.21.255;
+    pool {
+        failover peer "dhcp-failover";
+        range 10.4.20.1 10.4.21.200;
+    }
 }
 
 # Subnet Management (VLAN 99)

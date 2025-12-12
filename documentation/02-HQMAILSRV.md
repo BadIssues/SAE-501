@@ -356,7 +356,7 @@ cat > /etc/bind/named.conf.local << 'EOF'
 zone "wsl2025.org" {
     type slave;
     file "/var/cache/bind/wsl2025.org.zone";
-    masters { 10.4.10.1; };
+    masters { 10.4.10.4; };
 };
 EOF
 

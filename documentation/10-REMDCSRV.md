@@ -1,7 +1,7 @@
 # REMDCSRV - Contrôleur de Domaine Remote
 
 > **OS** : Windows Server 2022  
-> **IP** : 10.N.100.X (VLAN Remote)  
+> **IP** : 10.4.100.1 (VLAN Remote)  
 > **Rôles** : AD DS (Child Domain), DNS, DHCP, DFS
 
 ---
@@ -21,8 +21,8 @@
 Rename-Computer -NewName "REMDCSRV" -Restart
 
 # Configuration IP
-New-NetIPAddress -InterfaceAlias "Ethernet" -IPAddress 10.N.100.X -PrefixLength 24 -DefaultGateway 10.N.100.X
-Set-DnsClientServerAddress -InterfaceAlias "Ethernet" -ServerAddresses 10.N.10.X, 127.0.0.1  # HQDCSRV puis local
+New-NetIPAddress -InterfaceAlias "Ethernet" -IPAddress 10.4.100.1 -PrefixLength 25 -DefaultGateway 10.4.100.126
+Set-DnsClientServerAddress -InterfaceAlias "Ethernet" -ServerAddresses 10.4.10.1, 127.0.0.1  # HQDCSRV puis local
 ```
 
 ---
@@ -36,10 +36,7 @@ Install-WindowsFeature -Name AD-Domain-Services, DNS, DHCP, FS-DFS-Namespace, FS
 
 ### Joindre comme Child Domain
 ```powershell
-# Selon sujet1 : Child de wsl2025.org
-# Selon sujet2 : Child de hq.wsl2025.org (dans la même forêt)
-
-# Option : Child de wsl2025.org
+# Option : Child de wsl2025.org (Forest Root)
 Install-ADDSDomain `
     -NewDomainName "rem" `
     -ParentDomainName "wsl2025.org" `
@@ -59,7 +56,7 @@ Install-ADDSDomain `
 # La zone est créée automatiquement avec AD DS
 
 # Ajouter un forwarder vers wsl2025.org / HQDCSRV
-Add-DnsServerForwarder -IPAddress 10.N.10.X
+Add-DnsServerForwarder -IPAddress 10.4.10.1
 
 # Vérifier la réplication de zone si configurée
 Get-DnsServerZone
@@ -77,31 +74,31 @@ Invoke-DnsServerZoneSign -ZoneName "rem.wsl2025.org" -SignWithDefault
 
 ### Autoriser le serveur DHCP
 ```powershell
-Add-DhcpServerInDC -DnsName "remdcsrv.rem.wsl2025.org" -IPAddress 10.N.100.X
+Add-DhcpServerInDC -DnsName "remdcsrv.rem.wsl2025.org" -IPAddress 10.4.100.1
 ```
 
 ### Créer le scope
 ```powershell
 # Scope pour le site Remote
 Add-DhcpServerv4Scope -Name "Remote-Clients" `
-    -StartRange 10.N.100.X `
-    -EndRange 10.N.100.X `
-    -SubnetMask 255.255.255.X `
+    -StartRange 10.4.100.10 `
+    -EndRange 10.4.100.120 `
+    -SubnetMask 255.255.255.128 `
     -LeaseDuration 02:00:00  # 2 heures
 
 # Options du scope
-Set-DhcpServerv4OptionValue -ScopeId 10.N.100.0 -Router 10.N.100.X
-Set-DhcpServerv4OptionValue -ScopeId 10.N.100.0 -DnsServer 10.N.100.X
-Set-DhcpServerv4OptionValue -ScopeId 10.N.100.0 -DnsDomain "rem.wsl2025.org"
+Set-DhcpServerv4OptionValue -ScopeId 10.4.100.0 -Router 10.4.100.126
+Set-DhcpServerv4OptionValue -ScopeId 10.4.100.0 -DnsServer 10.4.100.1
+Set-DhcpServerv4OptionValue -ScopeId 10.4.100.0 -DnsDomain "rem.wsl2025.org"
 
 # Option NTP
-Set-DhcpServerv4OptionValue -ScopeId 10.N.100.0 -OptionId 42 -Value 10.N.10.X  # hqinfrasrv
+Set-DhcpServerv4OptionValue -ScopeId 10.4.100.0 -OptionId 42 -Value 10.4.10.2  # hqinfrasrv
 ```
 
 ### Dynamic DNS
 ```powershell
 # Activer la mise à jour DNS dynamique
-Set-DhcpServerv4DnsSetting -ScopeId 10.N.100.0 -DynamicUpdates "Always" -DeleteDnsRROnLeaseExpiry $true
+Set-DhcpServerv4DnsSetting -ScopeId 10.4.100.0 -DynamicUpdates "Always" -DeleteDnsRROnLeaseExpiry $true
 ```
 
 ---
@@ -238,4 +235,3 @@ New-GPO -Name "REM-Certificates" | New-GPLink -Target "OU=Remote,DC=rem,DC=wsl20
 - Le Dynamic DNS crée automatiquement les enregistrements pour les clients DHCP
 - Les utilisateurs Remote peuvent s'authentifier sur les deux sites
 - Le DFS sera répliqué avec REMINFRASRV pour la tolérance de panne
-
