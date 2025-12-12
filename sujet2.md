@@ -1,1251 +1,1026 @@
-© Worldskills France (WSFR) se réserve tous les droits relatifs aux documents rédigés pour ou au nom
-de WSFR et comprenant leur traduction et leur envoi par voie électronique. Ce matériel peut être reproduit
-à des fins professionnelles et pédagogiques non commerciales, à la condition que le logo de Worldskills
-France et la déclaration concernant les droits d’auteur restent en place.
-
-## Working tasks of the 47
+```
+alexis.charton@univ-fcomte.fr
+```
 
-#### th
+```
+jean-michel.bouillet@univ-fcomte.fr
+```
 
-## National WorldSkills
+# SAÉ 501
 
-## Competition
+## Concevoir, réaliser et présenter une
 
-# SKILL N° 39
+## solution technologique
 
-# IT NETWORK SYSTEMS
+12/
 
-# ADMINISTRATION
+_Dept. Réseaux & Télécoms_
 
-#### Proposed by :
+```
+BUT RT - SAÉ 501
+2
+```
 
-#### Alexis Charton, WorldSkills France’s Regional Expert
+## Présentation de la SAE
 
-#### Jean-Michel Bouillet , WorldSkills France’s Regional Expert
+#### Extrait du Programme National :
 
-#### Based on an original idea from :
+#### "Le professionnel R&T, en charge d'un projet technique, doit
 
-#### Alexandre MICHEL, WorldSkills France’s National Expert
+#### assurer l'ensemble des étapes du projet en concevant,
 
-© Worldskills France (WSFR) se réserve tous les droits relatifs aux documents rédigés pour ou au nom
-de WSFR et comprenant leur traduction et leur envoi par voie électronique. Ce matériel peut être reproduit
-à des fins professionnelles et pédagogiques non commerciales, à la condition que le logo de Worldskills
-France et la déclaration concernant les droits d’auteur restent en place.
+#### réalisant et en présentant une solution technique mariant les
 
-2 / 28
+#### différentes technologies réseaux, télécommunications et
 
-```
-BUT3 - SAE 501
-Version : 1.
-```
+#### informatiques. Il assure également la coordination entre les
 
-### Table of contents
+#### techniciens faisant partie du projet"
 
-### Table des matières
+_Dept. Réseaux & Télécoms_
 
-##### 1. 4 1.1.
+```
+BUT RT - SAÉ 501
+3
+```
 
-##### 4 1.2.
+## Objectif de la SAE
 
-##### 4 1.3.
+#### Hardskills :
 
-##### 4 2.
+#### Mettre en place une infrastructure complète système et réseau
 
-##### 5 2.1.
+#### basée sur des équipements réseaux réels et plusieurs serveurs
 
-##### 5 2.2.
+#### de machines virtuelles (Proxmox VE et ESXi)
 
-##### 5 2.3.
+#### Softskills :
 
-##### 7 2.3.1.
+- Travailler en équipe
+- Gérer un projet d’envergure
+- Savoir communiquer en interne et vers l’extérieur
 
-##### 7 2.3.2.
+_Dept. Réseaux & Télécoms_
 
-##### 7 2.3.3.
+```
+BUT RT - SAÉ 501
+4
+```
 
-##### 8 3.
+## Contexte de la SAE
 
-##### 9 3.1.
+##### Depuis plusieurs années, le département R&T participe aux Worldskills
 
-##### 9 ALL SERVERS
+##### pour le métier « Administrateur de Systèmes et Réseaux
 
-##### 9
+##### Informatique ».
 
-##### OPERATING SYSTEM 9
+##### A chaque édition de cette compétition que ce soit au niveau régional,
 
-##### 3.2. 9 HQINFRASRV
+##### national ou international, nos étudiants obtiennent des résultats plus
 
-##### 9
+##### qu’honorables
 
-##### HQMAILSRV 10
+##### Alexis Charton est médaille d’argent aux Worldskills 2018
 
-##### HQDCSRV 12
+##### Au niveau national, la compétition se déroule sur plusieurs jours
 
-##### HQFWSRV 15
+##### avec plusieurs sujets:
 
-##### HQCLT 15
+##### linux, Windows , Cisco, Troubleshooting, Speedskills
 
-##### HQWEBSRV 15
+##### https://www.worldskills-france.org
 
-##### MGMTCLT 16
+_Dept. Réseaux & Télécoms_
 
-##### 3.3. 17 REMFW
+```
+BUT RT - SAÉ 501
+5
+```
 
-##### 17
+## Sujet de la SAE
 
-##### REMDCSRV 17
+#### Avec Alexis, nous avons réalisé une synthèse de ces 5
 
-##### REMINFRASRV 18
+#### thèmes, en nous inspirant librement des sujets de la dernière
 
-##### REMCLT 19
+#### compétition la finale nationale qui s’est déroulée à Lyon à la
 
-##### 3.4. 20 VPNCLT
+#### mi septembre 2023.
 
-##### 21
+#### Le résultat de ce travail est cette SAE501 qui se déroulera
 
-##### INETCLT 21
+#### pendant 8 jours composés de:
 
-##### 4. 22 4.1. 22 4.2. 23 4.3. 24 4.4. 25 4.5. 26 4.6. 27 4.7. 28
+- 6 jours de travail
+- 1 jour pour les démos
+- 1 jour pour les soutenances
 
-3 / 28
+_Dept. Réseaux & Télécoms_
 
 ```
-BUT3 - SAE 501
-Version : 1.
+BUT RT - SAÉ 501
+6
 ```
 
-## 1. INTRODUCTION
+### Schéma détaillé
 
-```
-Task Duration 6 days
-```
+### du projet
 
-```
-Document release’s availability 8 December 2025
-```
+Remarque :
 
-### 1.1. CONTEXT
+Pour certains services réseau
 
-```
-As you know, France will host the next WorldSkills Competition in Lyon in September 2025. In order to
-organize this incredible event, a dedicated company has been created intitled “WorldSkills Lyon 2025”
-(WSL2025) which is responsible of the overall organization.
-Due to the important necessary number of tasks which will be performed by WSL2025 teams, WSL
-will hire lot of new people to reach around 120 employees within the company.
-As expected, like other companies that are growing up, the IT needs have been increased and the
-WSL2025’s IT infrastructure must be renewed regarding LAN and WAN architecture.
-To organize the WorldSkills Competition 2025, WSL2025 needs to collaborate and exchange data with
-WorldSkills France (WSFR). While WSFR is moving to another office, it has been decided that WSFR will use
-WSL2025’s IT infrastructure and be connected to it using a private MAN connection.
-As a recently graduated network engineer, your manager has decided to involve you and your team
-on this project to build the network infrastructure which has been partially designed by the network architect,
-and to deploy network services on different operating systems.
-More than implementing each required technology and settings, the functional aspect is the most
-important. Don’t forget to test what you've implemented.
-```
+vous pouvez proposer une
 
-### 1.2. TEST PROJECT’S INFRASTRUCTURE
+alternative, à vous de défendre
 
-```
-To realize this project, you will use virtual and real systems:
-```
+ce choix et de le faire valider.
+
+Par contre, les équipements
 
-- Virtual machines are hosted on several VMware ESXi and Proxmox VE
-- Network devices are real hardware equipments except the Firewall REMFW (VM Cisco CSR1000)
-- For the firewall HQFWSRV you can choose between an hardware solution (like Stormshield) or a
-  software solution (i.e. a VM linux + ifw),
-  In order to connect VM and network devices between them, you will have to configure Portgroups
-  and VLAN in VMware ESXi
-  To connect to ESXi and to Proxmox, use the information provided on the separate sheet.
+réseau, les serveurs de VM et
 
-### 1.3. ADDITIONAL NOTES
+les systèmes d’exploitation sont
 
+imposés.
+
 ```
-When a password is required & not specified, you should use “ P@ssw0rd ” (zero digit between “w” and “r”).
+Dept. Réseaux & Télécoms
 ```
-
-4 / 28
 
 ```
-BUT3 - SAE 501
-Version : 1.
+BUT RT - SAÉ 501
+7
 ```
 
-## 2. TASKS DESCRIPTION NETWORK INFRASTRUCTURE
+### Schéma
 
-### 2.1. BASIC CONFIGURATION
+### Niveau 3
 
+_Dept. Réseaux & Télécoms_
+
 ```
-Configure on all network devices the following settings:
+BUT RT - SAÉ 501
+8
 ```
 
-- Hostname as specified on diagrams
-- DNS domain as “ **wsl2025.org** ”
-- Disable DNS resolution
-- Enable password as “ **P@ssw0rd** ” (zero digit between “w” and “r”)
-- Username “admin” with password **“P@ssw0rd”** ( **zero digit between “w” and “r”** ) with the maximum
-  level of rights
-- None of the passwords should be displayed as plain text on configuration
-- For the remote connection, use SSHv2 only based on username credentials:
-  o Encryption will use a RSA with a 2048 key size
-  o Remote connection to device should be only allowed from Management network
-  o The following banner should be displayed just after entering the username:
-  \*\*/!\ Restricted access. Only for authorized people /!\*\*
-  o Session should be closed after five minutes of inactivity and twenty minutes in absolute
+### Schéma
 
-### 2.2. SWITCHING CONFIGURATION
+### Niveau 2
 
-```
-On the switched infrastructure (CORESWX and ACCSWX), the following VLAN should be present:
-VLAN ID VLAN name VLAN description
-10 Servers Used for Servers
-20 Clients Used for Clients
-30 DMZ Used to access the DMZ
-99 Management Used for management
-100 CORESW1-EDGE1 Used for connection between CORESW1 and EDGE
-200 CORESW2-EDGE2 Used for connection between CORESW2 and EDGE
-300 IBGP_peering Used for iBGP peering between EDGE1 and EDG
-666 Blackhole Native VLAN for trunk links
-```
+_Dept. Réseaux & Télécoms_
 
 ```
-All the VLAN above should be distributed using VTPv2:
-o CORESW1 and CORESW2 are VTP servers
-o ACCSW1 and ACCSW2 are VTP clients
-o All VLAN modifications should be made on CORESW1 as often as possible
-o Use “ P@ssw0rd ” as VTP password and “ wsl2025.org ” as VTP domain
-On the four switches, configure the necessary interfaces based on both provided information and
-diagrams on appendix:
-o For inter-switch connections:
-▪ In addition of the native, only necessary VLAN of the infrastructure should be allowed
-on each trunk link
-▪ No negotiation should be used for trunk establishment.
-▪ Standard protocol should be used for LAG establishment. Both core switches can try
-to initiate the LAG negotiation
-o For hosts connections:
-▪ Host connections are only located on ACCSWX switches
-▪ Ports should be explicitly configured as access ports and assigned according to the
-following information:
-● VLAN 10: Port Gi0/
+BUT RT - SAÉ 501
+9
 ```
 
-5 / 28
+### Schéma
 
-```
-BUT3 - SAE 501
-Version : 1.
-```
+### Physique
+
+_Dept. Réseaux & Télécoms_
 
 ```
-● VLAN 20: Port Gi0/
-● VLAN 30: Port Gi0/
-● VLAN 99: Port Gi0/
-o For all other ports of all switches, they should be explicitly configured as access port, assigned
-to Blackhole VLAN and deactivated.
-o For all host ports, only three maximum MAC addresses should be learned dynamically.
-In case of violation, port should be deactivated and tried to reactivate automatically after 30
-seconds.
-Configure STP based on the following information:
-o Rapid-PVST should be used.
-o Topology should be based primarily on CORESW1 and secondly on CORESW
-o On host ports, STP should be disabled. In case of STP traffic being received, ports should
-be blocked
+BUT RT - SAÉ 501
+10
 ```
 
-### IP ADDRESSING
+### Schéma routage
 
+_Dept. Réseaux & Télécoms_
+
 ```
-You have to terminate the IP addressing for your networks, keep in mind that you have to optimize the
-address space and to use only the necessary amount of IP addresses that you need.
+BUT RT - SAÉ 501
+11
 ```
+
+### Schéma DNS
 
-- Always use the last IP address for the gateway
-- Always use the first IP addresses for your servers with static configuration
-- Always use DHCP for your clients with enough IP addresses in the range
-  o Core network
-  ▪ internal branches to HQ site use 10.N.254.0 sub networks, and the network
-  10.116.N.0 for the remote site connection
-  ▪ external branches to the Internet use two networks: 91.N.222.96 and 31.N.126.
-  o Internet side: all IP addresses are static
-  ▪ 3 servers and 2 clients are available
-  ▪ from the Internet two networks are available 217.N.160.0 (redirected to the DMZ) and
-  191.N.157.32 (for VPN and webmail access)
-  o HQ site.
-  ▪ 30 servers are planned to be active in the future
-  ▪ 300 clients will be available (Worldskills WLAN included)
+_Dept. Réseaux & Télécoms_
 
 ```
-o Remote Site
-▪ 10 servers are planned
-▪ 80 clients will be available
+BUT RT - SAÉ 501
+12
 ```
 
+## Déroulement du projet
+
 ```
-o The managing network has the capacity to supervise all the active network equipment and all
-the servers (including VM, real hosts or Barebone Hypervisors).
+●
 ```
+
+#### Tous les documents sont sur Moodle
 
-6 / 28
+#### https://moodle.univ-fcomte.fr/course/view.php?id=
 
 ```
-BUT3 - SAE 501
-Version : 1.
+●
 ```
 
-### 2.3. ROUTING CONFIGURATION
+##### Sujet complet en anglais
 
 ```
-Configure all necessary TCP/IP settings on all network devices. All devices should have access to the
-Internet and/or private MAN.
-All necessary information regarding routing for the topology is available in the appendix.
+●
 ```
 
-###### 2.3.1. CORE SWITCHES
+##### Gestion de projet
 
 ```
-Core switches should provide gateway redundancy by using an active/passive FHRP Cisco proprietary
-protocol for the networks 10.N.10.0,10.N.20.0 and 10.N.99.0:
-o VIP information is provided on diagrams
-o Priority should be 110 for CORESW1 and 100 for CORESW
-o In case of CORESW1’s failure, CORESW2 should route the traffic
-o Active router is based on checking IP reachability of the respective EDGEX router’s uplink
-interface (Fa0/1.100 for EDGE1 and Fa0/1.200 for EDGE2)
-o In case of CORESW1 come back alive, CORESW1 should take over the traffic routing
-o Configuration should be exactly the same on both device (except priority)
-For all unknown destinations, core switches should route traffic to their respective uplink router as
-described on the routing diagram.
+●
 ```
 
-###### 2.3.2. EDGE ROUTERS
+##### Revue de projet:
 
 ```
-Edge routers should provide gateway redundancy by using an active/passive FHRP Cisco proprietary
-protocol for the network 217.N.160.
-o VIP information is provided on diagrams.
-o Priority should be 110 for EDGE1 and 100 for EDGE
-o In case of EDGE1’s failure, EDGE2 should route the traffic
-o Active router is based on checking IP reachability of the respective CORESWX router’s uplink
-interface (Gi0/1.100 for CORESW1 and Gi0/1.200 for CORESW2)
-o If EDGE1 comes back alive, then EDGE1 should take over the traffic routing.
-o Configuration should be exactly the same on both device (except priority)
+●
+Démonstration
 ```
 
 ```
-In order to create logically two different networks WAN connections (Internet & Private MAN) by using
-only one physical interface, create two logical sub-interfaces by encapsulated traffic according to the following
-information:
+●
+Soutenance
 ```
 
 ```
-Device VLAN ID Description
+●
+Rapport de synthèse
 ```
 
 ```
-EDGE
+●
 ```
 
+##### Équipes de 4 étudiants: 10 groupes de 4 + 1 groupe de 3
+
 ```
-13 Used for MAN connection
+●
+2 Cyber + 1 Pilpro + 1 IoM ou 2 Cyber + 2 Pilpro sauf un groupe avec 1
 ```
+
+cyber + 2 pilpro
 
 ```
-14 Used for INET connection
+●
+80 % de travail en commun + 20% de spécialité
 ```
 
+_Dept. Réseaux & Télécoms_
+
 ```
-EDGE
+BUT RT - SAÉ 501
+13
 ```
+
+## Calendrier
 
 ```
-15 Used for MAN connection
+●
 ```
 
+#### Lundi 8/12 :
+
+- Présentation, brainstorming, planification et affectation des
+
+##### tâches, mise en place de la gestion de projet,
+
+- Plan d’adressage IP, DNS
+- définition des besoins de formation
+- Distribution du matériel, affectation des ressources
+
 ```
-16 Used for INET connection
+●
 ```
 
+#### Mardi 9/12 à lundi 15/12 : déploiement
+
+##### → fin du projet lundi 16/12 - 18h
+
 ```
-Internet
-EDGE routers can reach the LAN networks by using a summarized /16 static route according to the
-routing diagram.
-EDGE routers provide Internet access for all private subnets by using NAT/PAT based on their WAN
-interface’s IP address.
-EDGE routers’ Internet connectivity is ensured by eBGP connection with WANRTR (VRF INET). Internet
-access redundancy is ensured by iBGP peering between EDGE routers.
+●
 ```
 
-7 / 28
+#### Vendredi 12 + lundi 15/12 : spécificités parcours Cyber et IoM
 
 ```
-BUT3 - SAE 501
-Version : 1.
+●
 ```
 
+#### Mardi 16/12 : démonstration et test (45 min / groupe)
+
 ```
-For BGP, all public IP subnets should be announced and exchanged between the three routers.
-Independent providers IP will be used for HQINFRASRV’s services access from the Internet.
-Traffic to the Internet should be primarily routed by EDGE1 router based on BGP’s intra-AS attribute.
-For returned traffic or traffic initiated from Internet to EDGE routers, be sure that WANRTR chooses
-primarily to send traffic to EDGE1. To reach this order, no configuration should be made on WANRTR but only
-on EDGE routers.
-EDGE routers provide connectivity from the internet to the corporate network for two services:
+●
 ```
+
+#### Mercredi 17/12 : présentation (45 min / groupe) avec
 
-- To access the Corporate Web server HQWEBSRV using the public IP 217.N.160.X via the firewall
-  HQFWSRV
-- To access the VPN server using PAT/NAT to translate traffic from the public IP 191.N.157.33 Port 4443
-  to the VPN Access Server HQINFRASRV with the private IP 10.N.10.X
-- To access the webmail server using PAT/NAT to translate traffic from the public IP 191.N.157.33 Ports
-  80/443 to the webmail server HQMAILSRV with the private IP 10.N.10.X
+#### questions individualisées
 
+_Dept. Réseaux & Télécoms_
+
 ```
-Private MAN
-In order to connect WSFR’s workers by REMCLT VM connected to REMFW to WSL2025’s
-infrastructure, REMFW router, and EDGE routers establish OSPF adjacencies with WANRTR router (VRF
-MAN).
-All private networks should be exchanged between those four routers. Only the necessary interfaces of
-these four routers should exchange OSPF hello messages. OSPF exchanges should be authenticated using
-MD5. No OSPF external routes should appear on EDGE routers.
-WANRTR should choose EDGE1 as the primary path.
-In order to save bandwidth, no DR/BDR election should have occurred on any link.
-When WANRTR’s interface facing REMFW’s private MAN connection (10.116.N.X) goes to down status,
-it should be re-enabled automatically and display “ Interface have been re-enabled automatically due to
-down status ” on device console.
-VM located on private IP networks can communicate with each other. When REMCLT VM is connecting
-to REMFW, VM can access to both corporate resources and Internet.
-For all unknown destination, REMFW should route traffic to WANRTR router as described on the routing
-diagram.
+BUT RT - SAÉ 501
+14
 ```
 
-###### 2.3.3. WANRTR ROUTER
+## Matériel du projet
 
 ```
-WANRTR use VRF to split network traffic between Internet (VRF INET) and private MAN (VRF MAN)
+●
+Équipements réseau:
 ```
 
-8 / 28
+- 1 Routeur 1941 avec 4 interfaces Ethernet
+- 2 Routeurs 2901 avec 4 interfaces Ethernet
+- 2 switches 3750
+- 2 switches 2960S ou X
+- Firewall à choisir : pfsense, linux, Stormshield, ASA ...
 
 ```
-BUT3 - SAE 501
-Version : 1.
+●
+Serveurs de VM avec machines virtuelles: Proxmox + ESXi
 ```
 
-## 3. TASKS DESCRIPTION IT SERVICES INFRASTRUCTURE
+- VM Windows + linux
+- VM Cisco ISR1000 (routeur)
 
-### 3.1. BASIC CONFIGURATION
+```
+●
+PC des salles 201/202/203 + portables sur demande,
+```
 
-###### ALL SERVERS
+_Dept. Réseaux & Télécoms_
 
 ```
-Configure on all servers the following settings:
+BUT RT - SAÉ 501
+15
 ```
-
-- Time zones have to be configured on all servers and use HQINFRASRV as time reference. Use
-  authentication to secure NTP communication.
-- Hostname as specified on diagrams.
-- DNS domain as “ **wsl2025.org** ”
-- All linux servers should be remotely managed with SSH. Configure Fail2Ban to ban the IP address of
-  the initiator after 3 unsuccessful logins (SSH, FTP,....)
 
-###### OPERATING SYSTEMS
+## Affectation des Salles
 
-- REMCLT and HQCLT and VPNCLT are running Windows 11
-- HQINDRASRV, HQWEBSRV, REMDCSRV and REMINFRASRV are based on Windows 2022 Server:
-- DNSSRV, INETSRV, HQINFRASRV, HQMAILSRV are running Linux Debian 13 CLI
-- MGMTCLT and INETCLT are running Linux Debian 13 GUI
+```
+●
+NOC : salle 206
+```
 
-### 3.2. HQ SITE CONFIGURATION
+```
+●
+infrastructure réseau et ESXi
+```
 
-###### HQINFRASRV
+- 201 Groupes 8 à 11
+- 202 Groupes 5 à 7
+- 203 Groupes 1 à 4
 
 ```
-DHCP
+●
+Salles de réunion des groupes de projet lundi
 ```
 
 ```
-HQINFRASRV provides DHCP service for Clients and Management networks of the HQ site with all necessary
-options in order to allow those networks to access to corporate services and Internet
+●
+Salles de réunion partagées pour les autres jours : salles 001 et 002
 ```
 
 ```
-This server provides dynamic IP addresses for clients located on HQ.
-Scope configuration:
+001 : groupe 1
 ```
 
-- Subnet : 10.N.20.X
-- Netmask : To be defined
-- Range : To be defined
-- Gateway : To be defined
-- Name server : hqdcsrv.hq.wsl2025.org
-- Domain : hq.wsl2025.org
-- NTP server : hqinfrasrv.wsl2025.org
-- Lease : 2 hours
-
-9 / 28
-
 ```
-BUT3 - SAE 501
-Version : 1.
+002 : groupe 2
 ```
 
 ```
-VPN
+003 : groupes 3
 ```
 
 ```
-Configure OpenVPN Server to allow VPNCLT to be connected on HQ site as a remote client from the
-Internet.
-The tunnel should be configured with:
+005 : groupe 4
 ```
 
-- Protocol: OpenVPN
-- Port : 4443
-- Network : 191.N.157.
-- Authentication: certificate and user/password from Active Directory.
-  Clients will have an IP address from the DHCP Service on the Clients network.
-  Clients should be able to reach resources hosted both on HQ and Remote site once the VPN is connected.
-  Use a certificate issued by HQDCSRV to establish the connection.
-
 ```
-Storage:
+006 : groupe 5
 ```
 
 ```
-Configure the storage on his server:
+008 : groupe 6
 ```
 
-- Configure physical volumes with LVM using the two 5Gb extra attached disks.
-- Configure a volume group with the two physical volumes with LVM named “vgstorage”
-- Configure a logical volume named /dev/vgstorage/lvdatastorage (2Gb) with LVM.
-- Configure a logical volume /dev/vgstorage/lviscsi (2Gb)
-- Format volume lvdatastorage with ext
-- Mount volume “lvdatastorage” as /srv/datastorage
+```
+009 : groupe 7
+```
 
 ```
-Configure an iSCSI LUN on /dev/vgstorage/lviscsi and allow HQMAILSRV to mount this LUN.
+104 : groupe 8
 ```
 
 ```
-Files Server:
+201 : groupe 9
 ```
 
 ```
-Create 3 local users Jean, Tom and Emma
-Configure Samba on this server to host two file shares:
+206 : groupe 10
 ```
 
-- Name : Public
-  - Path : /srv/datastorage/shares/public
-  - Rights : Read-Only for everyone
-- Name : Private
-  - Path : /srv/datastorage/shares/private
-  - Hidden share
-  - Files starting with “.” Should be hidden.
-  - Only clients located on HQ should be able to access this share
-  - Files with extension “.exe” and “.zip” can’t be uploaded on this share
+_Dept. Réseaux & Télécoms_
 
-10 / 28
+_IUT NFC_
 
 ```
-BUT3 - SAE 501
-Version : 1.
+BUT RT - SAÉ 501
+16
 ```
 
-- Rights: - Read/write for Tom and Emma - Read only for Jean
-  Bonus: Configure Authentication of the Samba users with Active Directory
+## Schéma du réseau proxmox
 
-###### HQMAILSRV
+###### TP M
 
 ```
-Storage:
-Using ZFS create a pool named zfspool with this configuration:
+RT-proxN
 ```
 
-- RAID 5 array with 3 disks of 1Go
-- activate encryption
-- create a volume named data and mounted on /data
-- move the /home users directory to /data/home
+```
+Organisation en TP:
+```
 
 ```
-Backup:
+Chaque serveur possède 3 cartes réseaux:
 ```
 
+- LAN IUT/internet: NAT (désactivé par défaut)
+- LAN vers les autres Proxmox: vmbr
+- LAN interne: vmbr
+
 ```
-You have to schedule an automated backup of the users directory /data/home every day at 10PM with rsync
+Chaque client possède 2 cartes réseau
 ```
+
+- LAN IUT/internet: NAT (désactivé par défaut)
+- LAN interne : vmbr
+- 2 clients: linux debian 8 et Windows 7
+- Proxmox impair : Windows 2012R2,
+- Proxmox pair Linux Debian 8
 
 ```
-to the iSCSI drive on HQINFRASRV
+Plan d’adressage IP:
 ```
 
+- LAN vers les autres Proxmox 172.16.0.N0/
+
 ```
-Mail:
-This server hosts email services SMTP & IMAP
-Configure a server SMTP and IMAP as secure email services by using certificate issued by
-HQDCSRV
-Clients should be able to send email using SMTPS and receive with IMAPS protocols. Non-securised
-protocols are not allowed.
+Linux server: 172.16.0.N
 ```
 
 ```
-All users described in Appendix should have a mailbox located on their home folders and an email address
-with “@wsl2025.org” domain.
+Windows server 2012: 172.16.0.N
 ```
 
-- Configure two distribution group:
-  - “all@wsl2025.com” that contains all users.
-  - “admin@wsl2025.org” that contains only IT users
-- Configure a rule to restrict sending attachment with “.zip” format.
+- LAN interne: 192.168.N.0/
 
 ```
-Bonus : Configure SMTP and IMAP authentication with Active Directory
+Linux server: 192.168.N.
 ```
 
 ```
-Webmail
+Windows server 2012: 192.168.N. 2
 ```
 
 ```
-Install and configure a webmail service on this server to allow users to connect to their mailbox with a web
-browser.
-This service should be available at https://webmail.wsl2025.org from internal and external clients.
-Configure a redirection from http to https.
+Linux client: 192.168.N.
 ```
-
-11 / 28
 
 ```
-BUT3 - SAE 501
-Version : 1.
+Windows 7: 192.168.N. 4
 ```
 
 ```
-DNS
-This server is the secondary (or slave) DNS Server and hosts the wsl2025.org zone for all the corporate
+Vmbr
 ```
 
 ```
-networks. All unknown DNS requests are forwarded to DNSSRV.
+vmbr
 ```
 
 ```
-DHCP failover
+Vmbr
 ```
 
 ```
-This server provide DHCP failover service in association with the primary server HQINFRASRV. in normal
-state the two server assign 50% of the IP Address range.
+Vmbr
 ```
 
-###### HQDCSRV
-
 ```
-DNS
-This server is the DNS server and hosts the wsl2025.org zone for the infrastructure network. All others
-DNS requests are forwarded to DNSSRV. The following DNS records are configured:
+Linux
 ```
 
 ```
-Type FQDN / Alias IP address / FQDN
+Windows 7
 ```
 
 ```
-A hqdcsrv.hq.wsl2025.org 10.N.10.X
-A hqinfrasrv.wsl2025.org 10.N.10.X
-A hqmailsrv.wsl2025.org 10.N.10.X
-A hqfwsrv.wsl2025.org 217.N.160.X
-CNAME hqwebsrv.hq.wsl2025.org hqfwsrv.wsl2025.org
-CNAME http://www.wsl2025.org hqfwsrv.wsl2025.org
-CNAME webmail.wsl2025.org hqmailsrv.wsl2025.org
-CNAME pki.hq.wsl2025.org hqdcsrv.hq.wsl2025.org
-A vpn.wsl2025.org 217.N.160.X
-A accsw1.wsl2025.org 10.N.99.X
-A accsw2.wsl2025.org 10.N.99.X
-A coresw1.wsl2025.org 10.N.99.X
-A coresw2.wsl2025.org 10.N.99.X
-A edge1.wsl2025.org 10.N.254.X
-A edge2.wsl2025.org 10.N.254.X
-A wanrtr.wsl2025.org 10.116.N.X
-A remfw.wsl2025.org 10.N.100.X
+Vmbr0 Vmbr
 ```
 
 ```
-DNSSec should be configured on this server with a certificate issued by HQDCSRV
+NAT
+NAT
 ```
 
 ```
-Active Directory
-Configure this server as root of the forest, primary domain controller and global catalog for the domain
-hq.wsl2025.org. He’s hosting his own DNS server for the hq.wsl2025.org and rem.wsl2025.org zones. All
-others DNS requests are forwarded to wsl2025.org
-On this server, create the users, groups and organization units listed in Appendix, respecting the AGDLP
-Method.
+Linux
 ```
-
-12 / 28
 
 ```
-BUT3 - SAE 501
-Version : 1.
+SSH, DHCP, NFS,
 ```
 
 ```
-Users, Groups and OU
-The HQ site is represented by one Organizational Unit that contains theses OU :
+FTP, www, print server
 ```
 
-- Users that contains users, create one sub OU for each Department and Place in this OU users
-  belonging to this Department.
-- Computers that contains computers objects. Place in this OU, Computers and Servers (except
-  controller) belong to this Site
-- The OU “Groups” contains all groups. Place in this OU all groups belonging to this Site
-- Create one OU at root named “Shadow groups” and create one global group named “OU_Shadow”
-  containing all users in OU “HQ”. When creating a new user for this Site, the user should automatically
-  be added to this group in the following minute.
-
 ```
-Users Provisioning
-Provision 1000 users with SamAccountName/UserPrincipalName wslusrXXX (where wslusr001 is the first
-user and wslusr1000 is the last). Place them in following Active Directory Organizational Unit:
-OU=AUTO,OU=USERS,DC=wsl2025,DC=org
+SSH, router
 ```
-
-- 500 first users must be placed in security Global group “FirstGroup”
-- 500 last users must be placed in security group Global group “LastGroup”
-  Groups must be placed in OU=Groups,DC=wsl2025,DC=org
 
 ```
-ADCS
-Configure Enterprise Subordinate Certification Authority with following subject name: CN=WSFR-SUB-CA
-Certificate for this SubCA must be issued by RootCA hosted on DNSSRV.
-Adjust CRL Publishing Parameters:
+Win2012R2,
 ```
 
-- CRL publication interval: every day
-- Delta CRL publication interval: every minute
-- Delta CRL Overlap: every 12 hours
+```
+Partages SMB, www, FTP,
+```
 
 ```
-Only CRLs and Delta CRLs published must be used for certificates revocation checks accessing this URL:
-http://pki.hq.wsl2025.org.
-Also configure AIA distribution point on the same site/folder.
-When a new CRL is published, the CRL file must be automatically created in folder C:\inetpub\PKI.
-Site name must be PKI (located on C:\inetpub\PKI )
+DHCP, serveur d’impression
 ```
 
 ```
-● Create WSFR_Services on-demand template certificate for all services
-● Create WSFR_Machines computer autoenrollment template certificate for all domain machines
-(servers and
-● clients)
-● Create WSFR_Users user autoenrollment template certificate for all domain users
+Active Directory, router
 ```
 
-13 / 28
+```
+Réseau
+```
 
 ```
-BUT3 - SAE 501
-Version : 1.
+Proxmox
 ```
 
 ```
-Storage
+rt-prox01 rt-prox02 rt-prox
 ```
 
 ```
-This server hosts all documents, storage purposes, DNS and Web services for WSI.
-DATA partition:
-● Attach 3 extra hard drive with a size of 1 Go (each) to this machine.
-● Format these disk into a RAID-5 and create a ReFS partition called “DATA” (D:\).
-● Enable deduplication on this volume.
+Réseau IUT
 ```
 
 ```
-File services
+pu-pm.univ-fcomte.fr
 ```
 
 ```
-There are three shared folders:
+rt-serv
 ```
 
-1. Home drives
-   Create a file share for wsl2025.org users ‘home drives’:
+```
+internet
+```
 
-- Share path: \\hq.wsl2025.org\users
-- Local path: D:\shares\datausers
-- Restrict permissions as needed:
-- Administrators must have Full control access on all folders
-- Users can only access their personal folder.
-- Users can only see their personal folder.
-- Limit the storage quota to 20Mb
-- Restrict all executables files saving
-- Personal folder will be mounted on user’s sessions (use U: letter as mount point).
+```
+Tharradin (DNS) win2ktp
+```
 
-2. Department
+**Attention interface NAT**
 
-- Located on D:\shares\Department
-- Mounted with letter S:
-- Users can only access their department folder
-- Users can only see their department folder
+**à configurer manuel-**
 
-3. Each department have a folder inside it named Public
+**lement**
 
-- Located on D:\shares\Public
-- Mounted with letter P:
-- All users of the department have RW rights on this folder.
+**→ cf. Mémo Proxmox**
 
 ```
-GPO
-Configure Root CA certificate on the Root CA magazine and the Sub CA on the Sub CA magazine on every
-Windows hosts
-Configure Edge to display the intranet as default home page and prevent user to change it
-Users are not allowed to access to control pane except administrators
-The enterprise logo have to displayed on every Windows hosts
+Carte vmbr
 ```
 
-14 / 28
+- Réseau : 10.0.20.0/
+- Gateway : 10.0.20.
+- DNS : 194.57.85.
 
 ```
-BUT3 - SAE 501
-Version : 1.
+Exemple de configuration :
 ```
 
-###### HQFWSRV
-
 ```
-This server should be configured with nftable to secure inbound communications and expose internal
-resources on the Internet.
-Rules to apply on the network card exposed to Internet in the VLAN 30:
+lxserv-N : 10.0.20.N+1/
 ```
-
-- Web request (http and https) should be forwarded to the web server HQWEBSVR
-- MS RDS (Remote Desktop Services) should be forwarded to the server HQWEBSVR
-- All unused ports should be closed.
-  Please consider that the VLAN 10 is only used for authentication on Active Directory
-  Keep in mind that some services may need some other ports to be open (example: IPSec VPN, SSH, etc).
-  Be sure to test every service after each firewall modification.
 
-###### HQCLT
+_Dept. Réseaux & Télécoms_
 
 ```
-HQCLT VM is used to simulate workers located in headquarters. It should be able to access both
-corporate resources and the Internet.
-IP addressing should be performed by DHCP from HQINFRASRV.
+BUT RT - SAÉ 501
+17
 ```
 
-###### HQWEBSRV
+## Gestion de projet : Pilpro
 
 ```
-This server should be configured with a web server and remote desktop server (RDS) to allow access to the
-corporate resources from the Internet:
+●
+Pour mener à bien votre projet, vous devez utiliser des outils de gestion
 ```
 
-- HQWEBSRV hosts HTTP and HTTPS websites (HTTP is automatically redirected to HTTPS)
-  available both on private and publics networks by using the FQDN [http://www.wsl2025.org.](http://www.wsl2025.org.) Public IP
-  address in the subnet 217.N.160.X
-- This server hosts MS-RDS to allow access to Excel and Word MS-Office applications for all users
-  via a web browser.
-- This server hosts a website https://authentication.wsl2025.org. To access the website an Active
-  Directory authentication is required. Only Sales Active Directory group can have access.
+de projets :
 
-15 / 28
-
 ```
-BUT3 - SAE 501
-Version : 1.
+●
+Carte heuristique / Mind map (ex : Mindview)
 ```
-
-###### MGMTCLT
 
 ```
-MGMTCLT VM is used to access the configuration interface of all network equipments of HQ site,
-including CORESW1 & 2, ACCSW1 & 2
-Using Ansible you have to create different playbooks to manage the switches of the network
-infrastructure: ACCSW1, ACCSW2, CORESW1 and CORESW2:
+●
+Affectation des ressources aux activités et planification – Gantt (ex : Mindview)
 ```
 
-- Backup or restore the configuration files of the switches (use a local tftp server)
-- Collect the operating system version of the switches
-- Display the state (up/down) of the network interfaces
-- Synchronize the time and date of all switches with NTP server HQINFRASRV
-- Display the state of the environmental parameters of the 3750 switches (heat, fan, ...)
-
 ```
-All playbooks are stored on the FTP server INETSRV
+●
+Suivi de projets (ex : Trello - Méthode Agile)
 ```
-
-16 / 28
 
 ```
-BUT3 - SAE 501
-Version : 1.
+●
+Suivi de versions de configuration (Dashboard excel / Github,...)
 ```
 
-### 3.3. REMOTE SITE CONFIGURATION
+Vous pouvez utiliser d’autres outils à la place ou ajouter des outils complémentaires (ex :
 
-###### REMFW
+discord, slack....), l’objectif étant la qualité des rendus et du suivi de projet
 
 ```
-This router act also as a firewall and should be configured with access lists to secure inbound communications
-between Remote Site and HQ site
+●
+Livrables :
 ```
 
-- Only allowed services should be open from HQ site (SSH, DNS, HTTPS, Microsoft services, etc)
-- All unused ports should be closed.
-
-###### REMDCSRV
-
 ```
-REMDCSVR is a server with Active Directory Services. He’s in the forest hq.wsl2025.org a primary domain
-controller and global catalog for the domain rem.wsl2025.org. He’s hosting his own DNS server for the
-rem.wsl2025.org zone and a replication of the hq.wsl2025.org zone. All others DNS requests are forwarded to
-wsl2025.org
+●
+Jalons sur Moodle avec deadline + comptes rendus hebdomadaires (un jalon est une
 ```
 
+preuve de bon fonctionnement)
+
 ```
-DHCP
-REMDCSRV provides DHCP service for Clients of the remote network with all necessary options in order
-to allow those networks to access to corporate services and Internet
+●
+Rapport de synthèse pour le 18/12 minuit (bilan du projet sur 2 à 3 pages)
 ```
 
 ```
-This server provides dynamic IP addresses for client located on Remote site
+●
+Si deux Pilpro : appel d’offre (page suivante)
 ```
+
+_Dept. Réseaux & Télécoms_
 
 ```
-Scope configuration:
+BUT RT - SAÉ 501
+18
 ```
 
-- Subnet :10.N.100.
-- Netmask : To be defined
-- Range : To be defined
-- Gateway : To be defined
-- Name server : remdcsrv.rem.wsl2025.org
-- Domain : rem.wsl2025.org
-- NTP server : hqinfrasrv.hq.wsl2025.org
-- Lease : 2 hours
+## Gestion de projet : Pilpro
 
 ```
-Configure Dynamic DNS to create the associated record corresponding to the distributed IP address.
+●
+Chaque jour une réunion (au moins) est obligatoire avec l’équipe afin de
 ```
 
+faire le point :
+
 ```
-DNS
+●
+Qui fait quoi?
 ```
 
 ```
-DNSSec should be configured on this server with a certificate issued by HQDCSRV.
+●
+Avancement des tâches
 ```
-
-17 / 28
 
 ```
-BUT3 - SAE 501
-Version : 1.
+●
+Difficultés, contraintes, arbitrages
 ```
 
 ```
-Active Directory
-The remote site is represented by one Organizational Unit that contains two OU :
+●
+Chaque jour : Rapport oral de 10 min au NOC en salle 206
 ```
 
-- Workers that contains users
-- Computers that contains computers objects
-- The OU “Groups” contains all groups.
-
 ```
-The following GPO are configured and linked to each site OU :
+●
+Documenter le tout et déposer le compte rendu sur Moodle dans la
 ```
 
-- Members of IT group are local administrators
-- Control Panel is blocked for everyone except for IT group members
-- Mapping shares Department and Public
-- Configure Root CA certificate on the Root CA magazine and the Sub CA on the Sub CA magazine on
-  every Windows hosts
+partie « Jalon : Comptes rendus journaliers »
 
-```
-DFS
-```
+https://moodle.univ-fcomte.fr/mod/assign/view.php?id=
 
 ```
-Create a DFS Domain root with REMINFRASRV
-There are two shared folders:
+●
 ```
-
-1. Home drives
-   Create a file share for wsl2025.org users ‘home drives’:
 
-- Share path: \\rem.wsl2025.org\users
-- Local path: C:\shares\datausers
-- Restrict permissions as needed:
-- Administrators must have Full control access on all folders
-- Users can only access their personal folder.
-- Users can only see their personal folder.
-  Limit the storage quota to 20Mb
+##### Si deux Pilpro dans le groupe : élaboration d'un appel d'offre pour
 
-2. Department share
+##### l’acquisition du matériel et des équipements (sites HQ + REM) et
 
-- Located on C:\shares\Department
-- Mounted with letter S:
-- Users can only access their department folder.
-- Users can only see their department folder.
+##### des services réseaux (cf. SAE 401)
 
-###### REMINFRASRV
+_Dept. Réseaux & Télécoms_
 
 ```
-This server is a Active Directory Domain Member
-This server provide fault tolerance in the Remote Site for different services: DNS, DHCP, DFS
+BUT RT - SAÉ 501
+19
 ```
 
-18 / 28
+## Sécurité : Cyber
 
 ```
-BUT3 - SAE 501
-Version : 1.
+●
 ```
 
-###### REMCLT
+##### Mise en place d’une infrastructure racine de certificats (Root CA)
 
 ```
-REMCLT VM is used to simulate a MAN client
-IP addressing should be performed by DHCP from REMINFRASVR
-It should be able to access both corporate resources and the Internet.
+●
 ```
 
-19 / 28
+##### Déploiement des certificats sur l’ensemble des services réseau
 
 ```
-BUT3 - SAE 501
-Version : 1.
+●
 ```
 
-### 3.4. INTERNET SITE CONFIGURATION
+##### Mise en place d’un Firewall (matériel ou logiciel) pour protéger
 
+##### une DMZ
+
 ```
-On the Internet side, every host IP is static according to the diagram.
+●
 ```
+
+##### Mise en place d’un VPN permettant d’accéder au réseau de
 
+##### l’entreprise depuis internet
+
+_Dept. Réseaux & Télécoms_
+
 ```
-DNSSRV
+BUT RT - SAÉ 501
+20
 ```
 
+## Ansible : IoM
+
 ```
-DNS
+●
 ```
+
+##### A l’aide d’Ansible, créer des playbooks permettant de:
 
 ```
-This server provides DNS services for public networks and hosts worldskills.org and wsl2025.org
-zones.
-The following DNS records are configured:
+●
+surveiller les paramètres environnementaux des équipements
 ```
 
+réseaux
+
 ```
-Type FQDN / Alias IP address / FQDN
-A inetsrv.worldskills.org 8.8.N.X
-CNAME http://www.worldskills.org inetsrv.worldskills.org
-CNAME ftp.worldskills.org inetsrv.worldskills.org
-A wanrtr.worldskills.org 8.8.N.X
-A hqfwsrv.wsl2025.org 217.N.160.X
-A vpn.wsl2025.org 191.N.157.
-A webmail.wsl2025.org 191.N.157.
-CNAME http://www.wsl2025.org hqfwsrv.wsl2025.org
-CNAME authentication.wsl2025.org hqfwsrv.wsl2025.org
+●
+Collecter la version du système d’exploitation des équipements
 ```
+
+réseau
 
 ```
-Please enable DNSSEC on this Server
+●
+Afficher l’état des interfaces des équipements réseaux
 ```
 
 ```
-Certificate Authority
-Configure Root Certification Authority with following details :
+●
+réaliser une sauvegarde ou une restauration des fichiers de
 ```
 
-- Country = FR
-- Province = Auvergne Rhone-Alpes
-- City = Lyon
-- Organization = Worldskills France
-- Email = npresso@wsl2025.org
-- OU = Worldskills France Lyon 2025
-- CN = WSFR-ROOT-CA
-  This server will issue the Enterprise SubCA of HQDCSRV.
+configuration des équipements réseau sur un serveur tftp local.
 
 ```
-He provides certificates to secure all services on the Internet side with the domain worldskills.org
+●
+Mettre en place la synchronisation NTP pour l’ensemble des
 ```
 
-###### INETSRV
+équipements réseaux.
 
 ```
-INETSRV hosts web services such as websites HTTPS, HTTPS (HTTP is automatically redirected to
-HTTPS) and FTP Services are respectively accessible by using http://www.worldskills.org and
-ftp.worldskills.org.
+●
+Si 2 IoM : mettre en place un serveur syslog pour collecter les logs
 ```
 
-```
-All certificates are provided by DNSSRV
-```
+des équipements réseaux
 
-20 / 28
+_Dept. Réseaux & Télécoms_
 
 ```
-BUT3 - SAE 501
-Version : 1.2
+BUT RT - SAÉ 501
+21
 ```
 
+## Barème de notation
+
 ```
-Web server
+●
+Total : 1000 points
 ```
 
 ```
-You have to configure a redundant Web server with High Avaibily and load balancing running in two
-dockers containers.
+●
+Note commune au groupe : 545 points
 ```
 
 ```
-Use your favorite software (HAproxy, Apache2, Nginx...).
+●
+Jalons techniques : 225
 ```
 
 ```
-PHP support is enabled
+●
+Démo : 300
 ```
 
 ```
-Configure a start page which displays the IP address of the client and the type and version of web
-browser used by the client and the actual date and time.
+●
+Rapport de synthèse : 20
 ```
 
 ```
-Configure a page named bad.html with a dangerous content
+●
+Note individuelle : Soutenance – 300 points
 ```
 
 ```
-As a basic security measure, make sure that no sensitive information is displayed in the HTTP headers
-and the footer.
+●
+Note de Parcours : 155 points
 ```
 
 ```
-FTP
+●
+Cyber : Démo spécifique
 ```
 
 ```
-This server is used for scripts and Ansible Playbooks Storage
+●
+IoM : Démo spécifique + jalon playbooks Ansible
 ```
 
 ```
-Configure a secured FTPS server (Use your favourite software):
+●
+Pilpro : Jalons de gestion de projet + timing de remise + entretien journaliers +
 ```
 
-- Create user named devops
-- Allow uploading / downloading file from FTP
+management de l’équipe – Si deux Pilpro : jalon appel d’offre
 
-###### VPNCLT
+_Dept. Réseaux & Télécoms_
 
 ```
-VPNCLT VM is used to simulate a VPN client.
-The VM is a member of the hq.wsl2025.org domain.
-It uses OpenVPN to establish a connection to HQINFRASRV, to access all the corporate resources.
+BUT RT - SAÉ 501
+22
 ```
 
-###### INETCLT
+## Formation
 
 ```
-CLT VM is used to simulate an Internet client
-it should be able to access all Internet services and corporate site http://www.wsl2025.org.
+●
 ```
+
+#### Pour mener à bien ce projet vous aurez peut-être des
 
-21 / 28
+#### besoins de formation sur des thèmes précis
 
 ```
-BUT3 - SAE 501
-Version : 1.2
+●
 ```
 
-## 4. APPENDICES
+#### Pas de formation sur les technologies de base comme LAN
 
-### 4.1. USERS AND GROUPS ACTIVE DIRECTORY
+#### switching et le routage IP (OSPF/BGP) ou MPLS →
 
+#### consulter les cours respectifs sur Moodle.
+
 ```
-Name Login AD group Site email^
+●
 ```
+
+#### Il  faudra formuler ces besoins dès lundi soir !
 
-###### Vincent TIM vtim^ IT^
+##### https://moodle.univ-fcomte.fr/mod/assign/view.php?id=719007
 
 ```
-HQ vtim@wsl2025.org
+●
 ```
 
+#### Formations courtes (15-30 min) mardi ou mercredi (IoM :
+
+#### Ansible)
+
+_Dept. Réseaux & Télécoms_
+
 ```
-Ness PRESSO npresso Direction HQ npresso@wsl2025.org
+BUT RT - SAÉ 501
+23
 ```
 
-###### Jean TICIPE jticipe^ Factory^ HQ^ jticipe@wsl2025.org^
+## Conseils
 
-###### Rick OLA rola^ Sales^ HQ^ rola@wsl2025.org^
+##### 1) Découpez ce projet en petites parties indépendantes qui vous
 
-###### Ela STIQUE estique^ Warehouse^ REM^ estique@wsl2025.org^
+##### pourrez réaliser en parallèle de façon indépendante:
 
 ```
-Rachid TAHA rtaha Direction
-REM rtaha@wsl2025.org
+●
+Définissez un responsable et un associé pour chaque partie
 ```
 
 ```
-Denis PELTIER
-dpeltier IT
-REM dpeltier@wsl2025.org
+●
+Définissez des priorités à l’intérieur de chaque partie
 ```
 
-22 / 28
+2. Ayez une vision globale : séparez la mise en œuvre de l’infrastructure et
 
-```
-BUT3 - SAE 501
-Version : 1.2
-```
+l’aspect organisationnel (ex : organisation des DNS, Déploiement des
+
+certificats, gestion des VLANs....)
+
+##### 3) Communiquez entre vous, ne laissez pas un camarade bloqué sur
+
+##### un problème
 
-### 4.2. FUNCTIONAL DIAGRAM
+##### 4) Et le plus important : le fonctionnel prime sur tout le reste!
 
-23 / 28
+_Dept. Réseaux & Télécoms_
 
 ```
-BUT3 - SAE 501
-Version : 1.2
+BUT RT - SAÉ 501
+24
 ```
 
-### 4.3. PHYSICAL DIAGRAM – DETAILLED
+## Helpdesk / Présence
 
-24 / 28
+##### Assistance :
 
 ```
-BUT3 - SAE 501
-Version : 1.2
+●
+un ticket de helpdesk par journée (NOC : bureau profs 2ème étage)
 ```
 
-### 4.4. LOGICAL DIAGRAM – LAYER 2
+```
+●
+à chaque fois il faudra formaliser la demande
+```
 
-25 / 28
+##### Présence :
+
+```
+●
+Présence obligatoire tous les jours
+```
 
 ```
-BUT3 - SAE 501
-Version : 1.2
+●
+Le reste du temps vous pouvez travailler à distance via le VPN mais
 ```
+
+attention a bien gérer les accès distants aux ESXi et à l’infrastructure
 
-### 4.5. LOGICAL DIAGRAM – LAYER 3
+réseau **(interdiction de déplacer le  matériel)**
 
-26 / 28
+_Dept. Réseaux & Télécoms_
 
 ```
-BUT3 - SAE 501
-Version : 1.2
+BUT RT - SAÉ 501
+25
 ```
 
-### 4.6. LOGICAL DIAGRAM – ROUTING DIAGRAM
+## Disclaimer
+
+```
+© Worldskills France (WSFR) se réserve tous les droits relatifs aux documents rédigés pour ou au
+```
 
-27 / 28
+```
+nom de WSFR et comprenant leur traduction et leur envoi par voie électronique. Ce matériel peut
+```
 
 ```
-BUT3 - SAE 501
-Version : 1.2
+être reproduit à des fins professionnelles et pédagogiques non commerciales, à la condition que le
 ```
 
-### 4.7. LOGICAL DIAGRAM – DNS
+```
+logo de Worldskills France et la déclaration concernant les droits d’auteur restent en place.
+```
