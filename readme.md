@@ -92,44 +92,45 @@ Ce projet est réalisé dans le cadre de la **SAE 501** en 3ème année de **BUT
 ### Vue d'ensemble
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                            🌐 INTERNET (Zone Publique)                       │
-│    ┌─────────┐    ┌─────────┐    ┌─────────┐    ┌─────────┐                 │
-│    │ DNSSRV  │    │ INETSRV │    │ VPNCLT  │    │ INETCLT │                 │
-│    │ 8.8.4.1 │    │ 8.8.4.2 │    │ 8.8.4.3 │    │ 8.8.4.4 │                 │
-│    └────┬────┘    └────┬────┘    └────┬────┘    └────┬────┘                 │
-│         └──────────────┴──────────────┴──────────────┘                      │
-└─────────────────────────────────┬───────────────────────────────────────────┘
-                                  │
-                    ┌─────────────┴─────────────┐
-                    │         WANRTR            │
-                    │    VRF INET / VRF MAN     │
-                    │    (Routeur FAI Central)  │
-                    └──────┬──────────┬─────────┘
-           ┌───────────────┘          └───────────────┐
-           │ BGP AS 65430                    OSPF Area 4
-           ▼                                          ▼
-┌──────────────────────────────────┐    ┌──────────────────────────────────┐
-│        🏢 SITE HQ (Siège)        │    │      🏭 SITE REMOTE (WSFR)       │
-│  ┌────────┐        ┌────────┐    │    │         ┌────────┐               │
-│  │ EDGE1  │◄──────►│ EDGE2  │    │    │         │ REMFW  │               │
-│  └───┬────┘ iBGP   └────┬───┘    │    │         └───┬────┘               │
-│      │                  │        │    │             │                    │
-│  ┌───┴────┐        ┌────┴───┐    │    │  ┌─────────┼─────────┐           │
-│  │CORESW1 │◄══════►│CORESW2 │    │    │  │         │         │           │
-│  └───┬────┘ LACP   └────┬───┘    │    │  ▼         ▼         ▼           │
-│      │                  │        │    │ REMDCSRV REMINFRA  REMCLT        │
-│  ┌───┴────┐        ┌────┴───┐    │    └──────────────────────────────────┘
-│  │ACCSW1  │        │ACCSW2  │    │
-│  └───┬────┘        └────┬───┘    │
-│      │                  │        │
-│  ┌───┴──────────────────┴───┐    │
-│  │  VLAN 10: Servers        │    │
-│  │  VLAN 20: Clients        │    │
-│  │  VLAN 30: DMZ            │    │
-│  │  VLAN 99: Management     │    │
-│  └──────────────────────────┘    │
-└──────────────────────────────────┘
+                        ┌─────────────────────────────────────────┐
+                        │         🌐 ZONE INTERNET (8.8.4.0/29)   │
+                        │  DNSSRV   INETSRV   VPNCLT    INETCLT   │
+                        │  8.8.4.1  8.8.4.2   8.8.4.3   8.8.4.4   │
+                        │  Root CA  Web+FTP   VPN Test  Test CLT  │
+                        └────────────────┬────────────────────────┘
+                                         │
+┌────────────────────┐      ┌────────────┴────────────┐      ┌────────────────────┐
+│  🏭 SITE REMOTE    │      │        WANRTR           │      │   🏢 SITE HQ       │
+│     (WSFR)         │      │   ┌───────────────┐     │      │    (WSL2025)       │
+│                    │      │   │ VRF INET      │     │      │                    │
+│  ┌──────────┐      │      │   │ VRF MAN       │     │      │ ┌────────────────┐ │
+│  │  REMFW   │◄─────┼──────┼───│ AS 65430      │─────┼──────┼►│ EDGE1 + EDGE2  │ │
+│  │ 10.116.4.1      │ OSPF │   └───────────────┘     │ BGP+ │ │ (iBGP + HSRP)  │ │
+│  └────┬─────┘      │Area 4│                         │ OSPF │ └───────┬────────┘ │
+│       │            │      └─────────────────────────┘      │  VLAN   │ VLAN     │
+│  ┌────┴────┐       │                                       │  100    │ 200      │
+│  │REMDCSRV │       │                                       │ ┌───────┴───────┐  │
+│  │REMINFRA │       │                                       │ │CORESW1─CORESW2│  │
+│  │ REMCLT  │       │                                       │ │(HSRP + LACP)  │  │
+│  └─────────┘       │                                       │ └───────┬───────┘  │
+│ 10.4.100.0/25      │                                       │         │Trunks    │
+└────────────────────┘                                       │ ┌───────┴───────┐  │
+                                                             │ │ACCSW1 + ACCSW2│  │
+                                                             │ └───────┬───────┘  │
+                                                             │         │          │
+  ┌──────────────────────────────────────────────────────────┼─────────┴─────┐    │
+  │                         VLANS HQ                         │               │    │
+  │  ┌─────────────────┐ ┌──────────────┐ ┌───────────────┐ │┌────────────┐ │    │
+  │  │ VLAN 10 Servers │ │VLAN 20 Client│ │VLAN 99 Mgmt   │ ││VLAN 30 DMZ │ │    │
+  │  │ HQDCSRV  .1     │ │ HQCLT (DHCP) │ │ MGMTCLT .1    │ ││HQFWSRV .1  │ │    │
+  │  │ HQINFRASRV .2   │ │              │ │ (Ansible)     │ ││HQWEBSRV .2 │ │    │
+  │  │ HQMAILSRV .3    │ │              │ │               │ ││(IIS + RDS) │ │    │
+  │  │ DCWSL .4        │ │              │ │               │ │└────────────┘ │    │
+  │  │ (Forest Root)   │ │              │ │               │ │ 217.4.160.0/24│    │
+  │  └─────────────────┘ └──────────────┘ └───────────────┘ └──────────────┘│    │
+  │   10.4.10.0/24        10.4.20.0/23     10.4.99.0/24                     │    │
+  └─────────────────────────────────────────────────────────────────────────┘    │
+└────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Schéma Mermaid Interactif
@@ -198,10 +199,17 @@ graph TD
 
 <p align="center">
   <img src="https://img.shields.io/badge/Cisco_IOS-1BA0D7?style=for-the-badge&logo=cisco&logoColor=white" alt="Cisco"/>
-  <img src="https://img.shields.io/badge/OSPF-Multi_Area-orange?style=for-the-badge" alt="OSPF"/>
-  <img src="https://img.shields.io/badge/BGP-eBGP_/_iBGP-green?style=for-the-badge" alt="BGP"/>
-  <img src="https://img.shields.io/badge/HSRP-Redundancy-red?style=for-the-badge" alt="HSRP"/>
+  <img src="https://img.shields.io/badge/OSPF-Area_4_NSSA-orange?style=for-the-badge" alt="OSPF"/>
+  <img src="https://img.shields.io/badge/BGP-AS_65416_/_65430-green?style=for-the-badge" alt="BGP"/>
+  <img src="https://img.shields.io/badge/HSRP-Active_/_Standby-red?style=for-the-badge" alt="HSRP"/>
   <img src="https://img.shields.io/badge/VRF-INET_/_MAN-purple?style=for-the-badge" alt="VRF"/>
+</p>
+<p align="center">
+  <img src="https://img.shields.io/badge/LACP-Etherchannel-1BA0D7?style=flat-square" alt="LACP"/>
+  <img src="https://img.shields.io/badge/VTP-v2-1BA0D7?style=flat-square" alt="VTP"/>
+  <img src="https://img.shields.io/badge/STP-Rapid--PVST+-1BA0D7?style=flat-square" alt="STP"/>
+  <img src="https://img.shields.io/badge/NAT-PAT_/_Static-1BA0D7?style=flat-square" alt="NAT"/>
+  <img src="https://img.shields.io/badge/ACL-Security-1BA0D7?style=flat-square" alt="ACL"/>
 </p>
 
 ### Stack Systèmes
@@ -209,18 +217,54 @@ graph TD
 <p align="center">
   <img src="https://img.shields.io/badge/Windows_Server-2022-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Windows Server"/>
   <img src="https://img.shields.io/badge/Debian-13_Trixie-A81D33?style=for-the-badge&logo=debian&logoColor=white" alt="Debian"/>
-  <img src="https://img.shields.io/badge/Active_Directory-Domain_Services-0078D4?style=for-the-badge&logo=microsoft&logoColor=white" alt="AD DS"/>
-  <img src="https://img.shields.io/badge/Samba-AD_DC-006600?style=for-the-badge" alt="Samba"/>
+  <img src="https://img.shields.io/badge/Windows-11-0078D6?style=for-the-badge&logo=windows11&logoColor=white" alt="Windows 11"/>
+</p>
+<p align="center">
+  <img src="https://img.shields.io/badge/Active_Directory-Forest_+_Child-0078D4?style=flat-square&logo=microsoft" alt="AD DS"/>
+  <img src="https://img.shields.io/badge/Samba_AD-DC-006600?style=flat-square" alt="Samba"/>
+  <img src="https://img.shields.io/badge/ADCS-PKI_SubCA-0078D4?style=flat-square" alt="ADCS"/>
+  <img src="https://img.shields.io/badge/GPO-Policies-0078D4?style=flat-square" alt="GPO"/>
+  <img src="https://img.shields.io/badge/DFS-Replication-0078D4?style=flat-square" alt="DFS"/>
 </p>
 
 ### Stack Services
 
 <p align="center">
-  <img src="https://img.shields.io/badge/OpenVPN-EA7E20?style=for-the-badge&logo=openvpn&logoColor=white" alt="OpenVPN"/>
-  <img src="https://img.shields.io/badge/Postfix-Mail-blue?style=for-the-badge" alt="Postfix"/>
+  <img src="https://img.shields.io/badge/OpenVPN-VPN-EA7E20?style=for-the-badge&logo=openvpn&logoColor=white" alt="OpenVPN"/>
+  <img src="https://img.shields.io/badge/IIS-Web_Server-5E5E5E?style=for-the-badge&logo=microsoft&logoColor=white" alt="IIS"/>
   <img src="https://img.shields.io/badge/Docker-HA_Web-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker"/>
   <img src="https://img.shields.io/badge/Ansible-Automation-EE0000?style=for-the-badge&logo=ansible&logoColor=white" alt="Ansible"/>
   <img src="https://img.shields.io/badge/nftables-Firewall-4EAA25?style=for-the-badge&logo=linux&logoColor=white" alt="nftables"/>
+</p>
+<p align="center">
+  <img src="https://img.shields.io/badge/Postfix-SMTP-blue?style=flat-square" alt="Postfix"/>
+  <img src="https://img.shields.io/badge/Dovecot-IMAP-blue?style=flat-square" alt="Dovecot"/>
+  <img src="https://img.shields.io/badge/Roundcube-Webmail-blue?style=flat-square" alt="Roundcube"/>
+  <img src="https://img.shields.io/badge/BIND9-DNS-green?style=flat-square" alt="BIND"/>
+  <img src="https://img.shields.io/badge/ISC_DHCP-DHCP-green?style=flat-square" alt="DHCP"/>
+  <img src="https://img.shields.io/badge/DNSSEC-Security-green?style=flat-square" alt="DNSSEC"/>
+</p>
+
+### Stack Stockage
+
+<p align="center">
+  <img src="https://img.shields.io/badge/ZFS-RAID--Z1-FF6600?style=flat-square" alt="ZFS"/>
+  <img src="https://img.shields.io/badge/LVM-Logical_Volumes-FF6600?style=flat-square" alt="LVM"/>
+  <img src="https://img.shields.io/badge/iSCSI-SAN-FF6600?style=flat-square" alt="iSCSI"/>
+  <img src="https://img.shields.io/badge/RAID--5-Windows-FF6600?style=flat-square" alt="RAID-5"/>
+  <img src="https://img.shields.io/badge/Samba-SMB_Shares-006600?style=flat-square" alt="Samba"/>
+  <img src="https://img.shields.io/badge/FTPS-Secure_FTP-006600?style=flat-square" alt="FTPS"/>
+</p>
+
+### Stack Sécurité
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Root_CA-OpenSSL-DC143C?style=flat-square" alt="Root CA"/>
+  <img src="https://img.shields.io/badge/Sub_CA-ADCS-DC143C?style=flat-square" alt="Sub CA"/>
+  <img src="https://img.shields.io/badge/X.509-Certificates-DC143C?style=flat-square" alt="X.509"/>
+  <img src="https://img.shields.io/badge/Fail2Ban-IDS-DC143C?style=flat-square" alt="Fail2Ban"/>
+  <img src="https://img.shields.io/badge/SSHv2-RSA_2048-DC143C?style=flat-square" alt="SSH"/>
+  <img src="https://img.shields.io/badge/MD5-OSPF_Auth-DC143C?style=flat-square" alt="MD5"/>
 </p>
 
 ---
