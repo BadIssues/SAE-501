@@ -1,19 +1,21 @@
-# 🌐 Infrastructure Réseau WSL2025
+# 🌐 Infrastructure Réseau WSL2025 (SAE 501)
 
-[![WorldSkills](https://img.shields.io/badge/WorldSkills-Lyon%202025-blue?style=for-the-badge)](https://worldskills.org)
+[![WorldSkills](https://img.shields.io/badge/Based%20on-WorldSkills%202025-blue?style=for-the-badge)](https://worldskills.org)
+[![Academic Project](https://img.shields.io/badge/Context-BUT3%20R%26T-green?style=for-the-badge)](https://www.iut-bm.univ-fcomte.fr/)
 [![Status](https://img.shields.io/badge/Status-Opérationnel-success?style=for-the-badge)](/)
-[![Network](https://img.shields.io/badge/Network-Cisco%20IOS-orange?style=for-the-badge)](/)
-[![Systems](https://img.shields.io/badge/Systems-Windows%20%7C%20Linux-lightgrey?style=for-the-badge)](/)
 
 ## 📋 Présentation du Projet
 
-Ce dépôt contient l'infrastructure complète pour la compétition **WorldSkills Lyon 2025 - Skill 39 (IT Network Systems Administration)**. L'objectif est de déployer un réseau d'entreprise sécurisé, redondant et performant, reliant un siège social (HQ), un site distant (Remote) et des services Internet.
+Ce projet est réalisé dans le cadre de la **SAE 501 (Situation d'Apprentissage et d'Évaluation)** en 3ème année de **BUT Réseaux & Télécommunications**.
 
-### 🎯 Objectifs Clés
-- **Haute Disponibilité (HA)** : HSRP, Etherchannel, OSPF/BGP, RAID, Failover DHCP.
-- **Sécurité** : Firewalling (ACL/nftables), VPN, DMZ, Port Security, Private VLANs.
-- **Services** : Active Directory, DNS, PKI, Web, Mail, RDS, FTP.
-- **Automatisation** : Ansible pour la gestion des équipements réseau.
+Il s'appuie sur le sujet officiel de la compétition **WorldSkills Lyon 2025 - Skill 39 (IT Network Systems Administration)**, adapté pour les besoins pédagogiques de la formation. L'objectif est de concevoir et déployer une infrastructure réseau complète, sécurisée et redondante, simulant un environnement d'entreprise réel.
+
+### 🎯 Objectifs Pédagogiques
+- **Architecture Réseau** : Conception d'une topologie complexe multi-sites (HQ, Remote, Internet).
+- **Protocoles Avancés** : Mise en œuvre de OSPF, BGP, VRF, HSRP, Etherchannel.
+- **Services Systèmes** : Déploiement de services critiques (AD, DNS, PKI, Web, Mail).
+- **Sécurité** : Segmentation, Firewalling, VPN, Sécurisation des accès.
+- **Automatisation** : Utilisation d'Ansible pour la configuration des équipements.
 
 ---
 
