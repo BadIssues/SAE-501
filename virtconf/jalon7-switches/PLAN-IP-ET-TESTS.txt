@@ -1,0 +1,197 @@
+================================================================
+JALON 7 - SIMULATION SWITCHES VLAN (EVE-NG)
+PLAN D'ADRESSAGE IP ET TESTS DE VALIDATION
+================================================================
+
+TOPOLOGIE:
+----------
+                    +----------+
+                    |  VPC1    | (VLAN 10)
+                    | 10.4.10.1|
+                    +----+-----+
+                         |e0/3
+  +----------+      +----+-----+      +----------+
+  | ACCSW1   +------+ CORESW1  +------+ ACCSW2   |
+  +----+-----+ e0/1 +----+-----+ e0/2 +----+-----+
+       |e0/2             |Po1              |e0/2
+       |            +----+-----+           |
+  +----+-----+      | CORESW2  |      +----+-----+
+  |SWITCHESXI+------+----+-----+------+  VPC2    |
+  +----------+ e0/1      |e0/2        | 10.4.20.1|
+                         |e0/3        +----------+
+                    +----+-----+        (VLAN 20)
+                    |  VPC     |
+                    +----------+
+                     (optionnel)
+
+================================================================
+PLAN D'ADRESSAGE IP
+================================================================
+
+VLAN 10 - Servers:
+------------------
+| Equipement | IP Address     | Gateway      |
+|------------|----------------|--------------|
+| VIP HSRP   | 10.4.10.254    | -            |
+| CORESW1    | 10.4.10.253    | -            |
+| CORESW2    | 10.4.10.252    | -            |
+| VPC1       | 10.4.10.1      | 10.4.10.254  |
+
+VLAN 20 - Clients:
+------------------
+| Equipement | IP Address     | Gateway      |
+|------------|----------------|--------------|
+| VIP HSRP   | 10.4.20.254    | -            |
+| CORESW1    | 10.4.20.253    | -            |
+| CORESW2    | 10.4.20.252    | -            |
+| VPC2       | 10.4.20.1      | 10.4.20.254  |
+
+VLAN 30 - DMZ:
+--------------
+| Equipement | IP Address     | Gateway      |
+|------------|----------------|--------------|
+| VIP HSRP   | 217.4.160.254  | -            |
+| CORESW1    | 217.4.160.253  | -            |
+| CORESW2    | 217.4.160.252  | -            |
+
+VLAN 99 - Management:
+---------------------
+| Equipement | IP Address     | Gateway      |
+|------------|----------------|--------------|
+| VIP HSRP   | 10.4.99.254    | -            |
+| CORESW1    | 10.4.99.253    | -            |
+| CORESW2    | 10.4.99.252    | -            |
+| ACCSW1     | 10.4.99.1      | 10.4.99.254  |
+| ACCSW2     | 10.4.99.2      | 10.4.99.254  |
+| SWITCHESXI | 10.4.99.3      | 10.4.99.254  |
+
+VLAN 666 - Blackhole (Native VLAN):
+-----------------------------------
+Aucune IP - utilise pour les trunks
+
+================================================================
+CONFIGURATION DES VPCs
+================================================================
+
+VPC1 (VLAN 10 - connecte a CORESW1 e0/3):
+-----------------------------------------
+ip 10.4.10.1 255.255.255.0 10.4.10.254
+save
+
+VPC2 (VLAN 20 - connecte a CORESW2 e0/3):
+-----------------------------------------
+ip 10.4.20.1 255.255.255.0 10.4.20.254
+save
+
+================================================================
+TESTS DE VALIDATION - DEPUIS VPC1 (VLAN 10)
+================================================================
+
+# Test gateway HSRP (VIP)
+ping 10.4.10.254
+# Resultat attendu: OK
+
+# Test CORESW1 direct
+ping 10.4.10.253
+# Resultat attendu: OK
+
+# Test CORESW2 direct
+ping 10.4.10.252
+# Resultat attendu: OK
+
+# Test inter-VLAN vers VLAN 20 (VIP)
+ping 10.4.20.254
+# Resultat attendu: OK
+
+# Test inter-VLAN vers VPC2
+ping 10.4.20.1
+# Resultat attendu: OK
+
+# Test inter-VLAN vers VLAN 30
+ping 217.4.160.254
+# Resultat attendu: OK
+
+# Test inter-VLAN vers Management
+ping 10.4.99.254
+# Resultat attendu: OK
+
+================================================================
+TESTS DE VALIDATION - DEPUIS VPC2 (VLAN 20)
+================================================================
+
+# Test gateway HSRP (VIP)
+ping 10.4.20.254
+# Resultat attendu: OK
+
+# Test CORESW1 direct
+ping 10.4.20.253
+# Resultat attendu: OK
+
+# Test CORESW2 direct
+ping 10.4.20.252
+# Resultat attendu: OK
+
+# Test inter-VLAN vers VLAN 10 (VIP)
+ping 10.4.10.254
+# Resultat attendu: OK
+
+# Test inter-VLAN vers VPC1
+ping 10.4.10.1
+# Resultat attendu: OK
+
+# Test inter-VLAN vers VLAN 30
+ping 217.4.160.254
+# Resultat attendu: OK
+
+# Test inter-VLAN vers Management
+ping 10.4.99.254
+# Resultat attendu: OK
+
+================================================================
+VERIFICATIONS SUR LES SWITCHES (COMMANDES)
+================================================================
+
+CORESW1:
+--------
+show vlan brief
+show vtp status
+show interfaces trunk
+show etherchannel summary
+show spanning-tree root
+show standby brief
+show ip interface brief
+
+CORESW2:
+--------
+show vlan brief
+show vtp status
+show interfaces trunk
+show etherchannel summary
+show spanning-tree root
+show standby brief
+show ip interface brief
+
+ACCSW1 / ACCSW2 / SWITCHESXI:
+-----------------------------
+show vlan brief
+show vtp status
+show interfaces trunk
+show port-security
+show errdisable recovery
+ping 10.4.99.253
+ping 10.4.99.252
+
+================================================================
+RESUME DES VLANs
+================================================================
+
+| VLAN | Nom        | Reseau           | VIP           |
+|------|------------|------------------|---------------|
+| 10   | Servers    | 10.4.10.0/24     | 10.4.10.254   |
+| 20   | Clients    | 10.4.20.0/24     | 10.4.20.254   |
+| 30   | DMZ        | 217.4.160.0/24   | 217.4.160.254 |
+| 99   | Management | 10.4.99.0/24     | 10.4.99.254   |
+| 666  | Blackhole  | -                | -             |
+
+================================================================
+

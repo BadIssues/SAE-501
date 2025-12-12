@@ -1,0 +1,263 @@
+================================================================
+JALON 8 - SIMULATION ROUTEURS OSPF/BGP (EVE-NG)
+PLAN D'ADRESSAGE IP ET TESTS DE VALIDATION
+================================================================
+
+TOPOLOGIE:
+----------
+         +--------+
+         |  PC1   | (Internet)
+         | 8.8.4.1|
+         +---+----+
+             |e0/2
+        +----+----+
+        | WANRTR  | AS 65430
+        +----+----+
+         e0/1  e0/0
+           |    |
+     .13/.14    .15/.16
+           |    |
+    +------+    +------+
+    |                  |
++---+----+        +----+---+
+| EDGE1  +---e0/1-+ EDGE2  |
+|AS65416 |  iBGP  |AS65416 |
++---+----+        +----+---+
+    |e0/2              |e0/2
+    |                  |
++---+----+        +----+---+
+|  PC2   |        |  PC3   |
+|10.4.10.1        |10.4.20.1
++--------+        +--------+
+
+================================================================
+PLAN D'ADRESSAGE IP
+================================================================
+
+SEGMENT INTERNET (8.8.4.0/29):
+------------------------------
+| Equipement | Interface | IP Address    |
+|------------|-----------|---------------|
+| WANRTR     | e0/2      | 8.8.4.6       |
+| PC1        | -         | 8.8.4.1       |
+| Gateway    | -         | 8.8.4.6       |
+
+SEGMENT WANRTR-EDGE1 BGP (91.4.222.96/29):
+------------------------------------------
+| Equipement | Interface | IP Address    |
+|------------|-----------|---------------|
+| WANRTR     | e0/1.14   | 91.4.222.98   |
+| EDGE1      | e0/0.14   | 91.4.222.97   |
+
+SEGMENT WANRTR-EDGE1 OSPF (10.4.254.12/30):
+-------------------------------------------
+| Equipement | Interface | IP Address    |
+|------------|-----------|---------------|
+| WANRTR     | e0/1.13   | 10.4.254.14   |
+| EDGE1      | e0/0.13   | 10.4.254.13   |
+
+SEGMENT WANRTR-EDGE2 BGP (31.4.126.12/30):
+------------------------------------------
+| Equipement | Interface | IP Address    |
+|------------|-----------|---------------|
+| WANRTR     | e0/0.16   | 31.4.126.14   |
+| EDGE2      | e0/0.16   | 31.4.126.13   |
+
+SEGMENT WANRTR-EDGE2 OSPF (10.4.254.16/30):
+-------------------------------------------
+| Equipement | Interface | IP Address    |
+|------------|-----------|---------------|
+| WANRTR     | e0/0.15   | 10.4.254.17   |
+| EDGE2      | e0/0.15   | 10.4.254.18   |
+
+SEGMENT EDGE1-EDGE2 iBGP (10.4.254.8/30):
+-----------------------------------------
+| Equipement | Interface | IP Address    |
+|------------|-----------|---------------|
+| EDGE1      | e0/1      | 10.4.254.9    |
+| EDGE2      | e0/1      | 10.4.254.10   |
+
+LAN SERVERS (10.4.10.0/24):
+---------------------------
+| Equipement | Interface | IP Address    |
+|------------|-----------|---------------|
+| EDGE1      | e0/2      | 10.4.10.254   |
+| PC2        | -         | 10.4.10.1     |
+
+LAN CLIENTS (10.4.20.0/24):
+---------------------------
+| Equipement | Interface | IP Address    |
+|------------|-----------|---------------|
+| EDGE2      | e0/2      | 10.4.20.254   |
+| PC3        | -         | 10.4.20.1     |
+
+PROVIDER INDEPENDENT IP (191.4.157.32/28):
+------------------------------------------
+| Equipement | Interface | IP Address    |
+|------------|-----------|---------------|
+| EDGE1      | Loopback0 | 191.4.157.33  |
+| EDGE2      | Loopback0 | 191.4.157.34  |
+
+================================================================
+CONFIGURATION DES VPCs
+================================================================
+
+PC1 (Internet - connecte a WANRTR e0/2):
+----------------------------------------
+ip 8.8.4.1 255.255.255.248 8.8.4.6
+save
+
+PC2 (LAN Servers - connecte a EDGE1 e0/2):
+------------------------------------------
+ip 10.4.10.1 255.255.255.0 10.4.10.254
+save
+
+PC3 (LAN Clients - connecte a EDGE2 e0/2):
+------------------------------------------
+ip 10.4.20.1 255.255.255.0 10.4.20.254
+save
+
+================================================================
+TESTS DE VALIDATION - DEPUIS PC1 (Internet 8.8.4.1)
+================================================================
+
+# Test gateway WANRTR
+ping 8.8.4.6
+# Resultat attendu: OK
+
+# Test interface BGP EDGE1
+ping 91.4.222.97
+# Resultat attendu: OK
+
+# Test interface BGP EDGE2
+ping 31.4.126.13
+# Resultat attendu: OK
+
+# Test Loopback EDGE1
+ping 191.4.157.33
+# Resultat attendu: OK
+
+# Test Loopback EDGE2
+ping 191.4.157.34
+# Resultat attendu: OK
+
+================================================================
+TESTS DE VALIDATION - DEPUIS PC2 (LAN 10.4.10.1)
+================================================================
+
+# Test gateway EDGE1
+ping 10.4.10.254
+# Resultat attendu: OK
+
+# Test interface OSPF EDGE1
+ping 10.4.254.13
+# Resultat attendu: OK
+
+# Test interface WANRTR
+ping 10.4.254.14
+# Resultat attendu: OK
+
+# Test gateway EDGE2 (via iBGP)
+ping 10.4.20.254
+# Resultat attendu: OK
+
+# Test PC3 inter-LAN
+ping 10.4.20.1
+# Resultat attendu: OK
+
+# Test Internet via NAT
+ping 8.8.4.1
+# Resultat attendu: OK
+
+================================================================
+TESTS DE VALIDATION - DEPUIS PC3 (LAN 10.4.20.1)
+================================================================
+
+# Test gateway EDGE2
+ping 10.4.20.254
+# Resultat attendu: OK
+
+# Test interface OSPF EDGE2
+ping 10.4.254.18
+# Resultat attendu: OK
+
+# Test interface WANRTR
+ping 10.4.254.17
+# Resultat attendu: OK
+
+# Test gateway EDGE1 (via iBGP)
+ping 10.4.10.254
+# Resultat attendu: OK
+
+# Test PC2 inter-LAN
+ping 10.4.10.1
+# Resultat attendu: OK
+
+# Test Internet via NAT
+ping 8.8.4.1
+# Resultat attendu: OK
+
+================================================================
+VERIFICATIONS SUR LES ROUTEURS
+================================================================
+
+WANRTR:
+-------
+show ip interface brief
+show ip ospf neighbor
+show ip ospf database
+show ip bgp summary
+show ip bgp
+show ip route
+show ip route ospf
+show ip route bgp
+
+EDGE1:
+------
+show ip interface brief
+show ip ospf neighbor
+show ip ospf database
+show ip bgp summary
+show ip bgp
+show ip bgp 8.8.4.0
+show ip route
+show ip nat translations
+show ip nat statistics
+
+EDGE2:
+------
+show ip interface brief
+show ip ospf neighbor
+show ip ospf database
+show ip bgp summary
+show ip bgp
+show ip route
+show ip nat translations
+show ip nat statistics
+
+================================================================
+RESUME DES PROTOCOLES
+================================================================
+
+OSPF:
+- Area 4 NSSA
+- Authentification MD5 (P@ssw0rd)
+- WANRTR: cost 10 vers EDGE1, cost 20 vers EDGE2
+- Network type: point-to-point
+
+BGP:
+- AS 65430: WANRTR (provider)
+- AS 65416: EDGE1 + EDGE2 (entreprise)
+- eBGP: WANRTR <-> EDGE1, WANRTR <-> EDGE2
+- iBGP: EDGE1 <-> EDGE2 (next-hop-self)
+
+Preference EDGE1:
+- EDGE1: route-map SET-LOCAL-PREF (local-pref 200)
+- EDGE2: route-map PREPEND-OUT (as-path prepend 65416 65416)
+
+NAT:
+- EDGE1: PAT sur e0/0.14 pour 10.4.0.0/16
+- EDGE2: PAT sur e0/0.16 pour 10.4.0.0/16
+
+================================================================
+

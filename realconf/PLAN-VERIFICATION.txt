@@ -1,0 +1,634 @@
+================================================================================
+                    PLAN DE VERIFICATION - SAE501 (N=4)
+                      WorldSkills Lyon 2025 - wsl2025.org
+================================================================================
+
+Ce document contient toutes les commandes pour vérifier le bon fonctionnement
+de l'infrastructure réseau. Exécutez-les dans l'ordre sur chaque équipement.
+
+================================================================================
+                         1. VERIFICATION CORESW1
+================================================================================
+
+--- Vérifier que les VLANs sont bien créés et propagés par VTP ---
+show vlan brief
+
+--- Vérifier le statut VTP (doit être Server, domain wsl2025.org) ---
+show vtp status
+
+--- Vérifier que le Port-Channel LACP est UP avec les 2 interfaces ---
+show etherchannel summary
+
+--- Vérifier les interfaces trunk et les VLANs autorisés ---
+show interfaces trunk
+
+--- Vérifier que toutes les interfaces sont UP ---
+show ip interface brief
+
+--- Vérifier la configuration Spanning-Tree (CORESW1 doit être Root) ---
+show spanning-tree summary
+show spanning-tree root
+
+--- Vérifier le statut HSRP (doit être Active sur tous les groupes) ---
+show standby brief
+
+--- Vérifier le tracking d'interface ---
+show track 10
+
+--- Vérifier la table de routage ---
+show ip route
+
+--- Vérifier la connectivité vers EDGE1 ---
+ping 10.4.254.1
+
+--- Vérifier la connectivité vers CORESW2 via HSRP ---
+ping 10.4.10.252
+ping 10.4.20.252
+ping 10.4.99.252
+
+================================================================================
+                         2. VERIFICATION CORESW2
+================================================================================
+
+--- Vérifier que les VLANs sont bien créés et propagés par VTP ---
+show vlan brief
+
+--- Vérifier le statut VTP (doit être Server, domain wsl2025.org) ---
+show vtp status
+
+--- Vérifier que le Port-Channel LACP est UP avec les 2 interfaces ---
+show etherchannel summary
+
+--- Vérifier les interfaces trunk et les VLANs autorisés ---
+show interfaces trunk
+
+--- Vérifier que toutes les interfaces sont UP ---
+show ip interface brief
+
+--- Vérifier la configuration Spanning-Tree (CORESW2 doit être Backup Root) ---
+show spanning-tree summary
+show spanning-tree root
+
+--- Vérifier le statut HSRP (doit être Standby sur tous les groupes) ---
+show standby brief
+
+--- Vérifier le tracking d'interface ---
+show track 20
+
+--- Vérifier la table de routage ---
+show ip route
+
+--- Vérifier la connectivité vers EDGE2 ---
+ping 10.4.254.5
+
+--- Vérifier la connectivité vers CORESW1 via HSRP ---
+ping 10.4.10.253
+ping 10.4.20.253
+ping 10.4.99.253
+
+================================================================================
+                         3. VERIFICATION ACCSW1
+================================================================================
+
+--- Vérifier que les VLANs ont été reçus par VTP ---
+show vlan brief
+
+--- Vérifier le statut VTP (doit être Client) ---
+show vtp status
+
+--- Vérifier les interfaces trunk vers les Core Switches ---
+show interfaces trunk
+
+--- Vérifier que toutes les interfaces sont UP ---
+show ip interface brief
+
+--- Vérifier la configuration Port-Security ---
+show port-security
+
+--- Vérifier les erreurs errdisable ---
+show errdisable recovery
+
+--- Vérifier la connectivité vers la gateway HSRP ---
+ping 10.4.99.254
+
+--- Vérifier la connectivité vers les deux Core Switches ---
+ping 10.4.99.253
+ping 10.4.99.252
+
+================================================================================
+                         4. VERIFICATION ACCSW2
+================================================================================
+
+--- Vérifier que les VLANs ont été reçus par VTP ---
+show vlan brief
+
+--- Vérifier le statut VTP (doit être Client) ---
+show vtp status
+
+--- Vérifier les interfaces trunk vers les Core Switches ---
+show interfaces trunk
+
+--- Vérifier que toutes les interfaces sont UP ---
+show ip interface brief
+
+--- Vérifier la configuration Port-Security ---
+show port-security
+
+--- Vérifier les erreurs errdisable ---
+show errdisable recovery
+
+--- Vérifier la connectivité vers la gateway HSRP ---
+ping 10.4.99.254
+
+--- Vérifier la connectivité vers les deux Core Switches ---
+ping 10.4.99.253
+ping 10.4.99.252
+
+================================================================================
+                         5. VERIFICATION EDGE1
+================================================================================
+
+--- Vérifier que toutes les interfaces sont UP ---
+show ip interface brief
+
+--- Vérifier les sous-interfaces et leur encapsulation ---
+show interfaces description
+
+--- Vérifier la configuration NAT ---
+show ip nat translations
+show ip nat statistics
+
+--- Vérifier le statut HSRP sur le VLAN 30 (doit être Active) ---
+show standby brief
+
+--- Vérifier le tracking d'interface ---
+show track 10
+
+--- Vérifier les voisins OSPF (doit voir WANRTR) ---
+show ip ospf neighbor
+
+--- Vérifier la base de données OSPF ---
+show ip ospf database
+
+--- Vérifier les voisins BGP (doit voir EDGE2 et WANRTR) ---
+show ip bgp summary
+
+--- Vérifier la table BGP ---
+show ip bgp
+
+--- Vérifier les routes apprises par BGP ---
+show ip route bgp
+
+--- Vérifier la table de routage complète ---
+show ip route
+
+--- Vérifier la connectivité vers WANRTR (VRF MAN) ---
+ping 10.4.254.14
+
+--- Vérifier la connectivité vers WANRTR (VRF INET) ---
+ping 91.4.222.98
+
+--- Vérifier la connectivité vers EDGE2 (iBGP) ---
+ping 10.4.254.10
+
+--- Vérifier la connectivité vers CORESW1 ---
+ping 10.4.254.2
+
+--- Vérifier la connectivité vers le LAN (via CORESW1) ---
+ping 10.4.10.254
+ping 10.4.20.254
+
+================================================================================
+                         6. VERIFICATION EDGE2
+================================================================================
+
+--- Vérifier que toutes les interfaces sont UP ---
+show ip interface brief
+
+--- Vérifier les sous-interfaces et leur encapsulation ---
+show interfaces description
+
+--- Vérifier la configuration NAT ---
+show ip nat translations
+show ip nat statistics
+
+--- Vérifier le statut HSRP sur le VLAN 30 (doit être Standby) ---
+show standby brief
+
+--- Vérifier le tracking d'interface ---
+show track 20
+
+--- Vérifier les voisins OSPF (doit voir WANRTR) ---
+show ip ospf neighbor
+
+--- Vérifier la base de données OSPF ---
+show ip ospf database
+
+--- Vérifier les voisins BGP (doit voir EDGE1 et WANRTR) ---
+show ip bgp summary
+
+--- Vérifier la table BGP ---
+show ip bgp
+
+--- Vérifier les routes apprises par BGP ---
+show ip route bgp
+
+--- Vérifier la table de routage complète ---
+show ip route
+
+--- Vérifier la connectivité vers WANRTR (VRF MAN) ---
+ping 10.4.254.17
+
+--- Vérifier la connectivité vers WANRTR (VRF INET) ---
+ping 31.4.126.14
+
+--- Vérifier la connectivité vers EDGE1 (iBGP) ---
+ping 10.4.254.9
+
+--- Vérifier la connectivité vers CORESW2 ---
+ping 10.4.254.6
+
+--- Vérifier la connectivité vers le LAN (via CORESW2) ---
+ping 10.4.10.254
+ping 10.4.20.254
+
+================================================================================
+                         7. VERIFICATION WANRTR
+================================================================================
+
+--- Vérifier que toutes les interfaces sont UP ---
+show ip interface brief
+
+--- Vérifier les VRF configurées ---
+show vrf
+
+--- Vérifier les interfaces par VRF ---
+show ip vrf interfaces
+
+--- Vérifier les sous-interfaces et leur encapsulation ---
+show interfaces description
+
+--- Vérifier les voisins OSPF dans VRF MAN ---
+show ip ospf vrf MAN neighbor
+
+--- Vérifier la base de données OSPF dans VRF MAN ---
+show ip ospf vrf MAN database
+
+--- Vérifier les routes OSPF dans VRF MAN ---
+show ip route vrf MAN ospf
+
+--- Vérifier les voisins BGP dans VRF INET ---
+show ip bgp vpnv4 vrf INET summary
+
+--- Vérifier la table BGP dans VRF INET ---
+show ip bgp vpnv4 vrf INET
+
+--- Vérifier la table de routage VRF MAN ---
+show ip route vrf MAN
+
+--- Vérifier la table de routage VRF INET ---
+show ip route vrf INET
+
+--- Vérifier la connectivité vers EDGE1 (VRF MAN) ---
+ping vrf MAN 10.4.254.13
+
+--- Vérifier la connectivité vers EDGE2 (VRF MAN) ---
+ping vrf MAN 10.4.254.18
+
+--- Vérifier la connectivité vers REMFW (VRF MAN) ---
+ping vrf MAN 10.116.4.1
+
+--- Vérifier la connectivité vers EDGE1 (VRF INET) ---
+ping vrf INET 91.4.222.97
+
+--- Vérifier la connectivité vers EDGE2 (VRF INET) ---
+ping vrf INET 31.4.126.13
+
+--- Vérifier l'Event Manager (récupération automatique interface) ---
+show event manager policy registered
+
+================================================================================
+                         8. VERIFICATION REMFW
+================================================================================
+
+--- Vérifier que toutes les interfaces sont UP ---
+show ip interface brief
+
+--- Vérifier les voisins OSPF (doit voir WANRTR) ---
+show ip ospf neighbor
+
+--- Vérifier la base de données OSPF ---
+show ip ospf database
+
+--- Vérifier les routes OSPF ---
+show ip route ospf
+
+--- Vérifier la table de routage complète ---
+show ip route
+
+--- Vérifier les ACL appliquées ---
+show ip access-lists
+
+--- Vérifier les statistiques des ACL ---
+show access-lists FIREWALL-INBOUND
+
+--- Vérifier la connectivité vers WANRTR ---
+ping 10.116.4.2
+
+--- Vérifier la connectivité vers le site HQ (via OSPF) ---
+ping 10.4.10.254
+ping 10.4.20.254
+ping 10.4.99.254
+
+--- Vérifier la connectivité vers Internet (via route par défaut) ---
+ping 8.8.4.6
+
+================================================================================
+                    9. TESTS DE CONNECTIVITE END-TO-END
+================================================================================
+
+=== Depuis un client HQ (VLAN 20) ===
+
+--- Vérifier l'obtention d'une IP DHCP ---
+ipconfig /all (Windows)
+ip addr show (Linux)
+
+--- Vérifier la gateway par défaut (doit être 10.4.20.254) ---
+route print (Windows)
+ip route (Linux)
+
+--- Ping vers la gateway ---
+ping 10.4.20.254
+
+--- Ping vers les serveurs (VLAN 10) ---
+ping 10.4.10.1
+ping 10.4.10.2
+ping 10.4.10.3
+
+--- Ping vers le site distant ---
+ping 10.4.100.126
+
+--- Ping vers Internet ---
+ping 8.8.4.1
+
+--- Test DNS (si configuré) ---
+nslookup www.wsl2025.org
+nslookup www.worldskills.org
+
+--- Test Web (si serveur configuré) ---
+curl http://www.wsl2025.org
+curl https://webmail.wsl2025.org
+
+=== Depuis un client Remote (VLAN 100) ===
+
+--- Vérifier l'obtention d'une IP DHCP ---
+ipconfig /all (Windows)
+ip addr show (Linux)
+
+--- Ping vers la gateway ---
+ping 10.4.100.126
+
+--- Ping vers le site HQ ---
+ping 10.4.10.254
+ping 10.4.20.254
+
+--- Ping vers Internet ---
+ping 8.8.4.1
+
+=== Depuis Internet (VPNCLT/INETCLT) ===
+
+--- Ping vers les IP publiques ---
+ping 217.4.160.254
+ping 191.4.157.33
+
+--- Test accès Web DMZ ---
+curl http://217.4.160.1
+curl https://www.wsl2025.org
+
+--- Test accès Webmail ---
+curl https://webmail.wsl2025.org
+
+--- Test accès VPN (port 4443) ---
+nc -zv 191.4.157.33 4443
+
+================================================================================
+                    10. TESTS DE REDONDANCE / FAILOVER
+================================================================================
+
+=== Test Failover HSRP sur les Core Switches ===
+
+1. Depuis un client, faire un ping continu vers 10.4.20.254
+   ping -t 10.4.20.254 (Windows)
+   ping 10.4.20.254 (Linux)
+
+2. Sur CORESW1, désactiver l'interface vers EDGE1:
+   conf t
+   interface Vlan100
+   shutdown
+   end
+
+3. Vérifier que le ping continue (CORESW2 prend le relais)
+
+4. Sur CORESW1, vérifier que HSRP est passé en Standby:
+   show standby brief
+
+5. Réactiver l'interface:
+   conf t
+   interface Vlan100
+   no shutdown
+   end
+
+6. Vérifier que CORESW1 redevient Active (preempt):
+   show standby brief
+
+=== Test Failover HSRP sur les Edge Routers ===
+
+1. Depuis Internet, faire un ping continu vers 217.4.160.254
+   ping -t 217.4.160.254
+
+2. Sur EDGE1, désactiver l'interface vers CORESW1:
+   conf t
+   interface GigabitEthernet0/1
+   shutdown
+   end
+
+3. Vérifier que le ping continue (EDGE2 prend le relais)
+
+4. Réactiver l'interface:
+   conf t
+   interface GigabitEthernet0/1
+   no shutdown
+   end
+
+=== Test Failover BGP ===
+
+1. Depuis un client HQ, faire un traceroute vers Internet:
+   tracert 8.8.4.1 (Windows)
+   traceroute 8.8.4.1 (Linux)
+   (doit passer par EDGE1 - 91.4.222.97)
+
+2. Sur EDGE1, désactiver le peering BGP vers WANRTR:
+   conf t
+   router bgp 65416
+   neighbor 91.4.222.98 shutdown
+   end
+
+3. Attendre la convergence BGP (~30-60 secondes)
+
+4. Refaire le traceroute:
+   (doit maintenant passer par EDGE2 - 31.4.126.13)
+
+5. Réactiver le peering:
+   conf t
+   router bgp 65416
+   no neighbor 91.4.222.98 shutdown
+   end
+
+=== Test Failover OSPF ===
+
+1. Sur REMFW, vérifier la route vers HQ:
+   show ip route 10.4.0.0
+
+2. Sur WANRTR, augmenter le coût OSPF vers EDGE1:
+   conf t
+   interface GigabitEthernet0/0.13
+   ip ospf cost 100
+   end
+
+3. Sur REMFW, vérifier que la route passe maintenant par EDGE2:
+   show ip route 10.4.0.0
+
+4. Remettre le coût normal:
+   conf t
+   interface GigabitEthernet0/0.13
+   ip ospf cost 10
+   end
+
+=== Test Failover LACP ===
+
+1. Sur CORESW1, vérifier le Port-Channel:
+   show etherchannel summary
+
+2. Désactiver une des interfaces du LACP:
+   conf t
+   interface FastEthernet1/0/4
+   shutdown
+   end
+
+3. Vérifier que le Port-Channel est toujours UP:
+   show etherchannel summary
+
+4. Réactiver l'interface:
+   conf t
+   interface FastEthernet1/0/4
+   no shutdown
+   end
+
+================================================================================
+                    11. VERIFICATION SECURITE
+================================================================================
+
+=== Vérifier l'accès SSH ===
+
+--- Depuis le VLAN Management (doit fonctionner) ---
+ssh admin@10.4.99.253
+ssh admin@10.4.99.252
+ssh admin@10.4.254.1
+ssh admin@10.4.254.5
+
+--- Depuis un autre VLAN (doit être refusé) ---
+ssh admin@10.4.99.253 (depuis 10.4.10.x ou 10.4.20.x)
+
+=== Vérifier Port-Security ===
+
+--- Sur ACCSW1/ACCSW2, vérifier les adresses MAC apprises ---
+show port-security address
+
+--- Tester la violation (brancher plus de 3 devices sur un port) ---
+show port-security interface Gi1/0/3
+
+=== Vérifier les mots de passe chiffrés ===
+
+--- Sur chaque équipement ---
+show running-config | include secret
+(les mots de passe doivent être chiffrés, pas en clair)
+
+=== Vérifier le banner de connexion ===
+
+--- Se déconnecter et se reconnecter ---
+(le message "/!\ Restricted access..." doit s'afficher)
+
+================================================================================
+                    12. COMMANDES DE DEPANNAGE
+================================================================================
+
+=== Si OSPF ne fonctionne pas ===
+
+show ip ospf interface
+show ip ospf neighbor
+debug ip ospf events
+debug ip ospf adj
+
+=== Si BGP ne fonctionne pas ===
+
+show ip bgp summary
+show ip bgp neighbors
+debug ip bgp events
+debug ip bgp updates
+
+=== Si HSRP ne fonctionne pas ===
+
+show standby
+debug standby events
+debug standby packets
+
+=== Si NAT ne fonctionne pas ===
+
+show ip nat translations
+show ip nat statistics
+debug ip nat
+
+=== Si VTP ne fonctionne pas ===
+
+show vtp status
+show vtp password
+debug sw-vlan vtp events
+
+=== Si LACP ne fonctionne pas ===
+
+show etherchannel summary
+show lacp neighbor
+debug lacp all
+
+=== Vérifier les logs ===
+
+show logging
+show logging last 50
+
+================================================================================
+                         CHECKLIST FINALE
+================================================================================
+
+[ ] Tous les VLANs sont créés et propagés (10, 20, 30, 99, 100, 200, 300, 666)
+[ ] VTP fonctionne (Server sur CORESW1/2, Client sur ACCSW1/2)
+[ ] LACP fonctionne entre CORESW1 et CORESW2 (Port-channel1)
+[ ] Spanning-Tree : CORESW1 est Root (priority 4096), CORESW2 est Backup (8192)
+[ ] HSRP fonctionne sur VLANs 10, 20, 99 (CORESW1 Active)
+[ ] HSRP fonctionne sur VLAN 30/DMZ (EDGE1 Active)
+[ ] OSPF Area 4 NSSA : adjacences établies (WANRTR, EDGE1, EDGE2, REMFW)
+[ ] BGP AS 65416 : peering iBGP EDGE1-EDGE2 établi
+[ ] BGP AS 65416-65430 : peering eBGP établi avec WANRTR
+[ ] NAT/PAT fonctionne sur EDGE1 et EDGE2
+[ ] NAT statique VPN (191.4.157.33:4443 -> 10.4.10.2:443)
+[ ] NAT statique Webmail (191.4.157.33:80/443 -> 10.4.10.3:80/443)
+[ ] Connectivité HQ -> Remote Site OK
+[ ] Connectivité HQ -> Internet OK
+[ ] Connectivité Remote -> Internet OK
+[ ] Connectivité Internet -> DMZ (217.4.160.x) OK
+[ ] Failover HSRP testé et fonctionnel
+[ ] Failover BGP testé et fonctionnel
+[ ] Accès SSH uniquement depuis VLAN 99
+[ ] Port-Security configuré sur les ports d'accès (max 3 MAC)
+[ ] Banner de connexion affiché
+
+================================================================================

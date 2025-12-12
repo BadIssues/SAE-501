@@ -1,0 +1,91 @@
+================================================================================
+              CONFIGURATION DES VPCs - JALON 7 SWITCHES
+================================================================================
+
+VPC (connecté à CORESW1 e0/3 - VLAN 10)
+----------------------------------------
+ip 10.4.10.1 255.255.255.0 10.4.10.254
+save
+
+Node7 (connecté à SWITCHESXI e0/2 - VLAN 20)
+---------------------------------------------
+ip 10.4.20.1 255.255.255.0 10.4.20.254
+save
+
+================================================================================
+                    TESTS DE PING À EFFECTUER
+================================================================================
+
+Depuis VPC (10.4.10.1 - VLAN 10) :
+  ping 10.4.10.254    # VIP HSRP VLAN 10 (doit répondre)
+  ping 10.4.10.253    # CORESW1 VLAN 10
+  ping 10.4.10.252    # CORESW2 VLAN 10
+  ping 10.4.20.1      # Node7 (inter-VLAN via HSRP)
+  ping 10.4.20.254    # VIP HSRP VLAN 20
+
+Depuis Node7 (10.4.20.1 - VLAN 20) :
+  ping 10.4.20.254    # VIP HSRP VLAN 20 (doit répondre)
+  ping 10.4.20.253    # CORESW1 VLAN 20
+  ping 10.4.20.252    # CORESW2 VLAN 20
+  ping 10.4.10.1      # VPC (inter-VLAN via HSRP)
+  ping 10.4.10.254    # VIP HSRP VLAN 10
+
+================================================================================
+                    COMMANDES DE VÉRIFICATION
+================================================================================
+
+Sur CORESW1 et CORESW2 :
+  show vlan brief              # VLANs créés
+  show vtp status              # VTP Server, domaine wsl2025.org
+  show interfaces trunk        # Trunks actifs
+  show etherchannel summary    # LACP Po1 (SU) avec 2 ports (P)
+  show spanning-tree root      # CORESW1 = Root (priority 4096)
+  show standby brief           # HSRP Active/Standby
+  show port-security           # Port-security configuré
+
+Sur ACCSW1, ACCSW2, SWITCHESXI :
+  show vlan brief             
+  show vtp status             
+  show interfaces trunk
+  show errdisable recovery     # Auto-recovery 30s       
+
+================================================================================
+                    TOPOLOGIE
+================================================================================
+
+                    +-------+
+                    |  VPC  | 10.4.10.1/24 (VLAN 10)
+                    +---+---+
+                        |eth0
+                        |
+                   e0/3 |
+              +---------+---------+
+              |      CORESW1      | (VTP Server, STP Root)
+              +---------+---------+
+              e0/0|  e0/1|  e0/2|
+                  |      |      |
+              e0/0|  e0/0|  e0/2|
+              +---------+---------+
+              |      CORESW2      | (VTP Server, STP Secondary)
+              +---------+---------+
+                   e0/1|  e0/2|
+                       |      |
+                   e0/1|  e0/2|       e0/0    e0/0
+              +--------+      +------+    +------+
+              |                      |    |      |
+          +---+----+  e0/1    e0/0  +----+---+
+          | ACCSW1 +----------------+ ACCSW2 |
+          +---+----+                +----+---+
+              |e0/3                      |e0/3
+              |                          |
+          e0/0|                          |e0/1
+          +---+-------------+------------+---+
+          |            SWITCHESXI            |
+          +---------------+------------------+
+                          |e0/2
+                          |
+                      +---+---+
+                      | Node7 | 10.4.20.1/24 (VLAN 20)
+                      +-------+
+
+================================================================================

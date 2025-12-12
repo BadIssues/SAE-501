@@ -1,0 +1,94 @@
+conf t
+!
+hostname ACCSW1
+!
+enable secret P@ssw0rd
+username admin privilege 15 secret P@ssw0rd
+!
+no ip domain-lookup
+!
+spanning-tree mode rapid-pvst
+spanning-tree portfast bpduguard default
+!
+errdisable recovery cause psecure-violation
+errdisable recovery cause bpduguard
+errdisable recovery interval 30
+!
+vtp version 2
+vtp domain wsl2025.org
+vtp mode client
+vtp password P@ssw0rd
+!
+! ============================================
+! JALON 7 - MAPPING INTERFACES EVE-NG
+! ============================================
+! e0/0 -> CORESW1 e0/1 (trunk)
+! e0/1 -> ACCSW2 e0/0 (trunk inter-access)
+! e0/2 -> CORESW2 e0/2 (trunk croise)
+! e0/3 -> SWITCHESXI e0/0 (trunk)
+! ============================================
+!
+interface Ethernet0/0
+description TRUNK-TO-CORESW1-e0/1
+switchport trunk encapsulation dot1q
+switchport trunk native vlan 666
+switchport trunk allowed vlan 10,20,30,99
+switchport mode trunk
+switchport nonegotiate
+spanning-tree bpduguard disable
+no shutdown
+exit
+!
+interface Ethernet0/1
+description TRUNK-TO-ACCSW2-e0/0
+switchport trunk encapsulation dot1q
+switchport trunk native vlan 666
+switchport trunk allowed vlan 10,20,30,99
+switchport mode trunk
+switchport nonegotiate
+spanning-tree bpduguard disable
+no shutdown
+exit
+!
+interface Ethernet0/2
+description TRUNK-TO-CORESW2-e0/2
+switchport trunk encapsulation dot1q
+switchport trunk native vlan 666
+switchport trunk allowed vlan 10,20,30,99
+switchport mode trunk
+switchport nonegotiate
+spanning-tree bpduguard disable
+no shutdown
+exit
+!
+interface Ethernet0/3
+description TRUNK-TO-SWITCHESXI-e0/0
+switchport trunk encapsulation dot1q
+switchport trunk native vlan 666
+switchport trunk allowed vlan 10,20,30,99
+switchport mode trunk
+switchport nonegotiate
+spanning-tree bpduguard disable
+no shutdown
+exit
+!
+interface Vlan99
+description VLAN99-MGMT
+ip address 10.4.99.11 255.255.255.0
+no shutdown
+exit
+!
+ip default-gateway 10.4.99.254
+!
+line con 0
+logging synchronous
+exit
+!
+line vty 0 4
+exec-timeout 5 0
+login local
+transport input telnet ssh
+exit
+!
+end
+write memory

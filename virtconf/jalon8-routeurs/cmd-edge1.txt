@@ -1,0 +1,117 @@
+conf t
+!
+hostname EDGE1
+!
+enable secret P@ssw0rd
+username admin privilege 15 secret P@ssw0rd
+!
+no ip domain-lookup
+!
+! ============================================
+! JALON 8 - LAB ROUTEURS OSPF/BGP
+! ============================================
+! e0/0 -> WANRTR e0/1 (sous-interfaces .13 et .14)
+! e0/1 -> EDGE2 e0/1 (lien direct iBGP)
+! e0/2 -> PC2 (simule LAN 10.4.10.0/24)
+! ============================================
+!
+interface Loopback0
+description Provider-Independent-IP
+ip address 191.4.157.33 255.255.255.240
+no shutdown
+exit
+!
+interface Ethernet0/0
+description TO-WANRTR-e0/1
+no ip address
+no shutdown
+exit
+!
+interface Ethernet0/0.13
+description LINK-TO-WANRTR-OSPF
+encapsulation dot1Q 13
+ip address 10.4.254.13 255.255.255.252
+ip ospf authentication message-digest
+ip ospf message-digest-key 1 md5 P@ssw0rd
+ip ospf network point-to-point
+exit
+!
+interface Ethernet0/0.14
+description LINK-TO-WANRTR-BGP
+encapsulation dot1Q 14
+ip address 91.4.222.97 255.255.255.248
+ip nat outside
+exit
+!
+interface Ethernet0/1
+description LIEN-DIRECT-VERS-EDGE2-iBGP
+ip address 10.4.254.9 255.255.255.252
+no shutdown
+exit
+!
+interface Ethernet0/2
+description TO-PC2-LAN-SERVERS
+ip address 10.4.10.254 255.255.255.0
+ip nat inside
+no shutdown
+exit
+!
+interface Ethernet0/3
+description UNUSED
+no ip address
+shutdown
+exit
+!
+router ospf 1
+router-id 10.4.254.13
+area 4 nssa no-summary
+passive-interface default
+no passive-interface Ethernet0/0.13
+network 10.4.254.12 0.0.0.3 area 4
+network 10.4.10.0 0.0.0.255 area 4
+redistribute static subnets
+exit
+!
+router bgp 65416
+bgp router-id 10.4.254.13
+bgp log-neighbor-changes
+neighbor 10.4.254.10 remote-as 65416
+neighbor 10.4.254.10 description iBGP-TO-EDGE2
+neighbor 10.4.254.10 update-source Ethernet0/1
+neighbor 91.4.222.98 remote-as 65430
+neighbor 91.4.222.98 description eBGP-TO-WANRTR
+address-family ipv4
+network 191.4.157.32 mask 255.255.255.240
+network 10.4.10.0 mask 255.255.255.0
+neighbor 10.4.254.10 activate
+neighbor 10.4.254.10 next-hop-self
+neighbor 91.4.222.98 activate
+neighbor 91.4.222.98 route-map SET-LOCAL-PREF in
+exit-address-family
+exit
+!
+ip access-list extended NAT-ACL
+permit ip 10.4.0.0 0.0.255.255 any
+exit
+!
+ip nat inside source list NAT-ACL interface Ethernet0/0.14 overload
+!
+ip route 191.4.157.32 255.255.255.240 Null0
+ip route 10.4.20.0 255.255.255.0 10.4.254.10
+!
+route-map SET-LOCAL-PREF permit 10
+set local-preference 200
+exit
+!
+line con 0
+logging synchronous
+exit
+!
+line vty 0 4
+exec-timeout 5 0
+login local
+transport input telnet ssh
+exit
+!
+end
+write memory

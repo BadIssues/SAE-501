@@ -1,0 +1,560 @@
+================================================================================
+         PLAN DE RENDU DES JALONS - CŒUR DE RÉSEAU
+         SAE501 - WorldSkills Lyon 2025 (N=4)
+================================================================================
+
+Ce document détaille EXACTEMENT ce qu'il faut faire pour chaque jalon,
+avec les captures d'écran, vidéos et fichiers à rendre.
+
+================================================================================
+                    JALONS CŒUR DE RÉSEAU (par ordre de rendu)
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  JALON 5 - Plan d'adressage IP complet + DNS                                │
+│  À rendre : lundi 8 décembre 18h00                                          │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+📁 FICHIERS À RENDRE :
+----------------------
+1. PLAN-ADRESSAGE-IP.pdf (ou .xlsx)
+   - Tableau des VLANs (10, 20, 30, 99, 100, 200, 300, 666)
+   - IPs de tous les équipements
+   - Plages DHCP
+   - VIPs HSRP
+   - Réseaux de liaison (VLAN 13, 14, 15, 16)
+
+2. PLAN-DNS.pdf
+   - Zones DNS (wsl2025.org, hq.wsl2025.org, rem.wsl2025.org)
+   - Enregistrements A et CNAME
+
+📸 PAS DE CAPTURES D'ÉCRAN (c'est de la documentation)
+
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  JALON 7 - Simulation switches VLAN (EVE-NG)                                │
+│  À rendre : mercredi 17 décembre 23h00                                      │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+📁 FICHIERS À RENDRE :
+----------------------
+1. Lab EVE-NG exporté (.unl)
+2. Dossier de captures d'écran
+
+📸 CAPTURES D'ÉCRAN À FAIRE (dans l'ordre) :
+--------------------------------------------
+
+1. J7-01-Topologie.png
+   → Screenshot de la topologie EVE-NG complète
+
+2. J7-02-VLANs-CORESW1.png
+   CORESW1# show vlan brief
+   → Montrer VLANs 10, 20, 30, 99, 666
+
+3. J7-03-VTP-Server.png
+   CORESW1# show vtp status
+   → Montrer "VTP Operating Mode : Server"
+
+4. J7-04-VTP-Client.png
+   ACCSW1# show vtp status
+   → Montrer "VTP Operating Mode : Client" + même revision
+
+5. J7-05-Trunks.png
+   CORESW1# show interfaces trunk
+   → Montrer Native VLAN 666, VLANs autorisés
+
+6. J7-06-LACP.png
+   CORESW1# show etherchannel summary
+   → Montrer Po1(SU) avec Et0/0(P) Et1/0(P)
+
+7. J7-07-STP-Root.png
+   CORESW1# show spanning-tree root
+   → Montrer CORESW1 est Root pour tous VLANs
+
+8. J7-08-HSRP-Active.png
+   CORESW1# show standby brief
+   → Montrer CORESW1 Active pour VLAN 10, 20, 99
+
+9. J7-09-HSRP-Standby.png
+   CORESW2# show standby brief
+   → Montrer CORESW2 Standby
+
+10. J7-10-Ping-InterVLAN.png
+    VPC1 (VLAN10)> ping 10.4.20.1
+    → Ping réussi vers VPC2 (VLAN20)
+
+🎬 VIDÉO OPTIONNELLE (bonus impressionnant) :
+---------------------------------------------
+Fichier : J7-VIDEO-HSRP-Failover.mp4 (30-60 secondes)
+
+SCRIPT DE LA VIDÉO :
+1. Ouvrir 3 fenêtres : VPC1, CORESW1, CORESW2
+2. Sur VPC1 : ping 10.4.10.254 -t (ping continu)
+3. Montrer CORESW1 = Active, CORESW2 = Standby
+4. Sur CORESW1 : shutdown interface Vlan10
+5. Montrer le basculement : CORESW2 devient Active
+6. Le ping continue sans interruption !
+7. Sur CORESW1 : no shutdown interface Vlan10
+8. CORESW1 redevient Active (preempt)
+
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  JALON 8 - Simulation routeurs OSPF/BGP (EVE-NG)                            │
+│  À rendre : mercredi 17 décembre 23h00                                      │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+📁 FICHIERS À RENDRE :
+----------------------
+1. Lab EVE-NG exporté (.unl)
+2. Dossier de captures d'écran
+
+📸 CAPTURES D'ÉCRAN À FAIRE (dans l'ordre) :
+--------------------------------------------
+
+1. J8-01-Topologie.png
+   → Screenshot de la topologie EVE-NG (WANRTR, EDGE1, EDGE2, VPCs)
+
+2. J8-02-OSPF-Neighbors-EDGE1.png
+   EDGE1# show ip ospf neighbor
+   → Montrer voisins WANRTR et EDGE2 en état FULL
+
+3. J8-03-OSPF-Neighbors-WANRTR.png
+   WANRTR# show ip ospf neighbor
+   → Montrer voisins EDGE1 et EDGE2 en état FULL
+
+4. J8-04-BGP-Summary-EDGE1.png
+   EDGE1# show ip bgp summary
+   → Montrer peerings iBGP (EDGE2) et eBGP (WANRTR)
+
+5. J8-05-BGP-Summary-WANRTR.png
+   WANRTR# show ip bgp summary
+   → Montrer peerings eBGP avec EDGE1 et EDGE2
+
+6. J8-06-BGP-Routes.png
+   EDGE1# show ip bgp
+   → Montrer routes 8.8.4.0/29, 191.4.157.32/28
+
+7. J8-07-Local-Preference.png
+   EDGE1# show ip bgp 8.8.4.0
+   → Montrer local-preference 200
+
+8. J8-08-Ping-Internet-PC2.png
+   PC2 (LAN)> ping 8.8.4.1
+   → Ping réussi vers Internet
+
+9. J8-09-Ping-InterLAN.png
+   PC2 (10.4.10.1)> ping 10.4.20.1
+   → Ping réussi vers PC3
+
+🎬 VIDÉO OBLIGATOIRE (failover BGP) :
+-------------------------------------
+Fichier : J8-VIDEO-BGP-Failover.mp4 (60-90 secondes)
+
+SCRIPT DE LA VIDÉO :
+1. Ouvrir 4 fenêtres : PC2, EDGE1 (show ip bgp summary), câblage EVE-NG
+2. Sur PC2 : ping 8.8.4.1 (continu)
+3. Montrer que ça passe par EDGE1 (eBGP direct)
+4. Débrancher le lien EDGE1-WANRTR dans EVE-NG
+5. Attendre ~30 secondes
+6. Sur EDGE1 : show ip bgp 8.8.4.0
+   → Montrer que next-hop est maintenant via EDGE2
+7. Le ping continue !
+8. Rebrancher le lien
+9. Tout revient à la normale
+
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  JALON 10 - Déploiement VLAN switches (RÉEL)                                │
+│  À rendre : mercredi 17 décembre 18h00                                      │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+📸 CAPTURES D'ÉCRAN ET PHOTOS :
+-------------------------------
+
+1. J10-00-Photo-Rack.jpg
+   → PHOTO du rack avec les 4 switches branchés
+   → Étiquettes visibles, LEDs allumées
+
+2. J10-01-VLANs-CORESW1.png
+   CORESW1# show vlan brief
+
+3. J10-02-VLANs-ACCSW1.png
+   ACCSW1# show vlan brief
+   → Montrer que VTP a propagé les VLANs
+
+4. J10-03-VTP-Sync.png
+   → Screenshot côte à côte CORESW1 et ACCSW1
+   CORESW1# show vtp status
+   ACCSW1# show vtp status
+   → Même revision number
+
+5. J10-04-Trunks-CORESW1.png
+   CORESW1# show interfaces trunk
+
+6. J10-05-LACP.png
+   CORESW1# show etherchannel summary
+   → Po1(SU) avec 2 interfaces (P)
+
+7. J10-06-STP-Root.png
+   CORESW1# show spanning-tree root
+   → CORESW1 est Root
+
+8. J10-07-Ping-Management.png
+   ACCSW1# ping 10.4.99.253
+   ACCSW1# ping 10.4.99.252
+   → 100% success
+
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  JALON 12 - Déploiement OSPF/BGP routeurs (RÉEL)                            │
+│  À rendre : mercredi 17 décembre 18h00                                      │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+📸 CAPTURES D'ÉCRAN ET PHOTOS :
+-------------------------------
+
+1. J12-00-Photo-Rack.jpg
+   → PHOTO du rack avec WANRTR, EDGE1, EDGE2
+   → Câbles étiquetés
+
+2. J12-01-Interfaces-EDGE1.png
+   EDGE1# show ip interface brief
+
+3. J12-02-OSPF-EDGE1.png
+   EDGE1# show ip ospf neighbor
+   → WANRTR et EDGE2 en FULL
+
+4. J12-03-OSPF-WANRTR.png
+   WANRTR# show ip ospf neighbor
+   → EDGE1, EDGE2, REMFW en FULL
+
+5. J12-04-BGP-EDGE1.png
+   EDGE1# show ip bgp summary
+
+6. J12-05-BGP-WANRTR.png
+   WANRTR# show ip bgp vpnv4 vrf INET summary
+
+7. J12-06-Routes-EDGE1.png
+   EDGE1# show ip route
+   → Routes O (OSPF), B (BGP), S (Static)
+
+8. J12-07-Ping-Routeurs.png
+   EDGE1# ping 91.4.222.98
+   EDGE1# ping 10.4.254.10
+   → 100% success
+
+🎬 VIDÉO OBLIGATOIRE (failover réel) :
+--------------------------------------
+Fichier : J12-VIDEO-Failover-Reel.mp4 (60-90 secondes)
+
+SCRIPT DE LA VIDÉO :
+1. Montrer le rack avec les routeurs
+2. Ping continu depuis un PC du VLAN 10 vers 8.8.4.6
+3. Débrancher physiquement le câble EDGE1-WANRTR
+4. Montrer que le ping continue après ~30s
+5. show ip bgp 8.8.4.0 sur EDGE1 → route via EDGE2
+6. Rebrancher le câble
+7. Tout revient à la normale
+
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  JALON 13 - HSRP configuration switches                                     │
+│  À rendre : mercredi 17 décembre 18h00                                      │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+📸 CAPTURES D'ÉCRAN :
+--------------------
+
+1. J13-01-HSRP-CORESW1.png
+   CORESW1# show standby brief
+   → Active pour VLAN 10, 20, 99
+
+2. J13-02-HSRP-CORESW2.png
+   CORESW2# show standby brief
+   → Standby pour VLAN 10, 20, 99
+
+3. J13-03-Track-CORESW1.png
+   CORESW1# show track 10
+   → Line protocol is Up
+
+4. J13-04-Ping-VIP.png
+   ACCSW1# ping 10.4.10.254
+   ACCSW1# ping 10.4.20.254
+   ACCSW1# ping 10.4.99.254
+   → 100% success
+
+🎬 VIDÉO RECOMMANDÉE (failover HSRP) :
+--------------------------------------
+Fichier : J13-VIDEO-HSRP-Failover.mp4 (45 secondes)
+
+SCRIPT :
+1. Ping continu vers 10.4.99.254 depuis ACCSW1
+2. Sur CORESW1 : shutdown interface Vlan100
+3. CORESW2 devient Active
+4. Ping continue
+5. no shutdown → retour à la normale
+
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  JALON 14 - HSRP EDGE routeurs                                              │
+│  À rendre : mercredi 17 décembre 18h00                                      │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+📸 CAPTURES D'ÉCRAN :
+--------------------
+
+1. J14-01-HSRP-EDGE1.png
+   EDGE1# show standby brief
+   → Active pour VLAN 30 (DMZ)
+
+2. J14-02-HSRP-EDGE2.png
+   EDGE2# show standby brief
+   → Standby pour VLAN 30 (DMZ)
+
+3. J14-03-Track-EDGE1.png
+   EDGE1# show track 10
+
+4. J14-04-Ping-VIP-DMZ.png
+   → ping 217.4.160.254 depuis un équipement
+
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  JALON 15 - NAT EDGE WANRTR                                                 │
+│  À rendre : mercredi 17 décembre 18h00                                      │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+📸 CAPTURES D'ÉCRAN :
+--------------------
+
+1. J15-01-NAT-Translations-EDGE1.png
+   EDGE1# show ip nat translations
+   → Montrer les 3 traductions statiques
+
+2. J15-02-NAT-Statistics-EDGE1.png
+   EDGE1# show ip nat statistics
+   → Inside/Outside interfaces
+
+3. J15-03-ACL-NAT.png
+   EDGE1# show access-lists NAT-ACL
+   → permit ip 10.4.0.0 0.0.255.255 any
+
+4. J15-04-NAT-Translations-EDGE2.png
+   EDGE2# show ip nat translations
+
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  JALON 16 - Accès DMZ                                                       │
+│  À rendre : mercredi 17 décembre 18h00                                      │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+📸 CAPTURES D'ÉCRAN :
+--------------------
+
+1. J16-01-VLAN30-Switches.png
+   CORESW1# show vlan brief | include 30
+
+2. J16-02-Trunk-VLAN30.png
+   CORESW1# show interfaces trunk
+   → VLAN 30 dans la liste
+
+3. J16-03-Interface-DMZ-EDGE1.png
+   EDGE1# show ip interface brief | include .30
+   → 217.4.160.253 UP
+
+4. J16-04-HSRP-DMZ.png
+   EDGE1# show standby brief
+   → VIP 217.4.160.254
+
+5. J16-05-Ping-DMZ.png
+   EDGE1# ping 217.4.160.252
+   → 100% success
+
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  JALON 17 - EDGEX NAT/PAT VPN                                               │
+│  À rendre : mercredi 17 décembre 18h00                                      │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+📸 CAPTURES D'ÉCRAN :
+--------------------
+
+1. J17-01-NAT-VPN.png
+   EDGE1# show ip nat translations
+   → tcp 191.4.157.33:4443 → 10.4.10.2:443
+
+2. J17-02-NAT-Webmail.png
+   → tcp 191.4.157.33:80 → 10.4.10.3:80
+   → tcp 191.4.157.33:443 → 10.4.10.3:443
+
+3. J17-03-Loopback0.png
+   EDGE1# show ip interface Loopback0
+   → 191.4.157.33/28
+
+4. J17-04-Routes-Null0.png
+   EDGE1# show ip route static
+   → 191.4.157.32/28 via Null0
+   → 217.4.160.0/24 via Null0
+
+5. J17-05-Running-Config-NAT.png
+   EDGE1# show running-config | include nat
+
+================================================================================
+                    RÉCAPITULATIF DES VIDÉOS
+================================================================================
+
+🎬 VIDÉOS À PRODUIRE :
+---------------------
+
+| Jalon | Fichier                        | Durée   | Priorité    |
+|-------|--------------------------------|---------|-------------|
+| J7    | J7-VIDEO-HSRP-Failover.mp4     | 30-60s  | Optionnel   |
+| J8    | J8-VIDEO-BGP-Failover.mp4      | 60-90s  | OBLIGATOIRE |
+| J12   | J12-VIDEO-Failover-Reel.mp4    | 60-90s  | OBLIGATOIRE |
+| J13   | J13-VIDEO-HSRP-Failover.mp4    | 45s     | Recommandé  |
+
+CONSEILS POUR LES VIDÉOS :
+--------------------------
+1. Utiliser OBS Studio ou ShareX pour enregistrer
+2. Résolution 1920x1080 minimum
+3. Montrer clairement les fenêtres et commandes
+4. Parler pendant la vidéo pour expliquer
+5. Ajouter des annotations si nécessaire
+6. Format MP4 (H.264)
+
+================================================================================
+                    ORGANISATION DES FICHIERS À RENDRE
+================================================================================
+
+Structure recommandée pour le rendu :
+
+SAE501-Groupe4/
+├── Jalon5/
+│   ├── PLAN-ADRESSAGE-IP.pdf
+│   └── PLAN-DNS.pdf
+│
+├── Jalon7/
+│   ├── lab-jalon7-switches.unl
+│   ├── J7-01-Topologie.png
+│   ├── J7-02-VLANs-CORESW1.png
+│   ├── ... (autres captures)
+│   └── J7-VIDEO-HSRP-Failover.mp4 (optionnel)
+│
+├── Jalon8/
+│   ├── lab-jalon8-routeurs.unl
+│   ├── J8-01-Topologie.png
+│   ├── ... (autres captures)
+│   └── J8-VIDEO-BGP-Failover.mp4
+│
+├── Jalon10/
+│   ├── J10-00-Photo-Rack.jpg
+│   ├── J10-01-VLANs-CORESW1.png
+│   └── ... (autres captures)
+│
+├── Jalon12/
+│   ├── J12-00-Photo-Rack.jpg
+│   ├── J12-01-Interfaces-EDGE1.png
+│   ├── ... (autres captures)
+│   └── J12-VIDEO-Failover-Reel.mp4
+│
+├── Jalon13/
+│   ├── J13-01-HSRP-CORESW1.png
+│   └── ... (autres captures)
+│
+├── Jalon14/
+│   └── ... (captures HSRP EDGE)
+│
+├── Jalon15/
+│   └── ... (captures NAT)
+│
+├── Jalon16/
+│   └── ... (captures DMZ)
+│
+└── Jalon17/
+    └── ... (captures NAT/VPN)
+
+================================================================================
+                    CHECKLIST AVANT RENDU
+================================================================================
+
+□ Jalon 5  : Plan IP + DNS en PDF
+□ Jalon 7  : Lab EVE-NG + 10 captures + vidéo (optionnel)
+□ Jalon 8  : Lab EVE-NG + 9 captures + vidéo OBLIGATOIRE
+□ Jalon 10 : Photo rack + 8 captures
+□ Jalon 12 : Photo rack + 8 captures + vidéo OBLIGATOIRE
+□ Jalon 13 : 4 captures + vidéo (recommandé)
+□ Jalon 14 : 4 captures
+□ Jalon 15 : 4 captures
+□ Jalon 16 : 5 captures
+□ Jalon 17 : 5 captures
+
+TOTAL :
+- 47 captures d'écran minimum
+- 2 photos du rack
+- 2 vidéos obligatoires + 2 optionnelles
+- 2 fichiers PDF (plan IP + DNS)
+- 2 labs EVE-NG
+
+================================================================================
+                    COMMANDES À COPIER-COLLER
+================================================================================
+
+=== JALON 7 & 10 (Switches) ===
+show vlan brief
+show vtp status
+show interfaces trunk
+show etherchannel summary
+show spanning-tree root
+show standby brief
+show track 10
+ping 10.4.99.253
+ping 10.4.99.252
+
+=== JALON 8 & 12 (Routeurs) ===
+show ip interface brief
+show ip ospf neighbor
+show ip ospf database
+show ip bgp summary
+show ip bgp
+show ip bgp 8.8.4.0
+show ip route
+show ip route ospf
+show ip route bgp
+ping 91.4.222.98
+ping 10.4.254.10
+
+=== JALON 13 & 14 (HSRP) ===
+show standby brief
+show track 10
+show track 20
+ping 10.4.10.254
+ping 10.4.20.254
+ping 10.4.99.254
+ping 217.4.160.254
+
+=== JALON 15 & 17 (NAT) ===
+show ip nat translations
+show ip nat statistics
+show access-lists NAT-ACL
+show running-config | include nat
+show ip interface Loopback0
+show ip route static
+
+=== JALON 16 (DMZ) ===
+show vlan brief | include 30
+show interfaces trunk
+show ip interface brief | include .30
+show standby brief
+ping 217.4.160.252
+ping 217.4.160.253
+
+================================================================================
+

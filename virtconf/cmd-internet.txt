@@ -1,0 +1,60 @@
+conf t
+!
+hostname INTERNET
+!
+enable secret P@ssw0rd
+username admin privilege 15 secret P@ssw0rd
+!
+no ip domain-lookup
+!
+! ============================================
+! INTERNET - Simulateur de réseau Internet
+! Ce routeur simule le réseau Internet pour les tests
+! ============================================
+! INTERFACES - MAPPING EVE-NG
+! e0/0 -> WANRTR e0/2 (8.8.4.0/29)
+! e0/1 -> VPC (client Internet pour tests)
+! ============================================
+!
+interface Ethernet0/0
+description TO-WANRTR-e0/2
+ip address 8.8.4.1 255.255.255.248
+no shutdown
+exit
+!
+interface Ethernet0/1
+description TO-VPC-INTERNET-CLIENT
+ip address 8.8.8.1 255.255.255.0
+no shutdown
+exit
+!
+interface Ethernet0/2
+description UNUSED
+no ip address
+shutdown
+exit
+!
+interface Ethernet0/3
+description UNUSED
+no ip address
+shutdown
+exit
+!
+! Route statique vers les réseaux annoncés par WANRTR via BGP
+ip route 191.4.157.32 255.255.255.240 8.8.4.6
+ip route 217.4.160.0 255.255.255.0 8.8.4.6
+ip route 31.4.126.12 255.255.255.252 8.8.4.6
+ip route 91.4.222.96 255.255.255.248 8.8.4.6
+!
+line con 0
+logging synchronous
+exit
+!
+line vty 0 4
+login local
+transport input telnet ssh
+exit
+!
+end
+write memory
+

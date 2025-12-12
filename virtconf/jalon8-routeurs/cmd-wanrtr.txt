@@ -1,0 +1,117 @@
+conf t
+!
+hostname WANRTR
+!
+enable secret P@ssw0rd
+username admin privilege 15 secret P@ssw0rd
+!
+no ip domain-lookup
+!
+! ============================================
+! JALON 8 - LAB ROUTEURS OSPF/BGP
+! ============================================
+! e0/0 -> EDGE2 e0/0 (sous-interfaces .15 et .16)
+! e0/1 -> EDGE1 e0/0 (sous-interfaces .13 et .14)
+! e0/2 -> PC1 (simule Internet 8.8.4.0/29)
+! ============================================
+!
+interface Ethernet0/0
+description TO-EDGE2-e0/0
+no ip address
+no shutdown
+exit
+!
+interface Ethernet0/0.15
+description LINK-TO-EDGE2-OSPF
+encapsulation dot1Q 15
+ip address 10.4.254.17 255.255.255.252
+ip ospf authentication message-digest
+ip ospf message-digest-key 1 md5 P@ssw0rd
+ip ospf network point-to-point
+ip ospf cost 20
+exit
+!
+interface Ethernet0/0.16
+description LINK-TO-EDGE2-BGP
+encapsulation dot1Q 16
+ip address 31.4.126.14 255.255.255.252
+exit
+!
+interface Ethernet0/1
+description TO-EDGE1-e0/0
+no ip address
+no shutdown
+exit
+!
+interface Ethernet0/1.13
+description LINK-TO-EDGE1-OSPF
+encapsulation dot1Q 13
+ip address 10.4.254.14 255.255.255.252
+ip ospf authentication message-digest
+ip ospf message-digest-key 1 md5 P@ssw0rd
+ip ospf network point-to-point
+ip ospf cost 10
+exit
+!
+interface Ethernet0/1.14
+description LINK-TO-EDGE1-BGP
+encapsulation dot1Q 14
+ip address 91.4.222.98 255.255.255.248
+exit
+!
+interface Ethernet0/2
+description TO-PC1-INTERNET
+ip address 8.8.4.6 255.255.255.248
+no shutdown
+exit
+!
+interface Ethernet0/3
+description UNUSED
+no ip address
+shutdown
+exit
+!
+router ospf 1
+router-id 10.4.254.14
+area 4 nssa
+passive-interface default
+no passive-interface Ethernet0/1.13
+no passive-interface Ethernet0/0.15
+network 10.4.254.12 0.0.0.3 area 4
+network 10.4.254.16 0.0.0.3 area 4
+exit
+!
+router bgp 65430
+bgp router-id 91.4.222.98
+bgp log-neighbor-changes
+neighbor 31.4.126.13 remote-as 65416
+neighbor 31.4.126.13 description eBGP-TO-EDGE2
+neighbor 91.4.222.97 remote-as 65416
+neighbor 91.4.222.97 description eBGP-TO-EDGE1
+address-family ipv4
+network 8.8.4.0 mask 255.255.255.248
+neighbor 31.4.126.13 activate
+neighbor 91.4.222.97 activate
+exit-address-family
+exit
+!
+! Routes statiques pour que PC1 atteigne les reseaux BGP
+ip route 8.8.4.0 255.255.255.248 Null0
+ip route 91.4.222.96 255.255.255.248 Ethernet0/1.14
+ip route 31.4.126.12 255.255.255.252 Ethernet0/0.16
+ip route 191.4.157.32 255.255.255.240 91.4.222.97
+ip route 10.4.10.0 255.255.255.0 91.4.222.97
+ip route 10.4.20.0 255.255.255.0 31.4.126.13
+!
+line con 0
+logging synchronous
+exit
+!
+line vty 0 4
+exec-timeout 5 0
+login local
+transport input telnet ssh
+exit
+!
+end
+write memory

@@ -1,0 +1,144 @@
+conf t
+!
+hostname ACCSW1
+!
+enable secret P@ssw0rd
+username admin privilege 15 secret P@ssw0rd
+!
+no ip domain-lookup
+!
+spanning-tree mode rapid-pvst
+spanning-tree portfast bpduguard default
+!
+vtp version 2
+vtp domain wsl2025.org
+vtp mode client
+vtp password P@ssw0rd
+!
+errdisable recovery cause psecure-violation
+errdisable recovery interval 30
+!
+! ============================================
+! INTERFACES - MAPPING EVE-NG
+! e0/0 -> CORESW1 e0/3 (trunk)
+! e0/1 -> CORESW2 e1/0 (trunk)
+! e0/2 -> Libre (serveurs)
+! e0/3 -> SWITCHBAIE e0/1 (trunk)
+! e1/0 - e1/3 -> Serveurs/Clients
+! ============================================
+!
+interface Ethernet0/0
+description TO-CORESW1-e0/3
+switchport trunk encapsulation dot1q
+switchport trunk native vlan 666
+switchport trunk allowed vlan 10,20,30,99
+switchport mode trunk
+switchport nonegotiate
+spanning-tree bpduguard disable
+no shutdown
+exit
+!
+interface Ethernet0/1
+description TO-CORESW2-e1/0
+switchport trunk encapsulation dot1q
+switchport trunk native vlan 666
+switchport trunk allowed vlan 10,20,30,99
+switchport mode trunk
+switchport nonegotiate
+spanning-tree bpduguard disable
+no shutdown
+exit
+!
+interface Ethernet0/2
+description HQDCSRV - VLAN10-SERVERS
+switchport mode access
+switchport access vlan 10
+switchport port-security
+switchport port-security maximum 3
+switchport port-security violation shutdown
+spanning-tree portfast
+spanning-tree bpduguard enable
+no shutdown
+exit
+!
+interface Ethernet0/3
+description TO-SWITCHBAIE-e0/1
+switchport trunk encapsulation dot1q
+switchport trunk native vlan 666
+switchport trunk allowed vlan 10,20
+switchport mode trunk
+switchport nonegotiate
+spanning-tree bpduguard disable
+no shutdown
+exit
+!
+interface Ethernet1/0
+description HQINFRASRV - VLAN10-SERVERS
+switchport mode access
+switchport access vlan 10
+switchport port-security
+switchport port-security maximum 3
+switchport port-security violation shutdown
+spanning-tree portfast
+spanning-tree bpduguard enable
+no shutdown
+exit
+!
+interface Ethernet1/1
+description HQMAILSRV - VLAN10-SERVERS
+switchport mode access
+switchport access vlan 10
+switchport port-security
+switchport port-security maximum 3
+switchport port-security violation shutdown
+spanning-tree portfast
+spanning-tree bpduguard enable
+no shutdown
+exit
+!
+interface Ethernet1/2
+description HQCLT - VLAN20-CLIENTS
+switchport mode access
+switchport access vlan 20
+switchport port-security
+switchport port-security maximum 3
+switchport port-security violation shutdown
+spanning-tree portfast
+spanning-tree bpduguard enable
+no shutdown
+exit
+!
+interface Ethernet1/3
+description UNUSED
+switchport mode access
+switchport access vlan 666
+shutdown
+exit
+!
+interface Vlan99
+description VLAN99-MGMT
+ip address 10.4.99.11 255.255.255.0
+no shutdown
+exit
+!
+ip default-gateway 10.4.99.254
+!
+ip access-list extended SSH-ACCESS
+permit tcp 10.4.99.0 0.0.0.255 any eq 22
+deny tcp any any eq 22 log
+permit ip any any
+exit
+!
+line con 0
+logging synchronous
+exit
+!
+line vty 0 4
+exec-timeout 5 0
+login local
+transport input telnet ssh
+exit
+!
+end
+write memory
+

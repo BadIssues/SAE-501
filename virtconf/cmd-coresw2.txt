@@ -1,0 +1,193 @@
+conf t
+!
+hostname CORESW2
+!
+enable secret P@ssw0rd
+username admin privilege 15 secret P@ssw0rd
+!
+no ip domain-lookup
+!
+ip routing
+!
+spanning-tree mode rapid-pvst
+spanning-tree vlan 10,20,30,99 priority 8192
+!
+vtp version 2
+vtp domain wsl2025.org
+vtp mode server
+vtp password P@ssw0rd
+!
+vlan 10
+name Servers
+vlan 20
+name Clients
+vlan 30
+name DMZ
+vlan 99
+name Management
+vlan 100
+name CORESW1-EDGE1
+vlan 200
+name CORESW2-EDGE2
+vlan 300
+name IBGP_peering
+vlan 666
+name Blackhole
+exit
+!
+! ============================================
+! INTERFACES - MAPPING EVE-NG
+! e0/0 -> EDGE2 e0/1 (trunk VLANs 30, 200, 300)
+! e0/1 -> CORESW1 e0/2 (LACP Po1)
+! e0/2 -> CORESW1 e0/1 (LACP Po1)
+! e0/3 -> ACCSW2 e0/0 (trunk)
+! e1/0 -> ACCSW1 e0/1 (trunk)
+! ============================================
+!
+track 20 interface Vlan200 line-protocol
+!
+interface Port-channel1
+description LACP-TO-CORESW1
+switchport trunk encapsulation dot1q
+switchport trunk native vlan 666
+switchport trunk allowed vlan 10,20,30,99,100,200,300
+switchport mode trunk
+switchport nonegotiate
+exit
+!
+interface Ethernet0/0
+description TO-EDGE2-e0/1
+switchport trunk encapsulation dot1q
+switchport trunk native vlan 666
+switchport trunk allowed vlan 30,200,300
+switchport mode trunk
+switchport nonegotiate
+no shutdown
+exit
+!
+interface Ethernet0/1
+description LACP-LINK-TO-CORESW1
+switchport trunk encapsulation dot1q
+switchport trunk native vlan 666
+switchport trunk allowed vlan 10,20,30,99,100,200,300
+switchport mode trunk
+switchport nonegotiate
+channel-group 1 mode active
+no shutdown
+exit
+!
+interface Ethernet0/2
+description LACP-LINK-TO-CORESW1
+switchport trunk encapsulation dot1q
+switchport trunk native vlan 666
+switchport trunk allowed vlan 10,20,30,99,100,200,300
+switchport mode trunk
+switchport nonegotiate
+channel-group 1 mode active
+no shutdown
+exit
+!
+interface Ethernet0/3
+description TO-ACCSW2-e0/0
+switchport trunk encapsulation dot1q
+switchport trunk native vlan 666
+switchport trunk allowed vlan 10,20,30,99
+switchport mode trunk
+switchport nonegotiate
+no shutdown
+exit
+!
+interface Ethernet1/0
+description TO-ACCSW1-e0/1
+switchport trunk encapsulation dot1q
+switchport trunk native vlan 666
+switchport trunk allowed vlan 10,20,30,99
+switchport mode trunk
+switchport nonegotiate
+no shutdown
+exit
+!
+interface Ethernet1/1
+description UNUSED
+switchport mode access
+switchport access vlan 666
+shutdown
+exit
+!
+interface Ethernet1/2
+description UNUSED
+switchport mode access
+switchport access vlan 666
+shutdown
+exit
+!
+interface Ethernet1/3
+description UNUSED
+switchport mode access
+switchport access vlan 666
+shutdown
+exit
+!
+interface Vlan10
+description VLAN10-SERVERS
+ip address 10.4.10.252 255.255.255.0
+standby 10 ip 10.4.10.254
+standby 10 priority 100
+standby 10 preempt
+standby 10 track 20 decrement 20
+no shutdown
+exit
+!
+interface Vlan20
+description VLAN20-CLIENTS
+ip address 10.4.20.252 255.255.255.0
+standby 20 ip 10.4.20.254
+standby 20 priority 100
+standby 20 preempt
+standby 20 track 20 decrement 20
+no shutdown
+exit
+!
+interface Vlan30
+description VLAN30-DMZ
+no ip address
+shutdown
+exit
+!
+interface Vlan99
+description VLAN99-MGMT
+ip address 10.4.99.252 255.255.255.0
+standby 99 ip 10.4.99.254
+standby 99 priority 100
+standby 99 preempt
+standby 99 track 20 decrement 20
+no shutdown
+exit
+!
+interface Vlan200
+description LINK-TO-EDGE2
+ip address 10.4.254.6 255.255.255.252
+no shutdown
+exit
+!
+ip route 0.0.0.0 0.0.0.0 10.4.254.5
+!
+ip access-list extended SSH-ACCESS
+permit tcp 10.4.99.0 0.0.0.255 any eq 22
+deny tcp any any eq 22 log
+permit ip any any
+exit
+!
+line con 0
+logging synchronous
+exit
+!
+line vty 0 4
+exec-timeout 5 0
+login local
+transport input telnet ssh
+exit
+!
+end
+write memory
+

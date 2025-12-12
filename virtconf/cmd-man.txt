@@ -1,0 +1,86 @@
+conf t
+!
+hostname MAN
+!
+enable secret P@ssw0rd
+username admin privilege 15 secret P@ssw0rd
+!
+no ip domain-lookup
+!
+! ============================================
+! MAN - Simulateur du réseau MAN vers site Remote
+! Ce routeur simule la connexion vers REMFW
+! ============================================
+! INTERFACES - MAPPING EVE-NG
+! e0/0 -> WANRTR e0/3 (10.116.4.0/30)
+! e0/1 -> VPC (client Remote pour tests)
+! ============================================
+!
+interface Loopback0
+description Site-Remote-Networks
+ip address 10.116.10.1 255.255.255.0
+exit
+!
+interface Loopback1
+description Remote-MGMT
+ip address 10.116.99.1 255.255.255.0
+exit
+!
+interface Ethernet0/0
+description TO-WANRTR-e0/3 (simule REMFW)
+ip address 10.116.4.1 255.255.255.252
+ip ospf authentication message-digest
+ip ospf message-digest-key 1 md5 P@ssw0rd
+ip ospf network point-to-point
+no shutdown
+exit
+!
+interface Ethernet0/1
+description TO-VPC-REMOTE-CLIENT
+ip address 10.116.20.1 255.255.255.0
+no shutdown
+exit
+!
+interface Ethernet0/2
+description UNUSED
+no ip address
+shutdown
+exit
+!
+interface Ethernet0/3
+description UNUSED
+no ip address
+shutdown
+exit
+!
+router ospf 1
+router-id 10.116.4.1
+area 4 nssa
+passive-interface default
+no passive-interface Ethernet0/0
+network 10.116.4.0 0.0.0.3 area 4
+network 10.116.10.0 0.0.0.255 area 4
+network 10.116.20.0 0.0.0.255 area 4
+network 10.116.99.0 0.0.0.255 area 4
+exit
+!
+ip access-list extended SSH-ACCESS
+permit tcp 10.4.99.0 0.0.0.255 any eq 22
+permit tcp 10.116.99.0 0.0.0.255 any eq 22
+deny tcp any any eq 22 log
+permit ip any any
+exit
+!
+line con 0
+logging synchronous
+exit
+!
+line vty 0 4
+exec-timeout 5 0
+login local
+transport input telnet ssh
+exit
+!
+end
+write memory
+

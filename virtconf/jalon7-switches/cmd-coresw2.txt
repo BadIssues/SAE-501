@@ -1,0 +1,138 @@
+conf t
+!
+hostname CORESW2
+!
+enable secret P@ssw0rd
+username admin privilege 15 secret P@ssw0rd
+!
+no ip domain-lookup
+!
+ip routing
+!
+spanning-tree mode rapid-pvst
+spanning-tree vlan 10,20,30,99 priority 8192
+!
+vtp version 2
+vtp domain wsl2025.org
+vtp mode server
+vtp password P@ssw0rd
+!
+vlan 10
+name Servers
+vlan 20
+name Clients
+vlan 30
+name DMZ
+vlan 99
+name Management
+vlan 666
+name Blackhole
+exit
+!
+! ============================================
+! JALON 7 - MAPPING INTERFACES EVE-NG
+! ============================================
+! e0/0 + e0/3 -> CORESW1 e0/0 + e1/0 (LACP Po1)
+! e0/1 -> ACCSW2 e0/1 (trunk)
+! e0/2 -> ACCSW1 e0/2 (trunk croise)
+! ============================================
+!
+interface Port-channel1
+description LACP-TO-CORESW1
+switchport trunk encapsulation dot1q
+switchport trunk native vlan 666
+switchport trunk allowed vlan 10,20,30,99
+switchport mode trunk
+switchport nonegotiate
+exit
+!
+interface Ethernet0/0
+description LACP-LINK1-TO-CORESW1-e0/0
+switchport trunk encapsulation dot1q
+switchport trunk native vlan 666
+switchport trunk allowed vlan 10,20,30,99
+switchport mode trunk
+switchport nonegotiate
+channel-group 1 mode active
+no shutdown
+exit
+!
+interface Ethernet0/3
+description LACP-LINK2-TO-CORESW1-e1/0
+switchport trunk encapsulation dot1q
+switchport trunk native vlan 666
+switchport trunk allowed vlan 10,20,30,99
+switchport mode trunk
+switchport nonegotiate
+channel-group 1 mode active
+no shutdown
+exit
+!
+interface Ethernet0/1
+description TRUNK-TO-ACCSW2-e0/1
+switchport trunk encapsulation dot1q
+switchport trunk native vlan 666
+switchport trunk allowed vlan 10,20,30,99
+switchport mode trunk
+switchport nonegotiate
+no shutdown
+exit
+!
+interface Ethernet0/2
+description TRUNK-TO-ACCSW1-e0/2
+switchport trunk encapsulation dot1q
+switchport trunk native vlan 666
+switchport trunk allowed vlan 10,20,30,99
+switchport mode trunk
+switchport nonegotiate
+no shutdown
+exit
+!
+interface Vlan10
+description VLAN10-SERVERS
+ip address 10.4.10.252 255.255.255.0
+standby 10 ip 10.4.10.254
+standby 10 priority 100
+standby 10 preempt
+no shutdown
+exit
+!
+interface Vlan20
+description VLAN20-CLIENTS
+ip address 10.4.20.252 255.255.255.0
+standby 20 ip 10.4.20.254
+standby 20 priority 100
+standby 20 preempt
+no shutdown
+exit
+!
+interface Vlan30
+description VLAN30-DMZ
+ip address 217.4.160.252 255.255.255.0
+standby 30 ip 217.4.160.254
+standby 30 priority 100
+standby 30 preempt
+no shutdown
+exit
+!
+interface Vlan99
+description VLAN99-MGMT
+ip address 10.4.99.252 255.255.255.0
+standby 99 ip 10.4.99.254
+standby 99 priority 100
+standby 99 preempt
+no shutdown
+exit
+!
+line con 0
+logging synchronous
+exit
+!
+line vty 0 4
+exec-timeout 5 0
+login local
+transport input telnet ssh
+exit
+!
+end
+write memory

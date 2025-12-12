@@ -1,0 +1,95 @@
+================================================================
+JALON 8 - SIMULATION ROUTEURS OSPF/BGP (EVE-NG)
+CONFIGURATION DES VPCs POUR LES TESTS
+================================================================
+
+TOPOLOGIE SIMPLIFIEE:
+====================
+
+    +--------+                                    
+    |  PC1   | (Internet 8.8.4.1)                
+    +---+----+                                    
+        |e0                                       
+        |                                         
+    +---+----+                                    
+    | WANRTR | (AS 65430)                        
+    +---+----+                                    
+     e0/1  e0/0                                   
+       |    |                                     
+   .13/.14  .15/.16                               
+       |    |                                     
+  +----+    +----+                               
+  |              |                                
++-+------+  +----+---+                           
+| EDGE1  +--+ EDGE2  |                           
+| AS65416|e0/1  AS65416|                           
++---+----+  +----+---+                           
+    |e0/2        |e0/2                            
+    |            |                                
++---+----+  +----+---+                           
+|  PC2   |  |  PC3   |                           
++--------+  +--------+                           
+(10.4.10.1) (10.4.20.1)                          
+
+================================================================
+CONFIGURATION PC1 (Internet - connecte a WANRTR e0/2)
+================================================================
+ip 8.8.4.1 255.255.255.248 8.8.4.6
+save
+
+================================================================
+CONFIGURATION PC2 (LAN Servers - connecte a EDGE1 e0/2)
+================================================================
+ip 10.4.10.1 255.255.255.0 10.4.10.254
+save
+
+================================================================
+CONFIGURATION PC3 (LAN Clients - connecte a EDGE2 e0/2)
+================================================================
+ip 10.4.20.1 255.255.255.0 10.4.20.254
+save
+
+================================================================
+TESTS DE VERIFICATION
+================================================================
+
+DEPUIS PC1 (Internet):
+----------------------
+ping 8.8.4.6
+  -> Doit repondre (gateway WANRTR)
+ping 91.4.222.97
+  -> Doit repondre (interface BGP EDGE1)
+ping 31.4.126.13
+  -> Doit repondre (interface BGP EDGE2)
+ping 191.4.157.33
+  -> Doit repondre (Loopback EDGE1)
+ping 10.4.10.1
+  -> Peut timeout si pas de route retour (normal sans NAT)
+
+DEPUIS PC2 (LAN Servers):
+-------------------------
+ping 10.4.10.254
+  -> Doit repondre (gateway EDGE1)
+ping 10.4.254.13
+  -> Doit repondre (interface OSPF EDGE1)
+ping 10.4.20.254
+  -> Doit repondre (gateway EDGE2 via iBGP)
+ping 10.4.20.1
+  -> Doit repondre (PC3)
+ping 8.8.4.1
+  -> Doit repondre (PC1 via NAT)
+
+DEPUIS PC3 (LAN Clients):
+-------------------------
+ping 10.4.20.254
+  -> Doit repondre (gateway EDGE2)
+ping 10.4.254.18
+  -> Doit repondre (interface OSPF EDGE2)
+ping 10.4.10.254
+  -> Doit repondre (gateway EDGE1 via iBGP)
+ping 10.4.10.1
+  -> Doit repondre (PC2)
+ping 8.8.4.1
+  -> Doit repondre (PC1 via NAT)
+
+================================================================

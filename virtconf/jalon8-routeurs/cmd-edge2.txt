@@ -1,0 +1,118 @@
+conf t
+!
+hostname EDGE2
+!
+enable secret P@ssw0rd
+username admin privilege 15 secret P@ssw0rd
+!
+no ip domain-lookup
+!
+! ============================================
+! JALON 8 - LAB ROUTEURS OSPF/BGP
+! ============================================
+! e0/0 -> WANRTR e0/0 (sous-interfaces .15 et .16)
+! e0/1 -> EDGE1 e0/1 (lien direct iBGP)
+! e0/2 -> PC3 (simule LAN 10.4.20.0/24)
+! ============================================
+!
+interface Loopback0
+description Provider-Independent-IP
+ip address 191.4.157.34 255.255.255.240
+no shutdown
+exit
+!
+interface Ethernet0/0
+description TO-WANRTR-e0/0
+no ip address
+no shutdown
+exit
+!
+interface Ethernet0/0.15
+description LINK-TO-WANRTR-OSPF
+encapsulation dot1Q 15
+ip address 10.4.254.18 255.255.255.252
+ip ospf authentication message-digest
+ip ospf message-digest-key 1 md5 P@ssw0rd
+ip ospf network point-to-point
+exit
+!
+interface Ethernet0/0.16
+description LINK-TO-WANRTR-BGP
+encapsulation dot1Q 16
+ip address 31.4.126.13 255.255.255.252
+ip nat outside
+exit
+!
+interface Ethernet0/1
+description LIEN-DIRECT-VERS-EDGE1-iBGP
+ip address 10.4.254.10 255.255.255.252
+no shutdown
+exit
+!
+interface Ethernet0/2
+description TO-PC3-LAN-CLIENTS
+ip address 10.4.20.254 255.255.255.0
+ip nat inside
+no shutdown
+exit
+!
+interface Ethernet0/3
+description UNUSED
+no ip address
+shutdown
+exit
+!
+router ospf 1
+router-id 10.4.254.18
+area 4 nssa no-summary
+passive-interface default
+no passive-interface Ethernet0/0.15
+network 10.4.254.16 0.0.0.3 area 4
+network 10.4.20.0 0.0.0.255 area 4
+redistribute static subnets
+exit
+!
+router bgp 65416
+bgp router-id 10.4.254.18
+bgp log-neighbor-changes
+neighbor 10.4.254.9 remote-as 65416
+neighbor 10.4.254.9 description iBGP-TO-EDGE1
+neighbor 10.4.254.9 update-source Ethernet0/1
+neighbor 31.4.126.14 remote-as 65430
+neighbor 31.4.126.14 description eBGP-TO-WANRTR
+address-family ipv4
+network 191.4.157.32 mask 255.255.255.240
+network 10.4.20.0 mask 255.255.255.0
+neighbor 10.4.254.9 activate
+neighbor 10.4.254.9 next-hop-self
+neighbor 31.4.126.14 activate
+neighbor 31.4.126.14 route-map PREPEND-OUT out
+exit-address-family
+exit
+!
+ip access-list extended NAT-ACL
+permit ip 10.4.0.0 0.0.255.255 any
+exit
+!
+ip nat inside source list NAT-ACL interface Ethernet0/0.16 overload
+!
+ip route 191.4.157.32 255.255.255.240 Null0
+ip route 10.4.10.0 255.255.255.0 10.4.254.9
+ip route 8.8.4.0 255.255.255.248 31.4.126.14
+!
+route-map PREPEND-OUT permit 10
+set as-path prepend 65416 65416
+exit
+!
+line con 0
+logging synchronous
+exit
+!
+line vty 0 4
+exec-timeout 5 0
+login local
+transport input telnet ssh
+exit
+!
+end
+write memory

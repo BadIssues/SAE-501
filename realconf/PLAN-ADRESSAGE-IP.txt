@@ -1,0 +1,289 @@
+================================================================================
+                    PLAN D'ADRESSAGE IP - SAE501 (N=4)
+                      WorldSkills Lyon 2025 - wsl2025.org
+================================================================================
+
+================================================================================
+                              VLANS
+================================================================================
+
+VLAN ID | Nom             | Description                      | Réseau
+--------|-----------------|----------------------------------|------------------
+10      | Servers         | Serveurs HQ                      | 10.4.10.0/24
+20      | Clients         | Clients HQ (DHCP)                | 10.4.20.0/23
+30      | DMZ             | Zone DMZ (publique + LAN)        | 217.4.160.0/24 + 10.4.30.0/24
+99      | Management      | Gestion équipements              | 10.4.99.0/24
+100     | CORESW1-EDGE1   | Lien CORESW1 <-> EDGE1           | 10.4.254.0/30
+200     | CORESW2-EDGE2   | Lien CORESW2 <-> EDGE2           | 10.4.254.4/30
+300     | IBGP_peering    | Peering iBGP EDGE1 <-> EDGE2     | 10.4.254.8/30
+666     | Blackhole       | Native VLAN (sécurité)           | N/A
+
+================================================================================
+                         SITE HQ - VLAN 10 (SERVERS)
+================================================================================
+Réseau: 10.4.10.0/24 (30 serveurs max prévu)
+Gateway VIP HSRP: 10.4.10.254
+
+Équipement       | IP            | Rôle
+-----------------|---------------|----------------------------------------
+HQDCSRV          | 10.4.10.1     | Child DC (hq.wsl2025.org), DNS, ADCS SubCA, GPO, RAID
+HQINFRASRV       | 10.4.10.2     | DHCP, VPN OpenVPN, NTP, Samba, iSCSI, File sharing
+HQMAILSRV        | 10.4.10.3     | SMTP, IMAP, Webmail, DHCP Failover
+DCWSL            | 10.4.10.4     | Root Forest DC (wsl2025.org), DNS zone wsl2025.org
+HQFW (eth1)      | 10.4.10.5     | Firewall nftable - interface vers Servers
+CORESW1          | 10.4.10.253   | Core Switch 1 (HSRP Active)
+CORESW2          | 10.4.10.252   | Core Switch 2 (HSRP Standby)
+VIP HSRP         | 10.4.10.254   | Gateway virtuelle
+
+================================================================================
+                         SITE HQ - VLAN 20 (CLIENTS)
+================================================================================
+Réseau: 10.4.20.0/23 (300 clients prévus)
+Gateway VIP HSRP: 10.4.20.254
+
+Plage DHCP: 10.4.20.1 - 10.4.21.200
+Lease: 2 heures
+DNS: hqdcsrv.hq.wsl2025.org
+Domain: hq.wsl2025.org
+
+Équipement       | IP            | Rôle
+-----------------|---------------|----------------------------------------
+HQCLT            | DHCP          | Client Windows 11 (test)
+CORESW1          | 10.4.20.253   | Core Switch 1 (HSRP Active)
+CORESW2          | 10.4.20.252   | Core Switch 2 (HSRP Standby)
+VIP HSRP         | 10.4.20.254   | Gateway virtuelle
+HQINFRASRV       | 10.4.20.1     | DHCP, VPN OpenVPN, NTP, Samba, iSCSI, File sharing
+
+================================================================================
+                         SITE HQ - VLAN 30 (DMZ)
+================================================================================
+Réseau Public: 217.4.160.0/24 (accessible depuis Internet)
+Réseau Interne: 10.4.30.0/24 (entre HQFW et HQWEBSRV)
+Gateway VIP HSRP: 217.4.160.254
+
+Équipement       | IP              | Rôle
+-----------------|-----------------|----------------------------------------
+HQFW (eth0)      | 217.4.160.1     | Firewall nftable - interface WAN/DMZ
+HQWEBSRV         | 217.4.160.2     | Serveur Web IIS, RDS (RemoteApp Word/Excel)
+EDGE1            | 217.4.160.253   | Edge Router 1 (HSRP Active)
+EDGE2            | 217.4.160.252   | Edge Router 2 (HSRP Standby)
+VIP HSRP         | 217.4.160.254   | Gateway virtuelle publique
+
+Réseau interne DMZ (10.4.30.0/24) - optionnel:
+HQFW (eth2)      | 10.4.30.254     | Firewall - interface vers HQWEBSRV
+HQWEBSRV         | 10.4.30.1       | Serveur Web - interface interne
+
+NOTE ARCHITECTURE:
+- HQFW a 2 interfaces : eth0 (217.4.160.1) et eth1 (10.4.10.5)
+- HQFW reçoit trafic Internet et forwarde HTTP/HTTPS/RDS vers HQWEBSRV
+- HQWEBSRV héberge www.wsl2025.org et authentication.wsl2025.org
+- HQWEBSRV héberge RDS (RemoteApp Word/Excel) pour les utilisateurs
+
+================================================================================
+                         SITE HQ - VLAN 99 (MANAGEMENT)
+================================================================================
+Réseau: 10.4.99.0/24
+Gateway VIP HSRP: 10.4.99.254
+
+Équipement       | IP            | Rôle
+-----------------|---------------|----------------------------------------
+MGMTCLT          | 10.4.99.1     | Client Linux Debian GUI (Ansible)
+ACCSW1           | 10.4.99.11    | Access Switch 1
+ACCSW2           | 10.4.99.12    | Access Switch 2
+CORESW1          | 10.4.99.253   | Core Switch 1 (HSRP Active)
+CORESW2          | 10.4.99.252   | Core Switch 2 (HSRP Standby)
+VIP HSRP         | 10.4.99.254   | Gateway virtuelle
+
+================================================================================
+                    LIENS INTERNES (CORE NETWORK)
+================================================================================
+
+--- VLAN 100: CORESW1 <-> EDGE1 ---
+Réseau: 10.4.254.0/30
+EDGE1 (Gi0/1.100)      : 10.4.254.1
+CORESW1 (Vlan100)      : 10.4.254.2
+
+--- VLAN 200: CORESW2 <-> EDGE2 ---
+Réseau: 10.4.254.4/30
+EDGE2 (Gi0/1.200)      : 10.4.254.5
+CORESW2 (Vlan200)      : 10.4.254.6
+
+--- VLAN 300: EDGE1 <-> EDGE2 (iBGP Peering) ---
+Réseau: 10.4.254.8/30
+EDGE1 (Gi0/1.300)      : 10.4.254.9
+EDGE2 (Gi0/1.300)      : 10.4.254.10
+
+--- VLAN 13: EDGE1 <-> WANRTR (VRF MAN) ---
+Réseau: 10.4.254.12/30
+EDGE1 (Gi0/0.13)       : 10.4.254.13
+WANRTR (Gi0/0.13)      : 10.4.254.14
+
+--- VLAN 15: EDGE2 <-> WANRTR (VRF MAN) ---
+Réseau: 10.4.254.16/30
+WANRTR (Gi0/1.15)      : 10.4.254.17
+EDGE2 (Gi0/0.15)       : 10.4.254.18
+
+================================================================================
+                    LIENS INTERNET (VRF INET)
+================================================================================
+
+--- VLAN 14: EDGE1 <-> WANRTR (Internet) ---
+Réseau: 91.4.222.96/29
+EDGE1 (Gi0/0.14)       : 91.4.222.97
+WANRTR (Gi0/0.14)      : 91.4.222.98
+
+--- VLAN 16: EDGE2 <-> WANRTR (Internet) ---
+Réseau: 31.4.126.12/30
+EDGE2 (Gi0/0.16)       : 31.4.126.13
+WANRTR (Gi0/1.16)      : 31.4.126.14
+
+--- Provider Independent IP (Loopback0) ---
+Réseau: 191.4.157.32/28
+EDGE1 (Lo0)            : 191.4.157.33
+EDGE2 (Lo0)            : 191.4.157.34
+
+================================================================================
+                    INTERNET SIDE
+================================================================================
+Réseau: 8.8.4.0/29
+
+Équipement       | IP            | Rôle
+-----------------|---------------|----------------------------------------
+WANRTR (Fe0/1/0) | 8.8.4.6       | WAN Router (VRF INET)
+DNSSRV           | 8.8.4.1       | DNS Public, Root CA
+INETSRV          | 8.8.4.2       | Web Server, FTP Server
+VPNCLT           | 8.8.4.3       | Client VPN (test)
+INETCLT          | 8.8.4.4       | Client Internet (test)
+
+================================================================================
+                    SITE REMOTE
+================================================================================
+
+--- Lien WANRTR <-> REMFW (VRF MAN) ---
+Réseau: 10.116.4.0/30
+REMFW (Gi1)            : 10.116.4.1
+WANRTR (Fe0/0/0)       : 10.116.4.2
+
+--- VLAN 100 Remote (Clients) ---
+Réseau: 10.4.100.0/25 (80 clients prévus)
+
+Équipement       | IP              | Rôle
+-----------------|-----------------|----------------------------------------
+REMDCSRV         | 10.4.100.1      | Domain Controller REM, DNS, DHCP
+REMINFRASRV      | 10.4.100.2      | Infrastructure, DFS
+REMCLT           | DHCP            | Client Windows 11 (test)
+REMFW            | 10.4.100.126    | Firewall/Gateway Remote Site
+
+Plage DHCP: 10.4.100.10 - 10.4.100.120
+Lease: 2 heures
+DNS: remdcsrv.rem.wsl2025.org
+Domain: rem.wsl2025.org
+
+================================================================================
+                         HSRP CONFIGURATION
+================================================================================
+
+Groupe | VLAN  | VIP            | Active   | Standby  | Priority
+-------|-------|----------------|----------|----------|----------
+10     | 10    | 10.4.10.254    | CORESW1  | CORESW2  | 110/100
+20     | 20    | 10.4.20.254    | CORESW1  | CORESW2  | 110/100
+99     | 99    | 10.4.99.254    | CORESW1  | CORESW2  | 110/100
+30     | 30    | 217.4.160.254  | EDGE1    | EDGE2    | 110/100
+
+================================================================================
+                         ROUTING PROTOCOLS
+================================================================================
+
+--- OSPF Area 4 (NSSA) - VRF MAN ---
+Participants: EDGE1, EDGE2, WANRTR, REMFW
+Authentification: MD5 (P@ssw0rd)
+Network Type: Point-to-Point (pas de DR/BDR)
+
+--- BGP ---
+AS 65416 (HQ): EDGE1, EDGE2 (iBGP entre eux)
+AS 65430 (ISP): WANRTR (eBGP avec EDGE1 et EDGE2)
+
+Réseaux annoncés par AS 65416:
+  - 191.4.157.32/28 (Provider Independent)
+  - 217.4.160.0/24 (DMZ)
+
+Réseaux annoncés par AS 65430:
+  - 8.8.4.0/29 (Internet)
+
+Préférence de trafic:
+  - Sortant: EDGE1 via local-preference 200
+  - Entrant: EDGE1 via AS-path prepend sur EDGE2
+
+================================================================================
+                         NAT CONFIGURATION
+================================================================================
+
+--- PAT (Overload) ---
+Source: 10.4.0.0/16
+Interface: Gi0/0.14 (EDGE1) ou Gi0/0.16 (EDGE2)
+
+--- Static NAT ---
+Service          | IP Publique        | IP Privée        | Port
+-----------------|--------------------|--------------------|------
+VPN OpenVPN      | 191.4.157.33:4443  | 10.4.10.2:443    | TCP
+Webmail HTTP     | 191.4.157.33:80    | 10.4.10.3:80     | TCP
+Webmail HTTPS    | 191.4.157.33:443   | 10.4.10.3:443    | TCP
+VPN OpenVPN (E2) | 191.4.157.34:4443  | 10.4.10.2:443    | TCP
+Webmail HTTP (E2)| 191.4.157.34:80    | 10.4.10.3:80     | TCP
+Webmail HTTPS(E2)| 191.4.157.34:443   | 10.4.10.3:443    | TCP
+
+================================================================================
+                         DNS RECORDS - DCWSL (zone wsl2025.org)
+================================================================================
+Serveur: DCWSL (10.4.10.4) - Root Forest DC
+Forward: vers DNSSRV (8.8.4.1) pour résolutions externes
+
+Type   | FQDN                        | IP / CNAME
+-------|-----------------------------|--------------------------
+A      | hqinfrasrv.wsl2025.org      | 10.4.10.2
+A      | dcwsl.wsl2025.org           | 10.4.10.4
+A      | hqmailsrv.wsl2025.org       | 10.4.10.3
+A      | hqfwsrv.wsl2025.org         | 217.4.160.1
+CNAME  | www.wsl2025.org             | hqfwsrv.wsl2025.org
+CNAME  | webmail.wsl2025.org         | hqmailsrv.wsl2025.org
+A      | vpn.wsl2025.org             | 191.4.157.33
+A      | accsw1.wsl2025.org          | 10.4.99.11
+A      | accsw2.wsl2025.org          | 10.4.99.12
+A      | coresw1.wsl2025.org         | 10.4.99.253
+A      | coresw2.wsl2025.org         | 10.4.99.252
+A      | edge1.wsl2025.org           | 10.4.254.1
+A      | edge2.wsl2025.org           | 10.4.254.5
+A      | wanrtr.wsl2025.org          | 10.116.4.2
+A      | remfw.wsl2025.org           | 10.4.100.126
+
+================================================================================
+                         DNS RECORDS - HQDCSRV (zone hq.wsl2025.org)
+================================================================================
+Serveur: HQDCSRV (10.4.10.1) - Child DC hq.wsl2025.org
+Forward: vers wsl2025.org (DCWSL) pour autres zones
+
+Type   | FQDN                        | IP / CNAME
+-------|-----------------------------|--------------------------
+A      | hqdcsrv.hq.wsl2025.org      | 10.4.10.1
+CNAME  | hqwebsrv.hq.wsl2025.org     | hqfwsrv.wsl2025.org
+CNAME  | pki.hq.wsl2025.org          | hqdcsrv.hq.wsl2025.org
+
+================================================================================
+                         DNS RECORDS - DNSSRV (zones publiques)
+================================================================================
+Serveur: DNSSRV (8.8.4.1) - DNS Internet + Root CA
+Zones: worldskills.org, wsl2025.org (vue publique)
+
+Type   | FQDN                        | IP / CNAME
+-------|-----------------------------|--------------------------
+A      | inetsrv.worldskills.org     | 8.8.4.2
+CNAME  | www.worldskills.org         | inetsrv.worldskills.org
+CNAME  | ftp.worldskills.org         | inetsrv.worldskills.org
+A      | wanrtr.worldskills.org      | 8.8.4.6
+A      | hqfwsrv.wsl2025.org         | 217.4.160.1
+A      | vpn.wsl2025.org             | 191.4.157.33
+A      | webmail.wsl2025.org         | 191.4.157.33
+CNAME  | www.wsl2025.org             | hqfwsrv.wsl2025.org
+CNAME  | authentication.wsl2025.org  | hqfwsrv.wsl2025.org
+
+================================================================================
