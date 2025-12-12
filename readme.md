@@ -1,232 +1,435 @@
-# 🌐 Infrastructure Réseau WSL2025 (SAE 501)
+<p align="center">
+  <img src="https://img.shields.io/badge/🏆_WorldSkills-Lyon_2025-FFD700?style=for-the-badge&labelColor=0055A4" alt="WorldSkills Lyon 2025"/>
+</p>
 
-[![WorldSkills](https://img.shields.io/badge/Based%20on-WorldSkills%202025-blue?style=for-the-badge)](https://worldskills.org)
-[![Academic Project](https://img.shields.io/badge/Context-BUT3%20R%26T-green?style=for-the-badge)](https://www.iut-bm.univ-fcomte.fr/)
-[![Status](https://img.shields.io/badge/Status-Opérationnel-success?style=for-the-badge)](/)
+<h1 align="center">
+  🌐 Infrastructure Réseau WSL2025
+  <br/>
+  <sub>SAE 501 - Concevoir, Réaliser et Présenter une Solution Technologique</sub>
+</h1>
 
-## 📋 Présentation du Projet
+<p align="center">
+  <img src="https://img.shields.io/badge/Groupe-4-FF6B6B?style=for-the-badge&logo=users&logoColor=white" alt="Groupe 4"/>
+  <img src="https://img.shields.io/badge/BUT_R%26T-3ème_Année-4ECDC4?style=for-the-badge&logo=graduation-cap&logoColor=white" alt="BUT R&T 3"/>
+  <img src="https://img.shields.io/badge/IUT_Belfort--Montbéliard-Université_de_Franche--Comté-1E3A8A?style=for-the-badge" alt="IUT BM"/>
+</p>
 
-Ce projet est réalisé dans le cadre de la **SAE 501 (Situation d'Apprentissage et d'Évaluation)** en 3ème année de **BUT Réseaux & Télécommunications**.
+<p align="center">
+  <img src="https://img.shields.io/badge/Status-✅_Opérationnel-success?style=flat-square" alt="Status"/>
+  <img src="https://img.shields.io/badge/Version-1.3-blue?style=flat-square" alt="Version"/>
+  <img src="https://img.shields.io/badge/Date-Décembre_2025-purple?style=flat-square" alt="Date"/>
+  <img src="https://img.shields.io/github/last-commit/L4Curtis/sae501?style=flat-square&label=Dernière%20MAJ" alt="Last Commit"/>
+</p>
 
-Il s'appuie sur le sujet officiel de la compétition **WorldSkills Lyon 2025 - Skill 39 (IT Network Systems Administration)**, adapté pour les besoins pédagogiques de la formation. L'objectif est de concevoir et déployer une infrastructure réseau complète, sécurisée et redondante, simulant un environnement d'entreprise réel.
-
-### 🎯 Objectifs Pédagogiques
-- **Architecture Réseau** : Conception d'une topologie complexe multi-sites (HQ, Remote, Internet).
-- **Protocoles Avancés** : Mise en œuvre de OSPF, BGP, VRF, HSRP, Etherchannel.
-- **Services Systèmes** : Déploiement de services critiques (AD, DNS, PKI, Web, Mail).
-- **Sécurité** : Segmentation, Firewalling, VPN, Sécurisation des accès.
-- **Automatisation** : Utilisation d'Ansible pour la configuration des équipements.
+<p align="center">
+  <a href="#-présentation">Présentation</a> •
+  <a href="#-architecture">Architecture</a> •
+  <a href="#-technologies">Technologies</a> •
+  <a href="#-équipe">Équipe</a> •
+  <a href="#-documentation">Documentation</a>
+</p>
 
 ---
 
-## 🏗️ Architecture Réseau
+## 🎯 Présentation
 
-Le routeur **WANRTR** est le point central de l'architecture, séparant les flux via des VRF (INET et MAN).
+> *« Le professionnel R&T, en charge d'un projet technique, doit assurer l'ensemble des étapes du projet en concevant, réalisant et en présentant une solution technique mariant les différentes technologies réseaux, télécommunications et informatiques. »*
+> — Programme National BUT R&T
+
+Ce projet est réalisé dans le cadre de la **SAE 501** en 3ème année de **BUT Réseaux & Télécommunications** à l'IUT de Belfort-Montbéliard. Il s'appuie sur le sujet officiel de la compétition **WorldSkills Lyon 2025 - Skill 39 (IT Network Systems Administration)**.
+
+### 📋 Contexte WorldSkills
+
+| | |
+|---|---|
+| 🏢 **Client fictif** | WorldSkills Lyon 2025 (WSL2025) - Organisation des compétitions |
+| 🤝 **Partenaire** | WorldSkills France (WSFR) - Site distant connecté via MAN |
+| 👥 **Effectif simulé** | ~120 employés répartis sur 2 sites |
+| 🎯 **Objectif** | Infrastructure réseau complète, sécurisée et redondante |
+
+### 🏆 Compétences Développées
+
+<table>
+<tr>
+<td align="center" width="25%">
+
+**🔧 Infrastructure**
+<br/>
+<sub>Architecture multi-sites<br/>Redondance HSRP/LACP<br/>VRF & Segmentation</sub>
+
+</td>
+<td align="center" width="25%">
+
+**🌐 Routage**
+<br/>
+<sub>OSPF Multi-Area<br/>BGP eBGP/iBGP<br/>NAT/PAT</sub>
+
+</td>
+<td align="center" width="25%">
+
+**🖥️ Services**
+<br/>
+<sub>Active Directory<br/>DNS/DHCP/PKI<br/>Mail/Web/VPN</sub>
+
+</td>
+<td align="center" width="25%">
+
+**🔐 Sécurité**
+<br/>
+<sub>Firewall nftables<br/>Certificats X.509<br/>VPN OpenVPN</sub>
+
+</td>
+</tr>
+</table>
+
+---
+
+## 🏗️ Architecture
+
+### Vue d'ensemble
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            🌐 INTERNET (Zone Publique)                       │
+│    ┌─────────┐    ┌─────────┐    ┌─────────┐    ┌─────────┐                 │
+│    │ DNSSRV  │    │ INETSRV │    │ VPNCLT  │    │ INETCLT │                 │
+│    │ 8.8.4.1 │    │ 8.8.4.2 │    │ 8.8.4.3 │    │ 8.8.4.4 │                 │
+│    └────┬────┘    └────┬────┘    └────┬────┘    └────┬────┘                 │
+│         └──────────────┴──────────────┴──────────────┘                      │
+└─────────────────────────────────┬───────────────────────────────────────────┘
+                                  │
+                    ┌─────────────┴─────────────┐
+                    │         WANRTR            │
+                    │    VRF INET / VRF MAN     │
+                    │    (Routeur FAI Central)  │
+                    └──────┬──────────┬─────────┘
+           ┌───────────────┘          └───────────────┐
+           │ BGP AS 65430                    OSPF Area 4
+           ▼                                          ▼
+┌──────────────────────────────────┐    ┌──────────────────────────────────┐
+│        🏢 SITE HQ (Siège)        │    │      🏭 SITE REMOTE (WSFR)       │
+│  ┌────────┐        ┌────────┐    │    │         ┌────────┐               │
+│  │ EDGE1  │◄──────►│ EDGE2  │    │    │         │ REMFW  │               │
+│  └───┬────┘ iBGP   └────┬───┘    │    │         └───┬────┘               │
+│      │                  │        │    │             │                    │
+│  ┌───┴────┐        ┌────┴───┐    │    │  ┌─────────┼─────────┐           │
+│  │CORESW1 │◄══════►│CORESW2 │    │    │  │         │         │           │
+│  └───┬────┘ LACP   └────┬───┘    │    │  ▼         ▼         ▼           │
+│      │                  │        │    │ REMDCSRV REMINFRA  REMCLT        │
+│  ┌───┴────┐        ┌────┴───┐    │    └──────────────────────────────────┘
+│  │ACCSW1  │        │ACCSW2  │    │
+│  └───┬────┘        └────┬───┘    │
+│      │                  │        │
+│  ┌───┴──────────────────┴───┐    │
+│  │  VLAN 10: Servers        │    │
+│  │  VLAN 20: Clients        │    │
+│  │  VLAN 30: DMZ            │    │
+│  │  VLAN 99: Management     │    │
+│  └──────────────────────────┘    │
+└──────────────────────────────────┘
+```
+
+### Schéma Mermaid Interactif
 
 ```mermaid
 graph TD
-    %% --- Zone REMOTE (Gauche) ---
-    subgraph REMOTE [Site Distant - MAN]
+    subgraph REMOTE [🏭 Site Distant - MAN]
         direction TB
         REMFW[REMFW<br>Firewall Remote]
         REMDCSRV[REMDCSRV<br>AD Remote]
         REMINFRASRV[REMINFRASRV]
         REMCLT[REMCLT]
-        
         REMFW --- REMDCSRV & REMINFRASRV & REMCLT
     end
 
-    %% --- Zone WAN/Central (Milieu) ---
-    subgraph WAN [Cœur WAN]
+    subgraph WAN [☁️ Cœur WAN]
         WANRTR[WANRTR<br>Routeur FAI<br>VRF INET / VRF MAN]
     end
 
-    %% --- Zone INTERNET (Droite) ---
-    subgraph INTERNET [Zone Internet]
+    subgraph INTERNET [🌐 Zone Internet]
         direction TB
         INETSW[Switch Internet]
-        DNSSRV[DNSSRV<br>DNS Public]
-        INETSRV[INETSRV<br>Web + FTP]
+        DNSSRV[DNSSRV<br>DNS Public + Root CA]
+        INETSRV[INETSRV<br>Web HA + FTP]
         VPNCLT[VPNCLT]
         INETCLT[INETCLT]
-        
         INETSW --- DNSSRV & INETSRV & VPNCLT & INETCLT
     end
 
-    %% --- Zone HQ (Bas) ---
-    subgraph HQ [Siège Social HQ]
+    subgraph HQ [🏢 Siège Social HQ]
         direction TB
-        
-        %% Routeurs de Bordure
         EDGE1[EDGE1<br>Routeur Bordure 1]
         EDGE2[EDGE2<br>Routeur Bordure 2]
-        
-        %% Cœur de Réseau
-        CORESW1[CORESW1<br>Cœur 1<br>HSRP Active]
-        CORESW2[CORESW2<br>Cœur 2<br>HSRP Standby]
-        
-        %% Accès
+        CORESW1[CORESW1<br>Cœur 1 - HSRP Active]
+        CORESW2[CORESW2<br>Cœur 2 - HSRP Standby]
         ACCSW1[ACCSW1<br>Switch Accès 1]
         ACCSW2[ACCSW2<br>Switch Accès 2]
         
-        %% Services & Clients
         subgraph SERVERS [VLAN 10 - Serveurs]
-            HQDCSRV
-            HQINFRASRV
-            HQMAILSRV
+            HQDCSRV & HQINFRASRV & HQMAILSRV & DCWSL
         end
         
-        subgraph CLIENTS [VLAN 20 - Clients]
-            HQCLT
-        end
-        
-        subgraph MANAGEMENT [VLAN 99]
-            MGMTCLT
-        end
-        
-        subgraph DMZ [VLAN 30 - DMZ Publique]
-            HQFWSRV[HQFWSRV<br>Firewall]
-            HQWEBSRV[HQWEBSRV<br>Web/RDS]
+        subgraph DMZ [VLAN 30 - DMZ]
+            HQFWSRV[HQFWSRV<br>Firewall] --> HQWEBSRV[HQWEBSRV<br>Web/RDS]
         end
     end
 
-    %% --- Connexions ---
-    
-    %% REMOTE vers WANRTR (VRF MAN)
     REMFW <-->|OSPF Area 4| WANRTR
-
-    %% INTERNET vers WANRTR (VRF INET)
     WANRTR --- INETSW
-
-    %% WANRTR vers HQ (Double lien par VRF)
-    WANRTR <-->|BGP AS 65430<br>VRF INET| EDGE1
-    WANRTR <-->|BGP AS 65430<br>VRF INET| EDGE2
-    
-    WANRTR <-->|OSPF Area 4<br>VRF MAN| EDGE1
-    WANRTR <-->|OSPF Area 4<br>VRF MAN| EDGE2
-
-    %% Interconnexions HQ - Layer 3
-    EDGE1 <-->|iBGP - VLAN 300| EDGE2
-    EDGE1 <-->|VLAN 100| CORESW1
-    EDGE2 <-->|VLAN 200| CORESW2
-    
-    %% Interconnexions HQ - Layer 2
-    CORESW1 <==>|LACP Po1<br>Trunk 10,20,30,99| CORESW2
-    
-    %% Trunks Access - Config exacte
-    CORESW1 ===|Trunk 10,20,30,99| ACCSW1
-    CORESW1 ===|Trunk 10,20,30,99| ACCSW2
-    CORESW2 ===|Trunk 10,20,30,99| ACCSW1
-    CORESW2 ===|Trunk 10,20,30,99| ACCSW2
-    
-    %% Connexions Access vers End Devices (VLANs spécifiques)
-    ACCSW1 ---|VLAN 10| HQDCSRV
-    ACCSW1 ---|VLAN 10| HQINFRASRV
-    ACCSW1 ---|VLAN 10| HQMAILSRV
-    ACCSW1 ---|VLAN 20| HQCLT
-    
-    ACCSW2 ---|VLAN 99| MGMTCLT
-    ACCSW2 ---|VLAN 30| HQFWSRV
-    HQFWSRV ---|VLAN 30| HQWEBSRV
+    WANRTR <-->|BGP AS 65430| EDGE1 & EDGE2
+    WANRTR <-->|OSPF Area 4| EDGE1 & EDGE2
+    EDGE1 <-->|iBGP| EDGE2
+    EDGE1 --> CORESW1
+    EDGE2 --> CORESW2
+    CORESW1 <==>|LACP Po1| CORESW2
+    CORESW1 & CORESW2 --> ACCSW1 & ACCSW2
 ```
 
 ---
 
-## 🌍 Plan d'Adressage IP (N=4)
+## 🛠️ Technologies
 
-| Zone | VLAN | Nom | Réseau | Passerelle (VIP) |
-|---|---|---|---|---|
-| **HQ** | 10 | Servers | `10.4.10.0/24` | `10.4.10.254` |
-| **HQ** | 20 | Clients | `10.4.20.0/23` | `10.4.20.254` |
-| **HQ** | 30 | DMZ | `217.4.160.0/24` | `217.4.160.254` |
-| **HQ** | 99 | Management | `10.4.99.0/24` | `10.4.99.254` |
-| **Remote** | 100 | Remote LAN | `10.4.100.0/25` | `10.4.100.126` |
-| **Internet** | - | Public | `8.8.4.0/29` | `8.8.4.6` |
+### Stack Réseau
 
-### Liaisons d'Interconnexion (N=4)
+<p align="center">
+  <img src="https://img.shields.io/badge/Cisco_IOS-1BA0D7?style=for-the-badge&logo=cisco&logoColor=white" alt="Cisco"/>
+  <img src="https://img.shields.io/badge/OSPF-Multi_Area-orange?style=for-the-badge" alt="OSPF"/>
+  <img src="https://img.shields.io/badge/BGP-eBGP_/_iBGP-green?style=for-the-badge" alt="BGP"/>
+  <img src="https://img.shields.io/badge/HSRP-Redundancy-red?style=for-the-badge" alt="HSRP"/>
+  <img src="https://img.shields.io/badge/VRF-INET_/_MAN-purple?style=for-the-badge" alt="VRF"/>
+</p>
 
-| Liaison | VLAN | Réseau | IPs | VRF | Protocole |
-|---|---|---|---|---|---|
-| EDGE1-WANRTR | 13 | `10.4.254.12/30` | .13 / .14 | MAN | OSPF |
-| EDGE1-WANRTR | 14 | `91.4.222.96/29` | .97 / .98 | INET | eBGP |
-| EDGE2-WANRTR | 15 | `10.4.254.16/30` | .18 / .17 | MAN | OSPF |
-| EDGE2-WANRTR | 16 | `31.4.126.12/30` | .13 / .14 | INET | eBGP |
-| WANRTR-REMFW | - | `10.116.4.0/30` | .2 / .1 | MAN | OSPF |
+### Stack Systèmes
 
----
+<p align="center">
+  <img src="https://img.shields.io/badge/Windows_Server-2022-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Windows Server"/>
+  <img src="https://img.shields.io/badge/Debian-13_Trixie-A81D33?style=for-the-badge&logo=debian&logoColor=white" alt="Debian"/>
+  <img src="https://img.shields.io/badge/Active_Directory-Domain_Services-0078D4?style=for-the-badge&logo=microsoft&logoColor=white" alt="AD DS"/>
+  <img src="https://img.shields.io/badge/Samba-AD_DC-006600?style=for-the-badge" alt="Samba"/>
+</p>
 
-## 🖥️ Inventaire des Serveurs
+### Stack Services
 
-### 🏢 Site HQ (Siège)
-| Serveur | OS | IP | Rôles Principaux | Documentation |
-|---|---|---|---|---|
-| **HQDCSRV** | Win 2022 | `10.4.10.1` | AD DS, DNS, ADCS (SubCA), GPO | [Voir le guide](documentation/04-HQDCSRV.md) |
-| **HQINFRASRV** | Debian 13 | `10.4.10.2` | DHCP, VPN OpenVPN, NTP, Samba | [Voir le guide](documentation/01-HQINFRASRV.md) |
-| **HQMAILSRV** | Debian 13 | `10.4.10.3` | Postfix, Dovecot, Roundcube, ZFS | [Voir le guide](documentation/02-HQMAILSRV.md) |
-| **DCWSL** | Debian 13 | `10.4.10.4` | Samba AD (Forest Root), DNS | [Voir le guide](documentation/03-DCWSL.md) |
-| **HQFWSRV** | Debian 13 | `217.4.160.1` | Firewall (nftables), Routing | [Voir le guide](documentation/05-HQFWSRV.md) |
-| **HQWEBSRV** | Win 2022 | `217.4.160.2` | IIS, RDS (RemoteApp) | [Voir le guide](documentation/06-HQWEBSRV.md) |
-
-### 🏭 Site Remote
-| Serveur | OS | IP | Rôles Principaux | Documentation |
-|---|---|---|---|---|
-| **REMFW** | Cisco IOS | `10.4.100.126` | Routeur/Firewall (ACL), OSPF | [Voir le guide](documentation/09-REMFW.md) |
-| **REMDCSRV** | Win 2022 | `10.4.100.1` | AD (Child), DHCP, DNS | [Voir le guide](documentation/10-REMDCSRV.md) |
-| **REMINFRASRV**| Win 2022 | `10.4.100.2` | Failover DHCP, DFS | [Voir le guide](documentation/11-REMINFRASRV.md) |
-
-### 🌐 Zone Internet
-| Serveur | OS | IP | Rôles Principaux | Documentation |
-|---|---|---|---|---|
-| **DNSSRV** | Debian 13 | `8.8.4.1` | DNS Public, Root CA, DNSSEC | [Voir le guide](documentation/13-DNSSRV.md) |
-| **INETSRV** | Debian 13 | `8.8.4.2` | Web HA (Docker), FTP (FTPS) | [Voir le guide](documentation/14-INETSRV.md) |
+<p align="center">
+  <img src="https://img.shields.io/badge/OpenVPN-EA7E20?style=for-the-badge&logo=openvpn&logoColor=white" alt="OpenVPN"/>
+  <img src="https://img.shields.io/badge/Postfix-Mail-blue?style=for-the-badge" alt="Postfix"/>
+  <img src="https://img.shields.io/badge/Docker-HA_Web-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker"/>
+  <img src="https://img.shields.io/badge/Ansible-Automation-EE0000?style=for-the-badge&logo=ansible&logoColor=white" alt="Ansible"/>
+  <img src="https://img.shields.io/badge/nftables-Firewall-4EAA25?style=for-the-badge&logo=linux&logoColor=white" alt="nftables"/>
+</p>
 
 ---
 
-## 🚀 Guide de Déploiement Rapide
+## 📊 Plan d'Adressage IP (N=4)
 
-1. **Cœur de Réseau** : Déployez les configurations Cisco présentes dans le dossier [`realconf/`](realconf/).
-   - Veillez à bien configurer les VRF `INET` et `MAN` sur WANRTR.
-   - Vérifiez les adjacences OSPF (Area 4) et BGP (AS 65430).
+### Réseaux Principaux
 
-2. **Infrastructure de Confiance (PKI/DNS)** :
-   - Installez **DNSSRV** (Root CA).
-   - Installez **DCWSL** (Forest Root).
-   - Installez **HQDCSRV** et signez son certificat SubCA via DNSSRV.
+| Zone | VLAN | Nom | Réseau | Passerelle (VIP) | Capacité |
+|:---:|:---:|---|---|---|---:|
+| 🏢 **HQ** | 10 | Servers | `10.4.10.0/24` | `10.4.10.254` | 254 hosts |
+| 🏢 **HQ** | 20 | Clients | `10.4.20.0/23` | `10.4.20.254` | 510 hosts |
+| 🏢 **HQ** | 30 | DMZ | `217.4.160.0/24` | `217.4.160.254` | 254 hosts |
+| 🏢 **HQ** | 99 | Management | `10.4.99.0/24` | `10.4.99.254` | 254 hosts |
+| 🏭 **Remote** | 100 | Remote LAN | `10.4.100.0/25` | `10.4.100.126` | 126 hosts |
+| 🌐 **Internet** | - | Public | `8.8.4.0/29` | `8.8.4.6` | 6 hosts |
 
-3. **Services HQ** :
-   - Déployez **HQINFRASRV** (DHCP, VPN).
-   - Configurez **HQFWSRV** et **HQWEBSRV** (DMZ).
-   - Mettez en place la messagerie sur **HQMAILSRV**.
+### Liaisons d'Interconnexion
 
-4. **Site Remote** :
-   - Configurez **REMFW** et connectez-le au WAN.
-   - Installez **REMDCSRV** et joignez-le à la forêt.
+| Liaison | VLAN | Réseau | Équipements | VRF | Protocole |
+|---|:---:|---|---|:---:|:---:|
+| EDGE1 ↔ WANRTR | 13 | `10.4.254.12/30` | .13 / .14 | MAN | OSPF |
+| EDGE1 ↔ WANRTR | 14 | `91.4.222.96/29` | .97 / .98 | INET | eBGP |
+| EDGE2 ↔ WANRTR | 15 | `10.4.254.16/30` | .18 / .17 | MAN | OSPF |
+| EDGE2 ↔ WANRTR | 16 | `31.4.126.12/30` | .13 / .14 | INET | eBGP |
+| WANRTR ↔ REMFW | - | `10.116.4.0/30` | .2 / .1 | MAN | OSPF |
 
 ---
 
-## 📂 Structure du Dépôt
+## 🖥️ Inventaire des Machines
+
+### 🏢 Site HQ (Siège - 6 serveurs)
+
+| Serveur | OS | IP | Rôles | Doc |
+|---|---|---|---|:---:|
+| **HQDCSRV** | Windows Server 2022 | `10.4.10.1` | AD DS, DNS, ADCS (SubCA), GPO | [📘](documentation/04-HQDCSRV.md) |
+| **HQINFRASRV** | Debian 13 | `10.4.10.2` | DHCP, VPN OpenVPN, NTP, Samba, iSCSI | [📘](documentation/01-HQINFRASRV.md) |
+| **HQMAILSRV** | Debian 13 | `10.4.10.3` | Postfix, Dovecot, Roundcube, ZFS | [📘](documentation/02-HQMAILSRV.md) |
+| **DCWSL** | Debian 13 (Samba AD) | `10.4.10.4` | Forest Root DC, DNS wsl2025.org | [📘](documentation/03-DCWSL.md) |
+| **HQFWSRV** | Debian 13 | `217.4.160.1` | Firewall nftables, NAT/Routing | [📘](documentation/05-HQFWSRV.md) |
+| **HQWEBSRV** | Windows Server 2022 | `217.4.160.2` | IIS, RDS (RemoteApp) | [📘](documentation/06-HQWEBSRV.md) |
+
+### 🏭 Site Remote (3 équipements)
+
+| Équipement | OS | IP | Rôles | Doc |
+|---|---|---|---|:---:|
+| **REMFW** | Cisco IOS (CSR1000v) | `10.4.100.126` | Routeur/Firewall ACL, OSPF | [📘](documentation/09-REMFW.md) |
+| **REMDCSRV** | Windows Server 2022 | `10.4.100.1` | AD Child, DHCP, DNS, DFS | [📘](documentation/10-REMDCSRV.md) |
+| **REMINFRASRV** | Windows Server 2022 | `10.4.100.2` | Failover DHCP/DNS, DFS | [📘](documentation/11-REMINFRASRV.md) |
+
+### 🌐 Zone Internet (4 machines)
+
+| Machine | OS | IP | Rôles | Doc |
+|---|---|---|---|:---:|
+| **DNSSRV** | Debian 13 | `8.8.4.1` | DNS Public, Root CA, DNSSEC | [📘](documentation/13-DNSSRV.md) |
+| **INETSRV** | Debian 13 | `8.8.4.2` | Web HA (Docker), FTPS | [📘](documentation/14-INETSRV.md) |
+| **VPNCLT** | Windows 11 | `8.8.4.3` | Client VPN (test) | [📘](documentation/15-VPNCLT.md) |
+| **INETCLT** | Debian 13 GUI | `8.8.4.4` | Client Internet (test) | [📘](documentation/16-INETCLT.md) |
+
+---
+
+## 🚀 Guide de Déploiement
+
+### Ordre recommandé
+
+```
+Phase 1 - Fondations          Phase 2 - Services HQ        Phase 3 - Expansion
+━━━━━━━━━━━━━━━━━━━           ━━━━━━━━━━━━━━━━━━━          ━━━━━━━━━━━━━━━━━━
+   ┌─────────────┐               ┌─────────────┐              ┌─────────────┐
+   │ 1. Switches │               │ 4. HQINFRASRV│              │ 7. REMFW    │
+   │   & VLANs   │               │   DHCP/VPN  │              │   Routing   │
+   └──────┬──────┘               └──────┬──────┘              └──────┬──────┘
+          ▼                             ▼                            ▼
+   ┌─────────────┐               ┌─────────────┐              ┌─────────────┐
+   │ 2. Routeurs │               │ 5. HQFWSRV  │              │ 8. REMDCSRV │
+   │ OSPF & BGP  │               │   Firewall  │              │   AD Child  │
+   └──────┬──────┘               └──────┬──────┘              └──────┬──────┘
+          ▼                             ▼                            ▼
+   ┌─────────────┐               ┌─────────────┐              ┌─────────────┐
+   │ 3. DNSSRV   │               │ 6. HQWEBSRV │              │ 9. Clients  │
+   │  + DCWSL    │               │  + MAILSRV  │              │   & Tests   │
+   └─────────────┘               └─────────────┘              └─────────────┘
+```
+
+### Commandes rapides
 
 ```bash
-configreseau/
-├── documentation/          # 📘 Guides d'installation pas-à-pas (Markdown)
-│   ├── 00-INDEX.md         # Table des matières détaillée
-│   └── [01-16]-*.md        # Procédures pour chaque machine
-├── realconf/               # ⚙️ Configurations Cisco IOS réelles (Running-config)
-│   ├── JALONS-PREUVES.txt  # Preuves de validation des jalons
-│   ├── PLAN-ADRESSAGE.txt  # Plan IP complet
-│   └── *.txt               # Configs routeurs/switches
-├── virtconf/               # 🧪 Configurations pour environnement virtuel (GNS3/EVE-NG)
-└── sujet*.md               # 📄 Sujets originaux de la compétition
+# Vérifier les adjacences OSPF
+show ip ospf neighbor
+
+# Vérifier les sessions BGP
+show ip bgp summary
+
+# Tester la connectivité inter-sites
+ping 10.4.100.1 source 10.4.10.1
 ```
 
-## 🔐 Accès et Credentials
+---
 
-- **Domaine AD** : `wsl2025.org`
-- **Utilisateur Admin** : `Administrator` / `admin`
-- **Mot de passe par défaut** : `P@ssw0rd` *(Zéro entre w et r)*
+## 📂 Structure du Projet
 
-## 👥 Auteurs
+```
+📁 configreseau/
+├── 📄 readme.md                 # Ce fichier
+├── 📄 sujet1.md                 # Sujet technique complet (EN)
+├── 📄 sujet2.md                 # Présentation SAE 501 (FR)
+├── 🖼️ SAE501-2025-*.jpg         # Schémas d'architecture (4 fichiers)
+│
+├── 📁 documentation/            # 📘 Guides d'installation détaillés
+│   ├── 00-INDEX.md              # Table des matières
+│   └── [01-16]-*.md             # Procédures par machine
+│
+├── 📁 realconf/                 # ⚙️ Configurations réelles (Cisco IOS)
+│   ├── PLAN-ADRESSAGE-IP.txt    # Plan d'adressage complet
+│   ├── JALONS-PREUVES.txt       # Preuves de validation
+│   ├── edge1.txt / edge2.txt    # Configs routeurs bordure
+│   ├── coresw1.txt / coresw2.txt # Configs switches cœur
+│   ├── accsw1.txt / accsw2.txt  # Configs switches accès
+│   ├── wanrtr.txt               # Config routeur WAN (VRF)
+│   └── remfw.txt                # Config firewall remote
+│
+└── 📁 virtconf/                 # 🧪 Configurations virtuelles (GNS3/EVE-NG)
+    ├── jalon7-switches/         # Configs switches (jalon 7)
+    └── jalon8-routeurs/         # Configs routeurs (jalon 8)
+```
 
-Projet réalisé dans le cadre du **BUT3 Réseaux & Télécommunications** - *Université de Franche-Comté*.
+---
 
-> *WorldSkills Lyon 2025 - IT Network Systems Administration*
+## 👥 Équipe - Groupe 4
+
+<table>
+<tr>
+<td align="center" width="25%">
+<img src="https://img.shields.io/badge/👤-Membre_1-blue?style=for-the-badge" alt="Membre 1"/><br/>
+<sub><b>Parcours Cyber</b></sub><br/>
+<sub>PKI • Firewall • VPN</sub>
+</td>
+<td align="center" width="25%">
+<img src="https://img.shields.io/badge/👤-Membre_2-green?style=for-the-badge" alt="Membre 2"/><br/>
+<sub><b>Parcours Cyber</b></sub><br/>
+<sub>AD • DNS • Sécurité</sub>
+</td>
+<td align="center" width="25%">
+<img src="https://img.shields.io/badge/👤-Membre_3-orange?style=for-the-badge" alt="Membre 3"/><br/>
+<sub><b>Parcours PilPro</b></sub><br/>
+<sub>Gestion de projet</sub>
+</td>
+<td align="center" width="25%">
+<img src="https://img.shields.io/badge/👤-Membre_4-purple?style=for-the-badge" alt="Membre 4"/><br/>
+<sub><b>Parcours IoM</b></sub><br/>
+<sub>Ansible • Monitoring</sub>
+</td>
+</tr>
+</table>
+
+> 📍 **Salle de réunion** : 005 | **Infra réseau** : Salle 203
+
+---
+
+## 🔐 Credentials par défaut
+
+| Service | Utilisateur | Mot de passe |
+|---|---|---|
+| Équipements réseau | `admin` | `P@ssw0rd` |
+| Domaine AD | `Administrator` | `P@ssw0rd` |
+| Linux (root) | `root` | `P@ssw0rd` |
+
+> ⚠️ **Note** : Le zéro (0) est entre le "w" et le "r"
+
+### Domaines Active Directory
+
+```
+wsl2025.org          (Forest Root - DCWSL)
+├── hq.wsl2025.org   (Child Domain - HQDCSRV)
+└── rem.wsl2025.org  (Child Domain - REMDCSRV)
+```
+
+---
+
+## 📈 Progression
+
+```
+Cœur Réseau      [██████████████████████████████] 100% ✅
+Services HQ      [██████████████████████████████] 100% ✅
+Site Remote      [██████████████████████████████] 100% ✅
+Documentation    [██████████████████████████████] 100% ✅
+Tests & Valid.   [██████████████████████████████] 100% ✅
+```
+
+---
+
+## 📚 Ressources
+
+- 🔗 [WorldSkills France](https://www.worldskills-france.org)
+- 🔗 [Moodle SAE 501](https://moodle.univ-fcomte.fr)
+- 🔗 [IUT Belfort-Montbéliard](https://www.iut-bm.univ-fcomte.fr/)
+
+---
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Made_with-❤️-red?style=for-the-badge" alt="Made with love"/>
+  <img src="https://img.shields.io/badge/IUT_Belfort--Montbéliard-2025-1E3A8A?style=for-the-badge" alt="IUT BM"/>
+</p>
+
+<p align="center">
+  <sub>
+    <b>SAE 501</b> • BUT Réseaux & Télécommunications • 3ème année<br/>
+    Université de Franche-Comté • Décembre 2025<br/><br/>
+    <i>Basé sur le sujet WorldSkills Lyon 2025 - Skill 39 (IT Network Systems Administration)</i>
+  </sub>
+</p>
+
+<p align="center">
+  <sub>
+    © WorldSkills France - Reproduction autorisée à des fins pédagogiques non commerciales
+  </sub>
+</p>
