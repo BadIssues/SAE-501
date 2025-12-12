@@ -358,24 +358,24 @@ ping 10.4.100.1 source 10.4.10.1
 <table>
 <tr>
 <td align="center" width="25%">
-<img src="https://img.shields.io/badge/👤-Membre_1-blue?style=for-the-badge" alt="Membre 1"/><br/>
+<img src="https://img.shields.io/badge/🔐-Antonin_MICHON-DC143C?style=for-the-badge" alt="Antonin MICHON"/><br/>
 <sub><b>Parcours Cyber</b></sub><br/>
 <sub>PKI • Firewall • VPN</sub>
 </td>
 <td align="center" width="25%">
-<img src="https://img.shields.io/badge/👤-Membre_2-green?style=for-the-badge" alt="Membre 2"/><br/>
+<img src="https://img.shields.io/badge/🔐-Curtis_LEMIEUX-DC143C?style=for-the-badge" alt="Curtis LEMIEUX"/><br/>
 <sub><b>Parcours Cyber</b></sub><br/>
 <sub>AD • DNS • Sécurité</sub>
 </td>
 <td align="center" width="25%">
-<img src="https://img.shields.io/badge/👤-Membre_3-orange?style=for-the-badge" alt="Membre 3"/><br/>
+<img src="https://img.shields.io/badge/📊-Damien_LETALLEUR-FF8C00?style=for-the-badge" alt="Damien LETALLEUR"/><br/>
 <sub><b>Parcours PilPro</b></sub><br/>
 <sub>Gestion de projet</sub>
 </td>
 <td align="center" width="25%">
-<img src="https://img.shields.io/badge/👤-Membre_4-purple?style=for-the-badge" alt="Membre 4"/><br/>
-<sub><b>Parcours IoM</b></sub><br/>
-<sub>Ansible • Monitoring</sub>
+<img src="https://img.shields.io/badge/📊-Lucien_DELAGRANGE-FF8C00?style=for-the-badge" alt="Lucien DELAGRANGE"/><br/>
+<sub><b>Parcours PilPro</b></sub><br/>
+<sub>Gestion de projet</sub>
 </td>
 </tr>
 </table>
