@@ -144,15 +144,15 @@ graph TD
         REMDCSRV["🖥️ REMDCSRV<br/>AD + DHCP + DNS"]
         REMINFRASRV["🖥️ REMINFRASRV<br/>DFS Failover"]
         REMCLT["💻 REMCLT<br/>Windows 11"]
-        
+
         REMFW --- REMDCSRV
         REMFW --- REMINFRASRV
         REMFW --- REMCLT
     end
 
     %% === ZONE WAN CENTRAL ===
-    subgraph WAN ["☁️ Cœur WAN - FAI"]
-        WANRTR["🌐 WANRTR<br/>VRF INET (AS 65430)<br/>VRF MAN (OSPF)"]
+    subgraph WAN ["☁️ Cœur WAN - FAI (AS 65430)"]
+        WANRTR["🌐 WANRTR<br/>BGP AS 65430<br/>VRF INET / VRF MAN"]
     end
 
     %% === ZONE INTERNET ===
@@ -165,21 +165,21 @@ graph TD
     end
 
     %% === ZONE HQ (Siège Social) ===
-    subgraph HQ ["🏢 Siège Social HQ - WSL2025"]
+    subgraph HQ ["🏢 Siège Social HQ - WSL2025 (AS 65416)"]
         direction TB
-        
+
         %% Routeurs Edge
-        EDGE1["⚡ EDGE1<br/>BGP + HSRP Active"]
-        EDGE2["⚡ EDGE2<br/>BGP + HSRP Standby"]
-        
+        EDGE1["⚡ EDGE1<br/>BGP AS 65416<br/>HSRP Active"]
+        EDGE2["⚡ EDGE2<br/>BGP AS 65416<br/>HSRP Standby"]
+
         %% Core Switches
         CORESW1["🔷 CORESW1<br/>L3 Switch<br/>HSRP Active"]
         CORESW2["🔷 CORESW2<br/>L3 Switch<br/>HSRP Standby"]
-        
+
         %% Access Switches
         ACCSW1["🔹 ACCSW1"]
         ACCSW2["🔹 ACCSW2"]
-        
+
         %% VLAN 10 - Serveurs
         subgraph SERVERS ["📦 VLAN 10 - Serveurs (10.4.10.0/24)"]
             HQDCSRV["🖥️ HQDCSRV<br/>AD + PKI + DNS"]
@@ -187,17 +187,17 @@ graph TD
             HQMAILSRV["📧 HQMAILSRV<br/>Mail + Webmail"]
             DCWSL["🏛️ DCWSL<br/>Forest Root DC"]
         end
-        
+
         %% VLAN 20 - Clients
         subgraph CLIENTS ["👥 VLAN 20 - Clients (10.4.20.0/23)"]
             HQCLT["💻 HQCLT<br/>Windows 11"]
         end
-        
+
         %% VLAN 99 - Management
         subgraph MGMT ["🔧 VLAN 99 - Management"]
             MGMTCLT["🛠️ MGMTCLT<br/>Ansible"]
         end
-        
+
         %% VLAN 30 - DMZ
         subgraph DMZ ["🛡️ VLAN 30 - DMZ (217.4.160.0/24)"]
             HQFWSRV["🔥 HQFWSRV<br/>nftables"]
@@ -206,34 +206,34 @@ graph TD
     end
 
     %% === CONNEXIONS PRINCIPALES ===
-    
+
     %% Remote vers WAN
     REMFW <-->|"OSPF Area 4<br/>10.116.4.0/30"| WANRTR
-    
+
     %% Internet vers WAN
     WANRTR ---|"8.8.4.0/29"| DNSSRV
     WANRTR --- INETSRV
     WANRTR --- VPNCLT
     WANRTR --- INETCLT
-    
-    %% WAN vers HQ (Double liaison)
-    WANRTR <-->|"eBGP + OSPF<br/>VLAN 13-14"| EDGE1
-    WANRTR <-->|"eBGP + OSPF<br/>VLAN 15-16"| EDGE2
-    
-    %% Interconnexions HQ Layer 3
-    EDGE1 <-->|"iBGP<br/>VLAN 300"| EDGE2
+
+    %% WAN vers HQ (Double liaison BGP)
+    WANRTR <-->|"eBGP 65430↔65416<br/>+ OSPF Area 4"| EDGE1
+    WANRTR <-->|"eBGP 65430↔65416<br/>+ OSPF Area 4"| EDGE2
+
+    %% Interconnexions HQ Layer 3 (iBGP)
+    EDGE1 <-->|"iBGP AS 65416<br/>VLAN 300"| EDGE2
     EDGE1 <-->|"VLAN 100"| CORESW1
     EDGE2 <-->|"VLAN 200"| CORESW2
-    
+
     %% Core Switch interconnexion
     CORESW1 <==>|"LACP Po1<br/>Trunk VLANs"| CORESW2
-    
+
     %% Trunks vers Access
     CORESW1 ---|"Trunk"| ACCSW1
     CORESW1 ---|"Trunk"| ACCSW2
     CORESW2 ---|"Trunk"| ACCSW1
     CORESW2 ---|"Trunk"| ACCSW2
-    
+
     %% Access vers End Devices
     ACCSW1 ---|"VLAN 10"| HQDCSRV
     ACCSW1 ---|"VLAN 10"| HQINFRASRV
@@ -242,7 +242,7 @@ graph TD
     ACCSW1 ---|"VLAN 20"| HQCLT
     ACCSW2 ---|"VLAN 99"| MGMTCLT
     ACCSW2 ---|"VLAN 30"| HQFWSRV
-    
+
     %% DMZ interne
     HQFWSRV ---|"DMZ Interne"| HQWEBSRV
 ```
