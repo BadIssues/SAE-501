@@ -19,14 +19,14 @@ Ce dépôt contient l'infrastructure complète pour la compétition **WorldSkill
 
 ## 🏗️ Architecture Réseau
 
-Le réseau est structuré en trois zones principales interconnectées :
+Le réseau est structuré en trois zones principales interconnectées, avec une segmentation VRF stricte sur le routeur WANRTR :
 
 ```mermaid
 graph TD
     subgraph INTERNET [Zone Internet - 8.8.4.0/29]
         DNSSRV[DNSSRV<br>DNS Public + Root CA<br>8.8.4.1]
         INETSRV[INETSRV<br>Web + FTP<br>8.8.4.2]
-        WANRTR[WANRTR<br>Routeur FAI<br>8.8.4.6]
+        WANRTR[WANRTR<br>VRF INET / VRF MAN<br>8.8.4.6]
     end
 
     subgraph HQ [Siège Social - 10.4.0.0/16]
@@ -52,11 +52,16 @@ graph TD
         REMDCSRV[REMDCSRV<br>AD Remote]
     end
 
-    WANRTR <-->|BGP AS 65430| EDGE1
-    WANRTR <-->|BGP AS 65430| EDGE2
-    WANRTR <-->|OSPF Area 0| REMFW
+    %% Liaisons BGP (Internet)
+    WANRTR <-->|VRF INET - VLAN 14| EDGE1
+    WANRTR <-->|VRF INET - VLAN 16| EDGE2
     
-    EDGE1 <-->|iBGP| EDGE2
+    %% Liaisons OSPF (MAN)
+    WANRTR <-->|VRF MAN - VLAN 13| EDGE1
+    WANRTR <-->|VRF MAN - VLAN 15| EDGE2
+    WANRTR <-->|VRF MAN - Fe0/0/0| REMFW
+    
+    EDGE1 <-->|iBGP - VLAN 300| EDGE2
     EDGE1 <-->|VLAN 100| CORESW1
     EDGE2 <-->|VLAN 200| CORESW2
     CORESW1 <-->|HSRP/LACP| CORESW2
@@ -73,8 +78,17 @@ graph TD
 | **HQ** | 30 | DMZ | `217.4.160.0/24` | `217.4.160.254` |
 | **HQ** | 99 | Management | `10.4.99.0/24` | `10.4.99.254` |
 | **Remote** | 100 | Remote LAN | `10.4.100.0/25` | `10.4.100.126` |
-| **WAN** | - | MAN Link | `10.116.4.0/30` | - |
 | **Internet** | - | Public | `8.8.4.0/29` | `8.8.4.6` |
+
+### Liaisons d'Interconnexion (N=4)
+
+| Liaison | VLAN | Réseau | IPs | VRF | Protocole |
+|---|---|---|---|---|---|
+| EDGE1-WANRTR | 13 | `10.4.254.12/30` | .13 / .14 | MAN | OSPF |
+| EDGE1-WANRTR | 14 | `91.4.222.96/29` | .97 / .98 | INET | eBGP |
+| EDGE2-WANRTR | 15 | `10.4.254.16/30` | .18 / .17 | MAN | OSPF |
+| EDGE2-WANRTR | 16 | `31.4.126.12/30` | .13 / .14 | INET | eBGP |
+| WANRTR-REMFW | - | `10.116.4.0/30` | .2 / .1 | MAN | OSPF |
 
 ---
 
@@ -108,8 +122,8 @@ graph TD
 ## 🚀 Guide de Déploiement Rapide
 
 1. **Cœur de Réseau** : Déployez les configurations Cisco présentes dans le dossier [`realconf/`](realconf/).
-   - Switches : `CORESW1`, `CORESW2`, `ACCSW1`, `ACCSW2`
-   - Routeurs : `EDGE1`, `EDGE2`, `WANRTR`
+   - Veillez à bien configurer les VRF `INET` et `MAN` sur WANRTR.
+   - Vérifiez les adjacences OSPF (Area 4) et BGP (AS 65430).
 
 2. **Infrastructure de Confiance (PKI/DNS)** :
    - Installez **DNSSRV** (Root CA).
