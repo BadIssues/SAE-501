@@ -137,56 +137,114 @@ Ce projet est réalisé dans le cadre de la **SAE 501** en 3ème année de **BUT
 
 ```mermaid
 graph TD
-    subgraph REMOTE [🏭 Site Distant - MAN]
+    %% === ZONE REMOTE (Site Distant WSFR) ===
+    subgraph REMOTE ["🏭 Site Distant - WSFR (MAN)"]
         direction TB
-        REMFW[REMFW<br>Firewall Remote]
-        REMDCSRV[REMDCSRV<br>AD Remote]
-        REMINFRASRV[REMINFRASRV]
-        REMCLT[REMCLT]
-        REMFW --- REMDCSRV & REMINFRASRV & REMCLT
+        REMFW["🔥 REMFW<br/>Cisco CSR1000v<br/>10.116.4.1"]
+        REMDCSRV["🖥️ REMDCSRV<br/>AD + DHCP + DNS"]
+        REMINFRASRV["🖥️ REMINFRASRV<br/>DFS Failover"]
+        REMCLT["💻 REMCLT<br/>Windows 11"]
+        
+        REMFW --- REMDCSRV
+        REMFW --- REMINFRASRV
+        REMFW --- REMCLT
     end
 
-    subgraph WAN [☁️ Cœur WAN]
-        WANRTR[WANRTR<br>Routeur FAI<br>VRF INET / VRF MAN]
+    %% === ZONE WAN CENTRAL ===
+    subgraph WAN ["☁️ Cœur WAN - FAI"]
+        WANRTR["🌐 WANRTR<br/>VRF INET (AS 65430)<br/>VRF MAN (OSPF)"]
     end
 
-    subgraph INTERNET [🌐 Zone Internet]
+    %% === ZONE INTERNET ===
+    subgraph INTERNET ["🌍 Zone Internet (8.8.4.0/29)"]
         direction TB
-        INETSW[Switch Internet]
-        DNSSRV[DNSSRV<br>DNS Public + Root CA]
-        INETSRV[INETSRV<br>Web HA + FTP]
-        VPNCLT[VPNCLT]
-        INETCLT[INETCLT]
-        INETSW --- DNSSRV & INETSRV & VPNCLT & INETCLT
+        DNSSRV["🔐 DNSSRV<br/>DNS Public<br/>Root CA"]
+        INETSRV["🌐 INETSRV<br/>Web HA + FTPS"]
+        VPNCLT["💻 VPNCLT<br/>Client VPN"]
+        INETCLT["💻 INETCLT<br/>Client Test"]
     end
 
-    subgraph HQ [🏢 Siège Social HQ]
+    %% === ZONE HQ (Siège Social) ===
+    subgraph HQ ["🏢 Siège Social HQ - WSL2025"]
         direction TB
-        EDGE1[EDGE1<br>Routeur Bordure 1]
-        EDGE2[EDGE2<br>Routeur Bordure 2]
-        CORESW1[CORESW1<br>Cœur 1 - HSRP Active]
-        CORESW2[CORESW2<br>Cœur 2 - HSRP Standby]
-        ACCSW1[ACCSW1<br>Switch Accès 1]
-        ACCSW2[ACCSW2<br>Switch Accès 2]
-
-        subgraph SERVERS [VLAN 10 - Serveurs]
-            HQDCSRV & HQINFRASRV & HQMAILSRV & DCWSL
+        
+        %% Routeurs Edge
+        EDGE1["⚡ EDGE1<br/>BGP + HSRP Active"]
+        EDGE2["⚡ EDGE2<br/>BGP + HSRP Standby"]
+        
+        %% Core Switches
+        CORESW1["🔷 CORESW1<br/>L3 Switch<br/>HSRP Active"]
+        CORESW2["🔷 CORESW2<br/>L3 Switch<br/>HSRP Standby"]
+        
+        %% Access Switches
+        ACCSW1["🔹 ACCSW1"]
+        ACCSW2["🔹 ACCSW2"]
+        
+        %% VLAN 10 - Serveurs
+        subgraph SERVERS ["📦 VLAN 10 - Serveurs (10.4.10.0/24)"]
+            HQDCSRV["🖥️ HQDCSRV<br/>AD + PKI + DNS"]
+            HQINFRASRV["🖥️ HQINFRASRV<br/>DHCP + VPN + NTP"]
+            HQMAILSRV["📧 HQMAILSRV<br/>Mail + Webmail"]
+            DCWSL["🏛️ DCWSL<br/>Forest Root DC"]
         end
-
-        subgraph DMZ [VLAN 30 - DMZ]
-            HQFWSRV[HQFWSRV<br>Firewall] --> HQWEBSRV[HQWEBSRV<br>Web/RDS]
+        
+        %% VLAN 20 - Clients
+        subgraph CLIENTS ["👥 VLAN 20 - Clients (10.4.20.0/23)"]
+            HQCLT["💻 HQCLT<br/>Windows 11"]
+        end
+        
+        %% VLAN 99 - Management
+        subgraph MGMT ["🔧 VLAN 99 - Management"]
+            MGMTCLT["🛠️ MGMTCLT<br/>Ansible"]
+        end
+        
+        %% VLAN 30 - DMZ
+        subgraph DMZ ["🛡️ VLAN 30 - DMZ (217.4.160.0/24)"]
+            HQFWSRV["🔥 HQFWSRV<br/>nftables"]
+            HQWEBSRV["🌐 HQWEBSRV<br/>IIS + RDS"]
         end
     end
 
-    REMFW <-->|OSPF Area 4| WANRTR
-    WANRTR --- INETSW
-    WANRTR <-->|BGP AS 65430| EDGE1 & EDGE2
-    WANRTR <-->|OSPF Area 4| EDGE1 & EDGE2
-    EDGE1 <-->|iBGP| EDGE2
-    EDGE1 --> CORESW1
-    EDGE2 --> CORESW2
-    CORESW1 <==>|LACP Po1| CORESW2
-    CORESW1 & CORESW2 --> ACCSW1 & ACCSW2
+    %% === CONNEXIONS PRINCIPALES ===
+    
+    %% Remote vers WAN
+    REMFW <-->|"OSPF Area 4<br/>10.116.4.0/30"| WANRTR
+    
+    %% Internet vers WAN
+    WANRTR ---|"8.8.4.0/29"| DNSSRV
+    WANRTR --- INETSRV
+    WANRTR --- VPNCLT
+    WANRTR --- INETCLT
+    
+    %% WAN vers HQ (Double liaison)
+    WANRTR <-->|"eBGP + OSPF<br/>VLAN 13-14"| EDGE1
+    WANRTR <-->|"eBGP + OSPF<br/>VLAN 15-16"| EDGE2
+    
+    %% Interconnexions HQ Layer 3
+    EDGE1 <-->|"iBGP<br/>VLAN 300"| EDGE2
+    EDGE1 <-->|"VLAN 100"| CORESW1
+    EDGE2 <-->|"VLAN 200"| CORESW2
+    
+    %% Core Switch interconnexion
+    CORESW1 <==>|"LACP Po1<br/>Trunk VLANs"| CORESW2
+    
+    %% Trunks vers Access
+    CORESW1 ---|"Trunk"| ACCSW1
+    CORESW1 ---|"Trunk"| ACCSW2
+    CORESW2 ---|"Trunk"| ACCSW1
+    CORESW2 ---|"Trunk"| ACCSW2
+    
+    %% Access vers End Devices
+    ACCSW1 ---|"VLAN 10"| HQDCSRV
+    ACCSW1 ---|"VLAN 10"| HQINFRASRV
+    ACCSW1 ---|"VLAN 10"| HQMAILSRV
+    ACCSW1 ---|"VLAN 10"| DCWSL
+    ACCSW1 ---|"VLAN 20"| HQCLT
+    ACCSW2 ---|"VLAN 99"| MGMTCLT
+    ACCSW2 ---|"VLAN 30"| HQFWSRV
+    
+    %% DMZ interne
+    HQFWSRV ---|"DMZ Interne"| HQWEBSRV
 ```
 
 ---
