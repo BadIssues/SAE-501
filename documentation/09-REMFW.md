@@ -1,8 +1,8 @@
 # REMFW - Firewall/Routeur Site Remote
 
 > **OS** : Cisco CSR1000V (VM)  
-> **IP MAN** : 10.116.N.X  
-> **IP LAN** : 10.N.100.X  
+> **IP MAN** : 10.116.4.1  
+> **IP LAN** : 10.4.100.126  
 > **Rôle** : Routeur, Firewall ACL, OSPF
 
 ---
@@ -93,15 +93,15 @@ ip access-list extended FROM_HQ
 ! ACL pour autoriser Remote vers Internet
 ip access-list extended TO_INTERNET
  ! HTTP/HTTPS
- permit tcp 10.N.100.0 0.0.0.255 any eq 80
- permit tcp 10.N.100.0 0.0.0.255 any eq 443
+ permit tcp 10.4.100.0 0.0.0.255 any eq 80
+ permit tcp 10.4.100.0 0.0.0.255 any eq 443
  
  ! DNS
- permit udp 10.N.100.0 0.0.0.255 any eq 53
- permit tcp 10.N.100.0 0.0.0.255 any eq 53
+ permit udp 10.4.100.0 0.0.0.255 any eq 53
+ permit tcp 10.4.100.0 0.0.0.255 any eq 53
  
  ! ICMP
- permit icmp 10.N.100.0 0.0.0.255 any
+ permit icmp 10.4.100.0 0.0.0.255 any
  
  ! Deny all other
  deny ip any any log
@@ -129,7 +129,7 @@ interface GigabitEthernet2
 
 ```
 ! Route par défaut vers WANRTR
-ip route 0.0.0.0 0.0.0.0 10.116.N.X
+ip route 0.0.0.0 0.0.0.0 10.116.4.2
 ```
 
 ---
@@ -139,7 +139,7 @@ ip route 0.0.0.0 0.0.0.0 10.116.N.X
 ```
 ! Configuration SSH (déjà faite normalement)
 ip access-list standard SSH_ACCESS
- permit 10.N.99.0 0.0.0.255
+ permit 10.4.99.0 0.0.0.255
  deny any log
 
 line vty 0 4
@@ -175,8 +175,8 @@ show ip access-lists FROM_HQ
 show ip access-lists TO_INTERNET
 
 ! Voir les interfaces
+show ip interface GigabitEthernet1
 show ip interface GigabitEthernet2
-show ip interface GigabitEthernet3
 
 ! Logs
 show logging
@@ -220,5 +220,4 @@ show logging
 - Les ports RPC dynamiques (49152-65535) sont nécessaires pour AD
 - L'ACL `established` permet le retour des connexions initiées
 - Tous les paquets refusés sont loggés pour le debugging
-- Ajuster les adresses `10.N.X.X` selon votre plan d'adressage
-
+- Le réseau de management autorisé pour SSH est `10.4.99.0/24`
