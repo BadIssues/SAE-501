@@ -1,16 +1,119 @@
-# SAE 501 - Guide de Déploiement Infrastructure WSL2025
+# 📘 Documentation Technique SAE 501
 
-## 📋 Vue d'ensemble
+> **Contexte** : Infrastructure réseau WorldSkills Lyon 2025 (Adaptation SAE 501 BUT R&T)
 
-Ce guide détaille les étapes de configuration pour l'infrastructure IT de WorldSkills Lyon 2025.
+## 🏗️ Architecture Globale
 
-> ⚠️ **Note** : Le cœur de réseau (switches et routeurs) est déjà configuré et fonctionnel dans le dossier `realconf/`.
+```mermaid
+graph TD
+    %% --- Zone REMOTE (Gauche) ---
+    subgraph REMOTE [Site Distant - MAN]
+        direction TB
+        REMFW[REMFW<br>Firewall Remote]
+        REMDCSRV[REMDCSRV<br>AD Remote]
+        REMINFRASRV[REMINFRASRV]
+        REMCLT[REMCLT]
+        
+        REMFW --- REMDCSRV & REMINFRASRV & REMCLT
+    end
 
-> 📍 **Plan d'adressage** : N=4 (voir `realconf/PLAN-ADRESSAGE-IP.txt`)
+    %% --- Zone WAN/Central (Milieu) ---
+    subgraph WAN [Cœur WAN]
+        WANRTR[WANRTR<br>Routeur FAI<br>VRF INET / VRF MAN]
+    end
+
+    %% --- Zone INTERNET (Droite) ---
+    subgraph INTERNET [Zone Internet]
+        direction TB
+        INETSW[Switch Internet]
+        DNSSRV[DNSSRV<br>DNS Public]
+        INETSRV[INETSRV<br>Web + FTP]
+        VPNCLT[VPNCLT]
+        INETCLT[INETCLT]
+        
+        INETSW --- DNSSRV & INETSRV & VPNCLT & INETCLT
+    end
+
+    %% --- Zone HQ (Bas) ---
+    subgraph HQ [Siège Social HQ]
+        direction TB
+        
+        %% Routeurs de Bordure
+        EDGE1[EDGE1<br>Routeur Bordure 1]
+        EDGE2[EDGE2<br>Routeur Bordure 2]
+        
+        %% Cœur de Réseau
+        CORESW1[CORESW1<br>Cœur 1<br>HSRP Active]
+        CORESW2[CORESW2<br>Cœur 2<br>HSRP Standby]
+        
+        %% Accès
+        ACCSW1[ACCSW1<br>Switch Accès 1]
+        ACCSW2[ACCSW2<br>Switch Accès 2]
+        
+        %% Services & Clients
+        subgraph SERVERS [VLAN 10 - Serveurs]
+            HQDCSRV
+            HQINFRASRV
+            HQMAILSRV
+        end
+        
+        subgraph CLIENTS [VLAN 20 - Clients]
+            HQCLT
+        end
+        
+        subgraph MANAGEMENT [VLAN 99]
+            MGMTCLT
+        end
+        
+        subgraph DMZ [VLAN 30 - DMZ Publique]
+            HQFWSRV[HQFWSRV<br>Firewall]
+            HQWEBSRV[HQWEBSRV<br>Web/RDS]
+        end
+    end
+
+    %% --- Connexions ---
+    
+    %% REMOTE vers WANRTR (VRF MAN)
+    REMFW <-->|OSPF Area 4| WANRTR
+
+    %% INTERNET vers WANRTR (VRF INET)
+    WANRTR --- INETSW
+
+    %% WANRTR vers HQ (Double lien par VRF)
+    WANRTR <-->|BGP AS 65430<br>VRF INET| EDGE1
+    WANRTR <-->|BGP AS 65430<br>VRF INET| EDGE2
+    
+    WANRTR <-->|OSPF Area 4<br>VRF MAN| EDGE1
+    WANRTR <-->|OSPF Area 4<br>VRF MAN| EDGE2
+
+    %% Interconnexions HQ - Layer 3
+    EDGE1 <-->|iBGP - VLAN 300| EDGE2
+    EDGE1 <-->|VLAN 100| CORESW1
+    EDGE2 <-->|VLAN 200| CORESW2
+    
+    %% Interconnexions HQ - Layer 2
+    CORESW1 <==>|LACP Po1<br>Trunk 10,20,30,99| CORESW2
+    
+    %% Trunks Access - Config exacte
+    CORESW1 ===|Trunk 10,20,30,99| ACCSW1
+    CORESW1 ===|Trunk 10,20,30,99| ACCSW2
+    CORESW2 ===|Trunk 10,20,30,99| ACCSW1
+    CORESW2 ===|Trunk 10,20,30,99| ACCSW2
+    
+    %% Connexions Access vers End Devices (VLANs spécifiques)
+    ACCSW1 ---|VLAN 10| HQDCSRV
+    ACCSW1 ---|VLAN 10| HQINFRASRV
+    ACCSW1 ---|VLAN 10| HQMAILSRV
+    ACCSW1 ---|VLAN 20| HQCLT
+    
+    ACCSW2 ---|VLAN 99| MGMTCLT
+    ACCSW2 ---|VLAN 30| HQFWSRV
+    HQFWSRV ---|VLAN 30| HQWEBSRV
+```
 
 ---
 
-## 📁 Structure de la documentation
+## 📁 Index des Procédures
 
 ### 🌐 Site HQ (Siège)
 
@@ -58,77 +161,12 @@ P@ssw0rd
 - **Domaine HQ** : `hq.wsl2025.org` (HQDCSRV)
 - **Domaine Remote** : `rem.wsl2025.org` (REMDCSRV)
 
-### Systèmes d'exploitation
-| Type | OS |
-|------|-----|
-| HQINFRASRV, HQMAILSRV, DNSSRV, INETSRV | Debian 13 CLI |
-| MGMTCLT, INETCLT | Debian 13 GUI |
-| HQDCSRV, HQWEBSRV, REMDCSRV, REMINFRASRV | Windows Server 2022 |
-| HQCLT, REMCLT, VPNCLT | Windows 11 |
-
----
-
-## 🌐 Plan d'adressage résumé
-
-### VLANs HQ
-| VLAN | Nom | Réseau | Gateway |
-|------|-----|--------|---------|
-| 10 | Servers | 10.4.10.0/24 | 10.4.10.254 |
-| 20 | Clients | 10.4.20.0/23 | 10.4.20.254 |
-| 30 | DMZ | 217.4.160.0/24 | 217.4.160.254 |
-| 99 | Management | 10.4.99.0/24 | 10.4.99.254 |
-
-### Site Remote
-| Réseau | Description |
-|--------|-------------|
-| 10.4.100.0/25 | Clients Remote |
-| 10.116.4.0/30 | Lien MAN WANRTR-REMFW |
-
-### Internet
-| Réseau | Description |
-|--------|-------------|
-| 8.8.4.0/29 | Serveurs Internet |
-| 191.4.157.32/28 | Provider Independent (VPN, Webmail) |
-
 ---
 
 ## 📊 Ordre de déploiement recommandé
 
-### Phase 1 : Infrastructure de base
-1. ✅ Cœur de réseau (DÉJÀ FAIT)
-2. ⬜ DNSSRV (Root CA + DNS public)
-3. ⬜ DCWSL (Forest Root AD)
-4. ⬜ HQDCSRV (Child Domain + Sub CA)
-
-### Phase 2 : Services HQ
-5. ⬜ HQINFRASRV (DHCP, VPN, Stockage)
-6. ⬜ HQMAILSRV (Mail, Webmail)
-7. ⬜ HQFWSRV (Firewall)
-8. ⬜ HQWEBSRV (Web, RDS)
-
-### Phase 3 : Site Remote
-9. ⬜ REMDCSRV (AD Remote)
-10. ⬜ REMINFRASRV (Failover)
-11. ⬜ REMFW (ACL Firewall)
-
-### Phase 4 : Clients et Tests
-12. ⬜ HQCLT, REMCLT, MGMTCLT
-13. ⬜ INETSRV (Web HA, FTP)
-14. ⬜ VPNCLT, INETCLT (Tests)
-
----
-
-## 📝 Légende des statuts
-
-- ⬜ À faire
-- 🔄 En cours
-- ✅ Terminé
-- ❌ Problème
-
----
-
-## 📚 Ressources
-
-- Plan d'adressage complet : `realconf/PLAN-ADRESSAGE-IP.txt`
-- Configuration réseau : `realconf/`
-- Sujets : `sujet1.md`, `sujet2.md`
+1. **Infrastructure de base** (Cœur de réseau + DNSSRV + DCWSL)
+2. **Services HQ** (HQDCSRV, HQINFRASRV, HQMAILSRV)
+3. **Sécurité et DMZ** (HQFWSRV, HQWEBSRV)
+4. **Site Remote** (REMFW, REMDCSRV)
+5. **Clients et Tests**
