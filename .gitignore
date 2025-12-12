@@ -1,0 +1,16 @@
+# Cursor IDE
+.cursor/
+
+# Archives
+*.rar
+*.zip
+*.7z
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Temporary files
+*.tmp
+*.bak
+*~
