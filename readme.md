@@ -113,15 +113,21 @@ graph TD
     %% Interconnexions HQ - Layer 2
     CORESW1 <==>|LACP Po1<br>Trunk 10,20,30,99| CORESW2
     
-    CORESW1 ---|Trunk| ACCSW1
-    CORESW1 ---|Trunk| ACCSW2
-    CORESW2 ---|Trunk| ACCSW1
-    CORESW2 ---|Trunk| ACCSW2
+    %% Trunks Access - Config exacte
+    CORESW1 ===|Trunk 10,20,30,99| ACCSW1
+    CORESW1 ===|Trunk 10,20,30,99| ACCSW2
+    CORESW2 ===|Trunk 10,20,30,99| ACCSW1
+    CORESW2 ===|Trunk 10,20,30,99| ACCSW2
     
-    %% Connexions Access vers End Devices
-    ACCSW1 --- HQDCSRV & HQINFRASRV & HQMAILSRV & HQCLT
-    ACCSW2 --- MGMTCLT & HQFWSRV
-    HQFWSRV --- HQWEBSRV
+    %% Connexions Access vers End Devices (VLANs spécifiques)
+    ACCSW1 ---|VLAN 10| HQDCSRV
+    ACCSW1 ---|VLAN 10| HQINFRASRV
+    ACCSW1 ---|VLAN 10| HQMAILSRV
+    ACCSW1 ---|VLAN 20| HQCLT
+    
+    ACCSW2 ---|VLAN 99| MGMTCLT
+    ACCSW2 ---|VLAN 30| HQFWSRV
+    HQFWSRV ---|VLAN 30| HQWEBSRV
 ```
 
 ---
