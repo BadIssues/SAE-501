@@ -1,8 +1,8 @@
 # REMFW - Firewall/Routeur Site Remote
 
 > **OS** : Cisco CSR1000V (VM)  
-> **IP MAN** : 10.116.4.1  
-> **IP LAN** : 10.4.100.126  
+> **IP MAN** : 10.116.4.1 (Gi1)  
+> **IP LAN** : 10.4.100.126 (Gi2)  
 > **Rôle** : Routeur, Firewall ACL, OSPF
 
 ---
@@ -10,197 +10,114 @@
 ## 📋 Prérequis
 
 - [ ] VM Cisco CSR1000V déployée
-- [ ] Interfaces configurées (MAN et LAN)
-- [ ] Adjacence OSPF avec WANRTR fonctionnelle
+- [ ] Connectivité WAN avec WANRTR établie
+- [ ] Configuration appliquée via `realconf/remfw.txt`
 
 ---
 
-## ⚠️ Note
+## 1️⃣ Configuration des interfaces
 
-La configuration de base du routage OSPF est déjà faite dans le cœur de réseau (`realconf/`). Ce document se concentre sur les **ACLs de sécurité**.
+Conformément à la configuration réelle :
 
----
-
-## 1️⃣ Configuration de base
-
-### Vérifier la configuration existante
-```
-show running-config
-show ip interface brief
-show ip ospf neighbor
-```
-
----
-
-## 2️⃣ ACLs de sécurité
-
-### ACL pour le trafic entrant depuis HQ
-
-```
-! ACL pour autoriser les services depuis HQ vers Remote
-ip access-list extended FROM_HQ
- ! DNS
- permit udp 10.0.0.0 0.255.255.255 any eq 53
- permit tcp 10.0.0.0 0.255.255.255 any eq 53
- 
- ! HTTPS
- permit tcp 10.0.0.0 0.255.255.255 any eq 443
- 
- ! SSH
- permit tcp 10.0.0.0 0.255.255.255 any eq 22
- 
- ! Active Directory / Kerberos
- permit tcp 10.0.0.0 0.255.255.255 any eq 88
- permit udp 10.0.0.0 0.255.255.255 any eq 88
- permit tcp 10.0.0.0 0.255.255.255 any eq 464
- permit udp 10.0.0.0 0.255.255.255 any eq 464
- 
- ! LDAP / LDAPS
- permit tcp 10.0.0.0 0.255.255.255 any eq 389
- permit udp 10.0.0.0 0.255.255.255 any eq 389
- permit tcp 10.0.0.0 0.255.255.255 any eq 636
- 
- ! SMB / CIFS
- permit tcp 10.0.0.0 0.255.255.255 any eq 445
- permit tcp 10.0.0.0 0.255.255.255 any eq 139
- permit udp 10.0.0.0 0.255.255.255 any eq 137
- permit udp 10.0.0.0 0.255.255.255 any eq 138
- 
- ! RPC / DCE
- permit tcp 10.0.0.0 0.255.255.255 any eq 135
- permit tcp 10.0.0.0 0.255.255.255 any range 49152 65535
- 
- ! Global Catalog
- permit tcp 10.0.0.0 0.255.255.255 any eq 3268
- permit tcp 10.0.0.0 0.255.255.255 any eq 3269
- 
- ! NTP
- permit udp 10.0.0.0 0.255.255.255 any eq 123
- 
- ! ICMP
- permit icmp 10.0.0.0 0.255.255.255 any
- 
- ! Connexions établies
- permit tcp any any established
- 
- ! Deny all other
- deny ip any any log
-```
-
-### ACL pour le trafic sortant vers Internet
-
-```
-! ACL pour autoriser Remote vers Internet
-ip access-list extended TO_INTERNET
- ! HTTP/HTTPS
- permit tcp 10.4.100.0 0.0.0.255 any eq 80
- permit tcp 10.4.100.0 0.0.0.255 any eq 443
- 
- ! DNS
- permit udp 10.4.100.0 0.0.0.255 any eq 53
- permit tcp 10.4.100.0 0.0.0.255 any eq 53
- 
- ! ICMP
- permit icmp 10.4.100.0 0.0.0.255 any
- 
- ! Deny all other
- deny ip any any log
-```
-
----
-
-## 3️⃣ Application des ACLs
-
-```
-! Appliquer sur l'interface WAN (vers WANRTR) - GigabitEthernet1
+```bash
 interface GigabitEthernet1
  description TO-WANRTR-Fe0/0/0 (VRF MAN)
- ip access-group FROM_HQ in
-
-! Appliquer sur l'interface LAN (vers clients Remote) - GigabitEthernet2
+ ip address 10.116.4.1 255.255.255.252
+ ip ospf authentication message-digest
+ ip ospf message-digest-key 1 md5 P@ssw0rd
+ ip ospf network point-to-point
+ ip access-group FIREWALL-INBOUND in
+ negotiation auto
+!
 interface GigabitEthernet2
  description TO-REMOTE-LAN
- ip access-group TO_INTERNET out
+ ip address 10.4.100.126 255.255.255.128
+ negotiation auto
 ```
 
 ---
 
-## 4️⃣ Route par défaut
+## 2️⃣ ACL de Sécurité (FIREWALL-INBOUND)
 
-```
-! Route par défaut vers WANRTR
-ip route 0.0.0.0 0.0.0.0 10.116.4.2
+Cette ACL filtre le trafic entrant depuis le WAN (HQ) vers le LAN Remote.
+
+```bash
+ip access-list extended FIREWALL-INBOUND
+ remark === Allow established connections ===
+ permit tcp any any established
+ 
+ remark === Allow SSH from HQ ===
+ permit tcp 10.4.0.0 0.0.255.255 any eq 22
+ 
+ remark === Allow DNS ===
+ permit udp any any eq domain
+ permit tcp any any eq domain
+ 
+ remark === Allow HTTPS ===
+ permit tcp any any eq 443
+ 
+ remark === Allow HTTP ===
+ permit tcp any any eq 80
+ 
+ remark === Allow ICMP ===
+ permit icmp any any
+ 
+ remark === Allow Microsoft Services ===
+ permit tcp any any eq 445
+ permit udp any any eq 445
+ permit tcp any any range 135 139
+ permit udp any any range 135 139
+ 
+ remark === Allow Kerberos ===
+ permit tcp any any eq 88
+ permit udp any any eq 88
+ 
+ remark === Allow LDAP ===
+ permit tcp any any eq 389
+ permit udp any any eq 389
+ permit tcp any any eq 636
+ 
+ remark === Allow NTP ===
+ permit udp any any eq ntp
+ 
+ remark === Deny all other ===
+ deny   ip any any log
 ```
 
 ---
 
-## 5️⃣ Sécurisation SSH
+## 3️⃣ Sécurisation SSH (Management)
 
-```
-! Configuration SSH (déjà faite normalement)
-ip access-list standard SSH_ACCESS
- permit 10.4.99.0 0.0.0.255
- deny any log
+L'accès SSH est restreint aux réseaux d'administration et au LAN local.
+
+```bash
+ip access-list extended SSH-ACCESS
+ permit tcp 10.4.99.0 0.0.0.255 any eq 22
+ permit tcp 10.4.100.0 0.0.0.127 any eq 22
+ deny   tcp any any eq 22 log
+ permit ip any any
 
 line vty 0 4
- access-class SSH_ACCESS in
+ access-class SSH-ACCESS in
  transport input ssh
 ```
 
 ---
 
-## 6️⃣ Logging
+## 4️⃣ Routage OSPF
 
+Configuration OSPF pour l'interconnexion avec le WAN (Area 4 NSSA).
+
+```bash
+router ospf 1
+ router-id 10.116.4.1
+ area 4 nssa no-summary
+ passive-interface default
+ no passive-interface GigabitEthernet1
+ network 10.116.4.0 0.0.0.3 area 4
+ network 10.4.100.0 0.0.0.127 area 4
+ default-information originate
 ```
-! Activer le logging
-logging buffered 16384 informational
-logging trap informational
-
-! Log les ACL deny
-ip access-list extended FROM_HQ
- deny ip any any log
-```
-
----
-
-## 7️⃣ Vérification des ACLs
-
-### Commandes de vérification
-```
-! Voir les ACLs
-show access-lists
-
-! Voir les hits sur les ACLs
-show ip access-lists FROM_HQ
-show ip access-lists TO_INTERNET
-
-! Voir les interfaces
-show ip interface GigabitEthernet1
-show ip interface GigabitEthernet2
-
-! Logs
-show logging
-```
-
----
-
-## 8️⃣ Tableau récapitulatif des ports
-
-| Service | Port | Protocole | Direction |
-|---------|------|-----------|-----------|
-| DNS | 53 | TCP/UDP | Bidirectionnel |
-| HTTP | 80 | TCP | Sortant |
-| HTTPS | 443 | TCP | Bidirectionnel |
-| SSH | 22 | TCP | Entrant |
-| Kerberos | 88, 464 | TCP/UDP | Entrant |
-| LDAP | 389 | TCP/UDP | Entrant |
-| LDAPS | 636 | TCP | Entrant |
-| SMB | 445, 139 | TCP | Entrant |
-| NetBIOS | 137, 138 | UDP | Entrant |
-| RPC | 135 | TCP | Entrant |
-| RPC Dynamic | 49152-65535 | TCP | Entrant |
-| Global Catalog | 3268, 3269 | TCP | Entrant |
-| NTP | 123 | UDP | Entrant |
 
 ---
 
@@ -210,14 +127,13 @@ show logging
 |------|----------|
 | OSPF | `show ip ospf neighbor` |
 | Routes | `show ip route` |
-| ACLs | `show access-lists` |
-| Connectivity | Ping depuis REMCLT vers HQ |
+| ACLs Hits | `show ip access-lists FIREWALL-INBOUND` |
+| Logs | `show logging` |
 
 ---
 
 ## 📝 Notes
 
-- Les ports RPC dynamiques (49152-65535) sont nécessaires pour AD
-- L'ACL `established` permet le retour des connexions initiées
-- Tous les paquets refusés sont loggés pour le debugging
-- Le réseau de management autorisé pour SSH est `10.4.99.0/24`
+- La configuration complète est disponible dans `realconf/remfw.txt`.
+- L'ACL `FIREWALL-INBOUND` est appliquée en **entrée** sur l'interface WAN (Gi1).
+- Pas d'ACL en sortie sur le LAN (Gi2) dans la configuration actuelle.
