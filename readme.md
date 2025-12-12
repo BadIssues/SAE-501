@@ -18,34 +18,35 @@
   <img src="https://img.shields.io/badge/Status-✅_Opérationnel-success?style=flat-square" alt="Status"/>
   <img src="https://img.shields.io/badge/Version-1.3-blue?style=flat-square" alt="Version"/>
   <img src="https://img.shields.io/badge/Date-Décembre_2025-purple?style=flat-square" alt="Date"/>
-  <img src="https://img.shields.io/github/last-commit/L4Curtis/sae501?style=flat-square&label=Dernière%20MAJ" alt="Last Commit"/>
 </p>
 
 <p align="center">
-  <a href="#-présentation">Présentation</a> •
-  <a href="#-architecture">Architecture</a> •
-  <a href="#-technologies">Technologies</a> •
-  <a href="#-équipe">Équipe</a> •
-  <a href="#-documentation">Documentation</a>
+  <a href="#presentation">📌 Présentation</a> •
+  <a href="#architecture">🏗️ Architecture</a> •
+  <a href="#technologies">🛠️ Technologies</a> •
+  <a href="#equipe">👥 Équipe</a> •
+  <a href="#documentation">📂 Documentation</a>
 </p>
 
 ---
 
+<a id="presentation"></a>
+
 ## 🎯 Présentation
 
-> *« Le professionnel R&T, en charge d'un projet technique, doit assurer l'ensemble des étapes du projet en concevant, réalisant et en présentant une solution technique mariant les différentes technologies réseaux, télécommunications et informatiques. »*
+> _« Le professionnel R&T, en charge d'un projet technique, doit assurer l'ensemble des étapes du projet en concevant, réalisant et en présentant une solution technique mariant les différentes technologies réseaux, télécommunications et informatiques. »_
 > — Programme National BUT R&T
 
 Ce projet est réalisé dans le cadre de la **SAE 501** en 3ème année de **BUT Réseaux & Télécommunications** à l'IUT de Belfort-Montbéliard. Il s'appuie sur le sujet officiel de la compétition **WorldSkills Lyon 2025 - Skill 39 (IT Network Systems Administration)**.
 
 ### 📋 Contexte WorldSkills
 
-| | |
-|---|---|
-| 🏢 **Client fictif** | WorldSkills Lyon 2025 (WSL2025) - Organisation des compétitions |
-| 🤝 **Partenaire** | WorldSkills France (WSFR) - Site distant connecté via MAN |
-| 👥 **Effectif simulé** | ~120 employés répartis sur 2 sites |
-| 🎯 **Objectif** | Infrastructure réseau complète, sécurisée et redondante |
+|                        |                                                                 |
+| ---------------------- | --------------------------------------------------------------- |
+| 🏢 **Client fictif**   | WorldSkills Lyon 2025 (WSL2025) - Organisation des compétitions |
+| 🤝 **Partenaire**      | WorldSkills France (WSFR) - Site distant connecté via MAN       |
+| 👥 **Effectif simulé** | ~120 employés répartis sur 2 sites                              |
+| 🎯 **Objectif**        | Infrastructure réseau complète, sécurisée et redondante         |
 
 ### 🏆 Compétences Développées
 
@@ -83,6 +84,8 @@ Ce projet est réalisé dans le cadre de la **SAE 501** en 3ème année de **BUT
 </table>
 
 ---
+
+<a id="architecture"></a>
 
 ## 🏗️ Architecture
 
@@ -164,11 +167,11 @@ graph TD
         CORESW2[CORESW2<br>Cœur 2 - HSRP Standby]
         ACCSW1[ACCSW1<br>Switch Accès 1]
         ACCSW2[ACCSW2<br>Switch Accès 2]
-        
+
         subgraph SERVERS [VLAN 10 - Serveurs]
             HQDCSRV & HQINFRASRV & HQMAILSRV & DCWSL
         end
-        
+
         subgraph DMZ [VLAN 30 - DMZ]
             HQFWSRV[HQFWSRV<br>Firewall] --> HQWEBSRV[HQWEBSRV<br>Web/RDS]
         end
@@ -186,6 +189,8 @@ graph TD
 ```
 
 ---
+
+<a id="technologies"></a>
 
 ## 🛠️ Technologies
 
@@ -224,24 +229,24 @@ graph TD
 
 ### Réseaux Principaux
 
-| Zone | VLAN | Nom | Réseau | Passerelle (VIP) | Capacité |
-|:---:|:---:|---|---|---|---:|
-| 🏢 **HQ** | 10 | Servers | `10.4.10.0/24` | `10.4.10.254` | 254 hosts |
-| 🏢 **HQ** | 20 | Clients | `10.4.20.0/23` | `10.4.20.254` | 510 hosts |
-| 🏢 **HQ** | 30 | DMZ | `217.4.160.0/24` | `217.4.160.254` | 254 hosts |
-| 🏢 **HQ** | 99 | Management | `10.4.99.0/24` | `10.4.99.254` | 254 hosts |
-| 🏭 **Remote** | 100 | Remote LAN | `10.4.100.0/25` | `10.4.100.126` | 126 hosts |
-| 🌐 **Internet** | - | Public | `8.8.4.0/29` | `8.8.4.6` | 6 hosts |
+|      Zone       | VLAN | Nom        | Réseau           | Passerelle (VIP) |  Capacité |
+| :-------------: | :--: | ---------- | ---------------- | ---------------- | --------: |
+|    🏢 **HQ**    |  10  | Servers    | `10.4.10.0/24`   | `10.4.10.254`    | 254 hosts |
+|    🏢 **HQ**    |  20  | Clients    | `10.4.20.0/23`   | `10.4.20.254`    | 510 hosts |
+|    🏢 **HQ**    |  30  | DMZ        | `217.4.160.0/24` | `217.4.160.254`  | 254 hosts |
+|    🏢 **HQ**    |  99  | Management | `10.4.99.0/24`   | `10.4.99.254`    | 254 hosts |
+|  🏭 **Remote**  | 100  | Remote LAN | `10.4.100.0/25`  | `10.4.100.126`   | 126 hosts |
+| 🌐 **Internet** |  -   | Public     | `8.8.4.0/29`     | `8.8.4.6`        |   6 hosts |
 
 ### Liaisons d'Interconnexion
 
-| Liaison | VLAN | Réseau | Équipements | VRF | Protocole |
-|---|:---:|---|---|:---:|:---:|
-| EDGE1 ↔ WANRTR | 13 | `10.4.254.12/30` | .13 / .14 | MAN | OSPF |
-| EDGE1 ↔ WANRTR | 14 | `91.4.222.96/29` | .97 / .98 | INET | eBGP |
-| EDGE2 ↔ WANRTR | 15 | `10.4.254.16/30` | .18 / .17 | MAN | OSPF |
-| EDGE2 ↔ WANRTR | 16 | `31.4.126.12/30` | .13 / .14 | INET | eBGP |
-| WANRTR ↔ REMFW | - | `10.116.4.0/30` | .2 / .1 | MAN | OSPF |
+| Liaison        | VLAN | Réseau           | Équipements | VRF  | Protocole |
+| -------------- | :--: | ---------------- | ----------- | :--: | :-------: |
+| EDGE1 ↔ WANRTR |  13  | `10.4.254.12/30` | .13 / .14   | MAN  |   OSPF    |
+| EDGE1 ↔ WANRTR |  14  | `91.4.222.96/29` | .97 / .98   | INET |   eBGP    |
+| EDGE2 ↔ WANRTR |  15  | `10.4.254.16/30` | .18 / .17   | MAN  |   OSPF    |
+| EDGE2 ↔ WANRTR |  16  | `31.4.126.12/30` | .13 / .14   | INET |   eBGP    |
+| WANRTR ↔ REMFW |  -   | `10.116.4.0/30`  | .2 / .1     | MAN  |   OSPF    |
 
 ---
 
@@ -249,31 +254,31 @@ graph TD
 
 ### 🏢 Site HQ (Siège - 6 serveurs)
 
-| Serveur | OS | IP | Rôles | Doc |
-|---|---|---|---|:---:|
-| **HQDCSRV** | Windows Server 2022 | `10.4.10.1` | AD DS, DNS, ADCS (SubCA), GPO | [📘](documentation/04-HQDCSRV.md) |
-| **HQINFRASRV** | Debian 13 | `10.4.10.2` | DHCP, VPN OpenVPN, NTP, Samba, iSCSI | [📘](documentation/01-HQINFRASRV.md) |
-| **HQMAILSRV** | Debian 13 | `10.4.10.3` | Postfix, Dovecot, Roundcube, ZFS | [📘](documentation/02-HQMAILSRV.md) |
-| **DCWSL** | Debian 13 (Samba AD) | `10.4.10.4` | Forest Root DC, DNS wsl2025.org | [📘](documentation/03-DCWSL.md) |
-| **HQFWSRV** | Debian 13 | `217.4.160.1` | Firewall nftables, NAT/Routing | [📘](documentation/05-HQFWSRV.md) |
-| **HQWEBSRV** | Windows Server 2022 | `217.4.160.2` | IIS, RDS (RemoteApp) | [📘](documentation/06-HQWEBSRV.md) |
+| Serveur        | OS                   | IP            | Rôles                                |                 Doc                  |
+| -------------- | -------------------- | ------------- | ------------------------------------ | :----------------------------------: |
+| **HQDCSRV**    | Windows Server 2022  | `10.4.10.1`   | AD DS, DNS, ADCS (SubCA), GPO        |  [📘](documentation/04-HQDCSRV.md)   |
+| **HQINFRASRV** | Debian 13            | `10.4.10.2`   | DHCP, VPN OpenVPN, NTP, Samba, iSCSI | [📘](documentation/01-HQINFRASRV.md) |
+| **HQMAILSRV**  | Debian 13            | `10.4.10.3`   | Postfix, Dovecot, Roundcube, ZFS     | [📘](documentation/02-HQMAILSRV.md)  |
+| **DCWSL**      | Debian 13 (Samba AD) | `10.4.10.4`   | Forest Root DC, DNS wsl2025.org      |   [📘](documentation/03-DCWSL.md)    |
+| **HQFWSRV**    | Debian 13            | `217.4.160.1` | Firewall nftables, NAT/Routing       |  [📘](documentation/05-HQFWSRV.md)   |
+| **HQWEBSRV**   | Windows Server 2022  | `217.4.160.2` | IIS, RDS (RemoteApp)                 |  [📘](documentation/06-HQWEBSRV.md)  |
 
 ### 🏭 Site Remote (3 équipements)
 
-| Équipement | OS | IP | Rôles | Doc |
-|---|---|---|---|:---:|
-| **REMFW** | Cisco IOS (CSR1000v) | `10.4.100.126` | Routeur/Firewall ACL, OSPF | [📘](documentation/09-REMFW.md) |
-| **REMDCSRV** | Windows Server 2022 | `10.4.100.1` | AD Child, DHCP, DNS, DFS | [📘](documentation/10-REMDCSRV.md) |
-| **REMINFRASRV** | Windows Server 2022 | `10.4.100.2` | Failover DHCP/DNS, DFS | [📘](documentation/11-REMINFRASRV.md) |
+| Équipement      | OS                   | IP             | Rôles                      |                  Doc                  |
+| --------------- | -------------------- | -------------- | -------------------------- | :-----------------------------------: |
+| **REMFW**       | Cisco IOS (CSR1000v) | `10.4.100.126` | Routeur/Firewall ACL, OSPF |    [📘](documentation/09-REMFW.md)    |
+| **REMDCSRV**    | Windows Server 2022  | `10.4.100.1`   | AD Child, DHCP, DNS, DFS   |  [📘](documentation/10-REMDCSRV.md)   |
+| **REMINFRASRV** | Windows Server 2022  | `10.4.100.2`   | Failover DHCP/DNS, DFS     | [📘](documentation/11-REMINFRASRV.md) |
 
 ### 🌐 Zone Internet (4 machines)
 
-| Machine | OS | IP | Rôles | Doc |
-|---|---|---|---|:---:|
-| **DNSSRV** | Debian 13 | `8.8.4.1` | DNS Public, Root CA, DNSSEC | [📘](documentation/13-DNSSRV.md) |
-| **INETSRV** | Debian 13 | `8.8.4.2` | Web HA (Docker), FTPS | [📘](documentation/14-INETSRV.md) |
-| **VPNCLT** | Windows 11 | `8.8.4.3` | Client VPN (test) | [📘](documentation/15-VPNCLT.md) |
-| **INETCLT** | Debian 13 GUI | `8.8.4.4` | Client Internet (test) | [📘](documentation/16-INETCLT.md) |
+| Machine     | OS            | IP        | Rôles                       |                Doc                |
+| ----------- | ------------- | --------- | --------------------------- | :-------------------------------: |
+| **DNSSRV**  | Debian 13     | `8.8.4.1` | DNS Public, Root CA, DNSSEC | [📘](documentation/13-DNSSRV.md)  |
+| **INETSRV** | Debian 13     | `8.8.4.2` | Web HA (Docker), FTPS       | [📘](documentation/14-INETSRV.md) |
+| **VPNCLT**  | Windows 11    | `8.8.4.3` | Client VPN (test)           | [📘](documentation/15-VPNCLT.md)  |
+| **INETCLT** | Debian 13 GUI | `8.8.4.4` | Client Internet (test)      | [📘](documentation/16-INETCLT.md) |
 
 ---
 
@@ -315,6 +320,8 @@ ping 10.4.100.1 source 10.4.10.1
 
 ---
 
+<a id="documentation"></a>
+
 ## 📂 Structure du Projet
 
 ```
@@ -343,6 +350,8 @@ ping 10.4.100.1 source 10.4.10.1
 ```
 
 ---
+
+<a id="equipe"></a>
 
 ## 👥 Équipe - Groupe 4
 
@@ -377,11 +386,11 @@ ping 10.4.100.1 source 10.4.10.1
 
 ## 🔐 Credentials par défaut
 
-| Service | Utilisateur | Mot de passe |
-|---|---|---|
-| Équipements réseau | `admin` | `P@ssw0rd` |
-| Domaine AD | `Administrator` | `P@ssw0rd` |
-| Linux (root) | `root` | `P@ssw0rd` |
+| Service            | Utilisateur     | Mot de passe |
+| ------------------ | --------------- | ------------ |
+| Équipements réseau | `admin`         | `P@ssw0rd`   |
+| Domaine AD         | `Administrator` | `P@ssw0rd`   |
+| Linux (root)       | `root`          | `P@ssw0rd`   |
 
 > ⚠️ **Note** : Le zéro (0) est entre le "w" et le "r"
 
