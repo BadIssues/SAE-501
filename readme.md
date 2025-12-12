@@ -19,26 +19,67 @@ Ce dépôt contient l'infrastructure complète pour la compétition **WorldSkill
 
 ## 🏗️ Architecture Réseau
 
-Le réseau est structuré en trois zones principales interconnectées, avec une segmentation VRF stricte sur le routeur WANRTR :
+Le routeur **WANRTR** est le point central de l'architecture, séparant les flux via des VRF (INET et MAN).
 
 ```mermaid
 graph TD
-    subgraph INTERNET [Zone Internet - 8.8.4.0/29]
-        DNSSRV[DNSSRV<br>DNS Public + Root CA<br>8.8.4.1]
-        INETSRV[INETSRV<br>Web + FTP<br>8.8.4.2]
-        WANRTR[WANRTR<br>VRF INET / VRF MAN<br>8.8.4.6]
+    %% --- Zone REMOTE (Gauche) ---
+    subgraph REMOTE [Site Distant - MAN]
+        direction TB
+        REMFW[REMFW<br>Firewall Remote]
+        REMDCSRV[REMDCSRV<br>AD Remote]
+        REMINFRASRV[REMINFRASRV]
+        REMCLT[REMCLT]
+        
+        REMFW --- REMDCSRV & REMINFRASRV & REMCLT
     end
 
-    subgraph HQ [Siège Social - 10.4.0.0/16]
+    %% --- Zone WAN/Central (Milieu) ---
+    subgraph WAN [Cœur WAN]
+        WANRTR[WANRTR<br>Routeur FAI<br>VRF INET / VRF MAN]
+    end
+
+    %% --- Zone INTERNET (Droite) ---
+    subgraph INTERNET [Zone Internet]
+        direction TB
+        INETSW[Switch Internet]
+        DNSSRV[DNSSRV<br>DNS Public]
+        INETSRV[INETSRV<br>Web + FTP]
+        VPNCLT[VPNCLT]
+        INETCLT[INETCLT]
+        
+        INETSW --- DNSSRV & INETSRV & VPNCLT & INETCLT
+    end
+
+    %% --- Zone HQ (Bas) ---
+    subgraph HQ [Siège Social HQ]
+        direction TB
+        
+        %% Routeurs de Bordure
         EDGE1[EDGE1<br>Routeur Bordure 1]
         EDGE2[EDGE2<br>Routeur Bordure 2]
-        CORESW1[CORESW1<br>Cœur de Réseau 1]
-        CORESW2[CORESW2<br>Cœur de Réseau 2]
         
+        %% Cœur de Réseau
+        CORESW1[CORESW1<br>Cœur 1<br>HSRP Active]
+        CORESW2[CORESW2<br>Cœur 2<br>HSRP Standby]
+        
+        %% Accès
+        ACCSW1[ACCSW1<br>Switch Accès 1]
+        ACCSW2[ACCSW2<br>Switch Accès 2]
+        
+        %% Services & Clients
         subgraph SERVERS [VLAN 10 - Serveurs]
-            HQDCSRV[HQDCSRV<br>AD/DNS/PKI]
-            HQINFRASRV[HQINFRASRV<br>DHCP/VPN]
-            HQMAILSRV[HQMAILSRV<br>Mail/ZFS]
+            HQDCSRV
+            HQINFRASRV
+            HQMAILSRV
+        end
+        
+        subgraph CLIENTS [VLAN 20 - Clients]
+            HQCLT
+        end
+        
+        subgraph MANAGEMENT [VLAN 99]
+            MGMTCLT
         end
         
         subgraph DMZ [VLAN 30 - DMZ Publique]
@@ -47,24 +88,38 @@ graph TD
         end
     end
 
-    subgraph REMOTE [Site Distant - 10.4.100.0/25]
-        REMFW[REMFW<br>Firewall Remote]
-        REMDCSRV[REMDCSRV<br>AD Remote]
-    end
+    %% --- Connexions ---
+    
+    %% REMOTE vers WANRTR (VRF MAN)
+    REMFW <-->|OSPF Area 4| WANRTR
 
-    %% Liaisons BGP (Internet)
-    WANRTR <-->|VRF INET - VLAN 14| EDGE1
-    WANRTR <-->|VRF INET - VLAN 16| EDGE2
+    %% INTERNET vers WANRTR (VRF INET)
+    WANRTR --- INETSW
+
+    %% WANRTR vers HQ (Double lien par VRF)
+    WANRTR <-->|BGP AS 65430<br>VRF INET| EDGE1
+    WANRTR <-->|BGP AS 65430<br>VRF INET| EDGE2
     
-    %% Liaisons OSPF (MAN)
-    WANRTR <-->|VRF MAN - VLAN 13| EDGE1
-    WANRTR <-->|VRF MAN - VLAN 15| EDGE2
-    WANRTR <-->|VRF MAN - Fe0/0/0| REMFW
-    
+    WANRTR <-->|OSPF Area 4<br>VRF MAN| EDGE1
+    WANRTR <-->|OSPF Area 4<br>VRF MAN| EDGE2
+
+    %% Interconnexions HQ - Layer 3
     EDGE1 <-->|iBGP - VLAN 300| EDGE2
     EDGE1 <-->|VLAN 100| CORESW1
     EDGE2 <-->|VLAN 200| CORESW2
-    CORESW1 <-->|HSRP/LACP| CORESW2
+    
+    %% Interconnexions HQ - Layer 2
+    CORESW1 <==>|LACP Po1<br>Trunk 10,20,30,99| CORESW2
+    
+    CORESW1 ---|Trunk| ACCSW1
+    CORESW1 ---|Trunk| ACCSW2
+    CORESW2 ---|Trunk| ACCSW1
+    CORESW2 ---|Trunk| ACCSW2
+    
+    %% Connexions Access vers End Devices
+    ACCSW1 --- HQDCSRV & HQINFRASRV & HQMAILSRV & HQCLT
+    ACCSW2 --- MGMTCLT & HQFWSRV
+    HQFWSRV --- HQWEBSRV
 ```
 
 ---
