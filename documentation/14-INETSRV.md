@@ -1,0 +1,349 @@
+# INETSRV - Serveur Web et FTP Internet
+
+> **OS** : Debian 13 CLI  
+> **IP** : 8.8.4.2 (Internet)  
+> **Rôles** : Web Server (Docker HA), FTP Server
+
+---
+
+## 📋 Prérequis
+
+- [ ] Debian 13 installé
+- [ ] DNSSRV opérationnel (8.8.4.1)
+- [ ] Certificats SSL de DNSSRV (Root CA)
+
+---
+
+## 1️⃣ Configuration de base
+
+### Hostname et réseau
+```bash
+hostnamectl set-hostname inetsrv
+
+cat > /etc/network/interfaces << 'EOF'
+auto eth0
+iface eth0 inet static
+    address 8.8.4.2
+    netmask 255.255.255.248
+    gateway 8.8.4.6
+    dns-nameservers 8.8.4.1
+EOF
+```
+
+### SSH et Fail2Ban
+```bash
+apt update && apt install -y openssh-server fail2ban
+
+cat > /etc/fail2ban/jail.local << 'EOF'
+[DEFAULT]
+bantime = 3600
+findtime = 600
+maxretry = 3
+
+[sshd]
+enabled = true
+
+[vsftpd]
+enabled = true
+EOF
+
+systemctl enable --now fail2ban
+```
+
+---
+
+## 2️⃣ Installation Docker
+
+```bash
+apt install -y docker.io docker-compose
+systemctl enable --now docker
+```
+
+---
+
+## 3️⃣ Serveur Web HA avec HAProxy + Nginx
+
+### Structure des fichiers
+```bash
+mkdir -p /opt/webserver/{nginx1,nginx2,haproxy,html}
+```
+
+### Page d'accueil PHP
+```bash
+cat > /opt/webserver/html/index.php << 'EOF'
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WorldSkills - Web Server</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 50px; }
+        .info { background: #f0f0f0; padding: 20px; border-radius: 10px; }
+    </style>
+</head>
+<body>
+    <h1>WorldSkills Web Server</h1>
+    <div class="info">
+        <h2>Informations Client</h2>
+        <p><strong>Adresse IP:</strong> <?php echo $_SERVER['REMOTE_ADDR']; ?></p>
+        <p><strong>Navigateur:</strong> <?php echo $_SERVER['HTTP_USER_AGENT']; ?></p>
+        <p><strong>Date et heure:</strong> <?php echo date('d/m/Y H:i:s'); ?></p>
+        <p><strong>Serveur:</strong> <?php echo gethostname(); ?></p>
+    </div>
+</body>
+</html>
+EOF
+```
+
+### Page bad.html (contenu dangereux simulé)
+```bash
+cat > /opt/webserver/html/bad.html << 'EOF'
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dangerous Content</title>
+</head>
+<body>
+    <h1>⚠️ Warning: Dangerous Content</h1>
+    <p>This page contains simulated malicious content for testing purposes.</p>
+    <script>
+        // Simulated malicious script (harmless)
+        console.log("This is a test of dangerous content detection");
+    </script>
+</body>
+</html>
+EOF
+```
+
+### Configuration Nginx (sans info sensible)
+```bash
+cat > /opt/webserver/nginx1/nginx.conf << 'EOF'
+server {
+    listen 80;
+    server_name www.worldskills.org;
+    root /var/www/html;
+    index index.php index.html;
+    
+    # Masquer les informations serveur
+    server_tokens off;
+    
+    location / {
+        try_files $uri $uri/ =404;
+    }
+    
+    location ~ \.php$ {
+        fastcgi_pass php:9000;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+    
+    # Masquer les headers sensibles
+    add_header X-Content-Type-Options nosniff;
+    add_header X-Frame-Options DENY;
+    add_header X-XSS-Protection "1; mode=block";
+}
+EOF
+
+cp /opt/webserver/nginx1/nginx.conf /opt/webserver/nginx2/nginx.conf
+```
+
+### Configuration HAProxy
+```bash
+cat > /opt/webserver/haproxy/haproxy.cfg << 'EOF'
+global
+    daemon
+    maxconn 256
+
+defaults
+    mode http
+    timeout connect 5000ms
+    timeout client 50000ms
+    timeout server 50000ms
+
+frontend http_front
+    bind *:80
+    bind *:443 ssl crt /etc/ssl/certs/worldskills.pem
+    redirect scheme https code 301 if !{ ssl_fc }
+    default_backend http_back
+
+backend http_back
+    balance roundrobin
+    option httpchk GET /
+    server web1 nginx1:80 check
+    server web2 nginx2:80 check
+
+listen stats
+    bind *:8080
+    stats enable
+    stats uri /stats
+    stats auth admin:P@ssw0rd
+EOF
+```
+
+### Docker Compose
+```bash
+cat > /opt/webserver/docker-compose.yml << 'EOF'
+version: '3.8'
+
+services:
+  nginx1:
+    image: nginx:alpine
+    container_name: nginx1
+    volumes:
+      - ./nginx1/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./html:/var/www/html:ro
+    networks:
+      - webnet
+
+  nginx2:
+    image: nginx:alpine
+    container_name: nginx2
+    volumes:
+      - ./nginx2/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./html:/var/www/html:ro
+    networks:
+      - webnet
+
+  php:
+    image: php:8-fpm-alpine
+    container_name: php
+    volumes:
+      - ./html:/var/www/html:ro
+    networks:
+      - webnet
+
+  haproxy:
+    image: haproxy:alpine
+    container_name: haproxy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+    volumes:
+      - ./haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+      - /etc/ssl/certs/worldskills.pem:/etc/ssl/certs/worldskills.pem:ro
+    depends_on:
+      - nginx1
+      - nginx2
+    networks:
+      - webnet
+
+networks:
+  webnet:
+    driver: bridge
+EOF
+```
+
+### Démarrer les conteneurs
+```bash
+cd /opt/webserver
+docker-compose up -d
+```
+
+---
+
+## 4️⃣ Certificat SSL
+
+### Demander le certificat à DNSSRV
+```bash
+# Générer la clé et la demande
+openssl req -new -nodes -keyout /etc/ssl/private/worldskills.key -out /tmp/worldskills.csr \
+    -subj "/C=FR/ST=Auvergne Rhone-Alpes/L=Lyon/O=Worldskills France/CN=www.worldskills.org"
+
+# Envoyer worldskills.csr à DNSSRV pour signature
+# Récupérer le certificat signé
+
+# Combiner clé + certificat pour HAProxy
+cat /etc/ssl/private/worldskills.key /etc/ssl/certs/worldskills.crt > /etc/ssl/certs/worldskills.pem
+```
+
+---
+
+## 5️⃣ Serveur FTP (FTPS)
+
+### Installation vsftpd
+```bash
+apt install -y vsftpd
+```
+
+### Configuration FTPS
+```bash
+cat > /etc/vsftpd.conf << 'EOF'
+listen=YES
+anonymous_enable=NO
+local_enable=YES
+write_enable=YES
+local_umask=022
+dirmessage_enable=YES
+use_localtime=YES
+xferlog_enable=YES
+connect_from_port_20=YES
+chroot_local_user=YES
+allow_writeable_chroot=YES
+secure_chroot_dir=/var/run/vsftpd/empty
+pam_service_name=vsftpd
+
+# FTPS Configuration
+ssl_enable=YES
+ssl_tlsv1=YES
+ssl_sslv2=NO
+ssl_sslv3=NO
+rsa_cert_file=/etc/ssl/certs/ftp.crt
+rsa_private_key_file=/etc/ssl/private/ftp.key
+force_local_data_ssl=YES
+force_local_logins_ssl=YES
+
+# Passive mode
+pasv_enable=YES
+pasv_min_port=40000
+pasv_max_port=40100
+pasv_address=8.8.4.2
+EOF
+```
+
+### Créer l'utilisateur devops
+```bash
+useradd -m -s /bin/bash devops
+echo "devops:P@ssw0rd" | chpasswd
+
+# Créer le répertoire pour les playbooks
+mkdir -p /home/devops/playbooks
+chown devops:devops /home/devops/playbooks
+```
+
+### Générer le certificat FTP
+```bash
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+    -keyout /etc/ssl/private/ftp.key \
+    -out /etc/ssl/certs/ftp.crt \
+    -subj "/C=FR/ST=Auvergne Rhone-Alpes/L=Lyon/O=Worldskills France/CN=ftp.worldskills.org"
+```
+
+### Démarrer vsftpd
+```bash
+systemctl restart vsftpd
+systemctl enable vsftpd
+```
+
+---
+
+## ✅ Vérifications
+
+| Test | Commande |
+|------|----------|
+| Web HTTP | `curl -I http://8.8.4.2` |
+| Web HTTPS | `curl -Ik https://www.worldskills.org` |
+| HAProxy Stats | `curl http://8.8.4.2:8080/stats` |
+| Docker | `docker ps` |
+| FTP | `lftp -u devops,P@ssw0rd ftps://8.8.4.2` |
+
+---
+
+## 📝 Notes
+
+- **IP** : 8.8.4.2
+- Le load balancer HAProxy distribue le trafic entre nginx1 et nginx2
+- HTTP est automatiquement redirigé vers HTTPS
+- Les headers sensibles (Server, X-Powered-By) sont masqués
+- Le FTP utilise FTPS (FTP over TLS) sur les ports 21 et 40000-40100
+- Les playbooks Ansible de MGMTCLT sont stockés dans /home/devops/playbooks
+
