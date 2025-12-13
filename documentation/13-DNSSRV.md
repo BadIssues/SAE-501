@@ -432,12 +432,12 @@ systemctl enable apache2
 
 ### 5. Configuration Finale (Sujet 2.1)
 
-| Test | Commande attendue | Résultat attendu |
-|------|-------------------|------------------|
-| Utilisateur Admin | `id admin` | Existe, groupe sudo/wheel |
-| Bannière SSH | `ssh admin@localhost` | Affiche "/!\ Restricted access..." |
-| Timeout SSH | `grep ClientAlive /etc/ssh/sshd_config` | Interval 300 (5min) |
-| NTP | `ntpq -p` | Synchronisé |
+| Test              | Commande attendue                       | Résultat attendu                   |
+| ----------------- | --------------------------------------- | ---------------------------------- |
+| Utilisateur Admin | `id admin`                              | Existe, groupe sudo/wheel          |
+| Bannière SSH      | `ssh admin@localhost`                   | Affiche "/!\ Restricted access..." |
+| Timeout SSH       | `grep ClientAlive /etc/ssh/sshd_config` | Interval 300 (5min)                |
+| NTP               | `ntpq -p`                               | Synchronisé                        |
 
 ---
 
