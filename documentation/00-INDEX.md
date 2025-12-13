@@ -2,6 +2,13 @@
 
 > **Contexte** : Infrastructure réseau WorldSkills Lyon 2025 (Adaptation SAE 501 BUT R&T)
 
+## ⚡ Installation Rapide
+
+Avant de commencer la configuration réseau, assurez-vous d'avoir installé tous les paquets nécessaires.
+👉 **[Voir le Guide d'Installation Global](00-INSTALLATION.md)**
+
+Vous pouvez aussi utiliser le script `install_packages.sh` fourni à la racine.
+
 ## 🏗️ Architecture Globale
 
 ```mermaid

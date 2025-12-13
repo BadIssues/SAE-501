@@ -95,8 +95,9 @@ area 4 nssa no-summary
 passive-interface default
 no passive-interface GigabitEthernet0/0.13
 no passive-interface GigabitEthernet0/1.300
-network 10.4.254.12 0.0.0.3 area 4
+network 10.4.254.0 0.0.0.3 area 4
 network 10.4.254.8 0.0.0.3 area 4
+network 10.4.254.12 0.0.0.3 area 4
 network 91.4.222.96 0.0.0.7 area 4
 redistribute static subnets
 exit
