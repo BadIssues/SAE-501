@@ -474,14 +474,14 @@ graph TD
 
 ### 🏢 Site HQ (Siège - 6 serveurs)
 
-| Serveur        | OS                   | IP            | Rôles                                |                 Doc                  |
-| -------------- | -------------------- | ------------- | ------------------------------------ | :----------------------------------: |
-| **HQDCSRV**    | Windows Server 2022  | `10.4.10.1`   | AD DS, DNS, ADCS (SubCA), GPO        |  [📘](documentation/04-HQDCSRV.md)   |
-| **HQINFRASRV** | Debian 13            | `10.4.10.2`   | DHCP, VPN OpenVPN, NTP, Samba, iSCSI | [📘](documentation/01-HQINFRASRV.md) |
-| **HQMAILSRV**  | Debian 13            | `10.4.10.3`   | Postfix, Dovecot, Roundcube, ZFS     | [📘](documentation/02-HQMAILSRV.md)  |
-| **DCWSL**      | Debian 13 (Samba AD) | `10.4.10.4`   | Forest Root DC, DNS wsl2025.org      |   [📘](documentation/03-DCWSL.md)    |
-| **HQFWSRV**    | pfSense              | `217.4.160.1` | Firewall, NAT/PAT, Routing           |  [📘](documentation/05-HQFWSRV.md)   |
-| **HQWEBSRV**   | Windows Server 2022  | `217.4.160.2` | IIS, RDS (RemoteApp)                 |  [📘](documentation/06-HQWEBSRV.md)  |
+| Serveur        | OS                  | IP            | Rôles                                |                 Doc                  |
+| -------------- | ------------------- | ------------- | ------------------------------------ | :----------------------------------: |
+| **HQDCSRV**    | Windows Server 2022 | `10.4.10.1`   | AD DS, DNS, ADCS (SubCA), GPO        |  [📘](documentation/04-HQDCSRV.md)   |
+| **HQINFRASRV** | Debian 13           | `10.4.10.2`   | DHCP, VPN OpenVPN, NTP, Samba, iSCSI | [📘](documentation/01-HQINFRASRV.md) |
+| **HQMAILSRV**  | Debian 13           | `10.4.10.3`   | Postfix, Dovecot, Roundcube, ZFS     | [📘](documentation/02-HQMAILSRV.md)  |
+| **DCWSL**      | Windows Server 2022 | `10.4.10.4`   | Forest Root DC, DNS wsl2025.org      |   [📘](documentation/03-DCWSL.md)    |
+| **HQFWSRV**    | pfSense             | `217.4.160.1` | Firewall, NAT/PAT, Routing           |  [📘](documentation/05-HQFWSRV.md)   |
+| **HQWEBSRV**   | Windows Server 2022 | `217.4.160.2` | IIS, RDS (RemoteApp)                 |  [📘](documentation/06-HQWEBSRV.md)  |
 
 ### 🏭 Site Remote (3 équipements)
 

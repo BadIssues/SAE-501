@@ -1,7 +1,8 @@
 # HQDCSRV - Contrôleur de Domaine HQ
 
 > **OS** : Windows Server 2022  
-> **IP** : 10.4.10.1/27 (VLAN 10 - Servers)  
+> **IP** : 10.4.10.1/24 (VLAN 10 - Servers)  
+> **Gateway** : 10.4.10.254 (VIP HSRP)  
 > **Rôles** : AD DS, DNS, ADCS (Sub CA), File Server, FSRM, IIS, GPO
 
 ---
@@ -31,7 +32,8 @@ Rename-Computer -NewName "HQDCSRV" -Restart
 Get-NetAdapter
 
 # Configuration IP statique
-New-NetIPAddress -InterfaceAlias "Ethernet0" -IPAddress 10.4.10.1 -PrefixLength 27 -DefaultGateway 10.4.10.30
+# Gateway = VIP HSRP des Core Switches (CORESW1/CORESW2)
+New-NetIPAddress -InterfaceAlias "Ethernet0" -IPAddress 10.4.10.1 -PrefixLength 24 -DefaultGateway 10.4.10.254
 Set-DnsClientServerAddress -InterfaceAlias "Ethernet0" -ServerAddresses 10.4.10.4, 127.0.0.1
 ```
 
@@ -55,7 +57,11 @@ Install-WindowsFeature -Name AD-Domain-Services, DNS, RSAT-AD-Tools, RSAT-DNS-Se
 
 ```powershell
 # Credentials de l'administrateur du domaine parent
-$cred = Get-Credential -Message "Entrez les credentials de WSL2025\Administrator"
+# IMPORTANT : Utiliser le FQDN du domaine + nom français "Administrateur"
+$cred = Get-Credential -UserName "WSL2025.ORG\Administrateur" -Message "Mot de passe du domaine wsl2025.org"
+
+# Vérifier que les credentials fonctionnent (optionnel)
+Get-ADDomain -Server 10.4.10.4 -Credential $cred
 
 # Installation du domaine enfant hq.wsl2025.org
 Install-ADDSDomain `
@@ -71,6 +77,8 @@ Install-ADDSDomain `
     -SafeModeAdministratorPassword (ConvertTo-SecureString "P@ssw0rd" -AsPlainText -Force) `
     -Force
 ```
+
+> ⚠️ **Note** : Sur Windows Server en français, le compte admin s'appelle "**Administrateur**" (pas "Administrator"). Utiliser le format `WSL2025.ORG\Administrateur`.
 
 > ⚠️ Le serveur redémarre automatiquement après l'installation.
 
