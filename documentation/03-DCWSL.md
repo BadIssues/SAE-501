@@ -112,13 +112,27 @@ Add-DnsServerResourceRecordA -ZoneName $Zone -Name "remfw" -IPv4Address "10.4.10
 
 ### DNSSEC
 
-DNSSEC doit être configuré avec un certificat émis par **HQDCSRV** (SubCA).
-_Note : Cela implique que HQDCSRV soit déjà fonctionnel et que la PKI soit en place._
+Signer la zone wsl2025.org avec DNSSEC :
 
 ```powershell
-# Une fois le certificat obtenu :
-# Invoke-DnsServerZoneSign -ZoneName "wsl2025.org" ...
+# Vérifier si la zone est déjà signée
+Get-DnsServerZone -Name "wsl2025.org" | Select-Object ZoneName, IsSigned, KeyMasterServer
+
+# Si pas encore signée, signer avec les paramètres par défaut
+Invoke-DnsServerZoneSign -ZoneName "wsl2025.org" -SignWithDefault -Force
 ```
+
+#### ✅ Vérification DNSSEC
+```powershell
+# Vérifier que la zone est signée
+Get-DnsServerZone -Name "wsl2025.org" | Select-Object ZoneName, IsSigned
+# Résultat attendu : IsSigned = True
+
+# Vérifier les clés de signature
+Get-DnsServerSigningKey -ZoneName "wsl2025.org"
+```
+
+> ⚠️ **Note** : Si la zone est déjà signée, la commande retournera une erreur indiquant que la zone est déjà signée. C'est normal.
 
 ---
 

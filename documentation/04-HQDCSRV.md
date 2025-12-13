@@ -83,6 +83,7 @@ Install-ADDSDomain `
 > ⚠️ Le serveur redémarre automatiquement après l'installation.
 
 ### 2.3 ✅ Vérification AD
+
 ```powershell
 # Vérifier le domaine
 Get-ADDomain
@@ -133,6 +134,7 @@ Set-DnsServerForwarder -IPAddress 8.8.4.1
 ```
 
 ### 3.5 ✅ Vérification DNS
+
 ```powershell
 # Vérifier les enregistrements créés
 Get-DnsServerResourceRecord -ZoneName "hq.wsl2025.org" | Format-Table RecordType, HostName, RecordData
@@ -147,10 +149,47 @@ Resolve-DnsName google.com
 
 ### 3.4 Activer DNSSEC
 
+> ⚠️ **Prérequis** : La zone parente `wsl2025.org` sur DCWSL doit être signée en premier.
+
 ```powershell
-# Signer la zone hq.wsl2025.org
-Invoke-DnsServerZoneSign -ZoneName "hq.wsl2025.org" -SignWithDefault -Force
+# 1. Vérifier l'état actuel de la zone
+Get-DnsServerZone -Name "hq.wsl2025.org" | Select-Object ZoneName, IsSigned, KeyMasterServer
+
+# 2. Définir ce serveur comme Key Master (si nécessaire)
+# D'abord récupérer le FQDN du serveur
+$serverFQDN = [System.Net.Dns]::GetHostEntry($env:COMPUTERNAME).HostName
+Write-Host "FQDN du serveur: $serverFQDN"
+
+# 3. Créer les clés de signature manuellement
+Add-DnsServerSigningKey -ZoneName "hq.wsl2025.org" -Type KeySigningKey -CryptoAlgorithm RsaSha256 -KeyLength 2048
+Add-DnsServerSigningKey -ZoneName "hq.wsl2025.org" -Type ZoneSigningKey -CryptoAlgorithm RsaSha256 -KeyLength 1024
+
+# 4. Signer la zone
+Invoke-DnsServerZoneSign -ZoneName "hq.wsl2025.org" -Force
 ```
+
+#### 🖥️ Alternative via interface graphique (si erreur PowerShell)
+
+Si les commandes PowerShell échouent avec "Access Denied" :
+1. Ouvrir **DNS Manager** (dnsmgmt.msc)
+2. Clic droit sur la zone `hq.wsl2025.org`
+3. **DNSSEC** → **Sign the Zone...**
+4. Suivre l'assistant avec les paramètres par défaut
+
+#### ✅ Vérification DNSSEC
+```powershell
+# Vérifier que la zone est signée
+Get-DnsServerZone -Name "hq.wsl2025.org" | Select-Object ZoneName, IsSigned
+# Résultat attendu : IsSigned = True
+
+# Vérifier les clés de signature
+Get-DnsServerSigningKey -ZoneName "hq.wsl2025.org"
+
+# Tester la résolution avec DNSSEC
+Resolve-DnsName hqdcsrv.hq.wsl2025.org -DnssecOk
+```
+
+> ⚠️ **Note** : DNSSEC n'est pas critique pour le fonctionnement de base. Si ça bloque, tu peux continuer et y revenir plus tard.
 
 ---
 
@@ -184,6 +223,7 @@ New-ADOrganizationalUnit -Name "Groups" -Path "DC=hq,DC=wsl2025,DC=org"
 ```
 
 #### ✅ Vérification OUs
+
 ```powershell
 # Lister toutes les OUs créées
 Get-ADOrganizationalUnit -Filter * | Select-Object Name, DistinguishedName | Format-Table -AutoSize
@@ -263,13 +303,14 @@ Write-Host "Provisioning terminé : 1000 utilisateurs créés"
 ```
 
 #### ✅ Vérification Utilisateurs et Groupes
+
 ```powershell
 # Compter le nombre total d'utilisateurs
 (Get-ADUser -Filter * -SearchBase "DC=hq,DC=wsl2025,DC=org").Count
 
 # Vérifier les 4 utilisateurs HQ
-Get-ADUser -Filter * -SearchBase "OU=Users,OU=HQ,DC=hq,DC=wsl2025,DC=org" -SearchScope Subtree | 
-    Where-Object {$_.SamAccountName -notlike "wslusr*"} | 
+Get-ADUser -Filter * -SearchBase "OU=Users,OU=HQ,DC=hq,DC=wsl2025,DC=org" -SearchScope Subtree |
+    Where-Object {$_.SamAccountName -notlike "wslusr*"} |
     Select-Object Name, SamAccountName
 
 # Vérifier les groupes
@@ -461,6 +502,7 @@ certutil -crl
 ```
 
 #### ✅ Vérification ADCS
+
 ```powershell
 # Vérifier que la CA est fonctionnelle
 certutil -ping
@@ -594,6 +636,7 @@ Set-DedupVolume -Volume "D:" -MinimumFileAgeDays 0
 ```
 
 #### ✅ Vérification Stockage RAID-5
+
 ```powershell
 # Vérifier le pool de stockage
 Get-StoragePool -FriendlyName "DataPool"
@@ -747,6 +790,7 @@ foreach ($dept in $departments) {
 ```
 
 #### ✅ Vérification Partages
+
 ```powershell
 # Lister tous les partages SMB
 Get-SmbShare | Format-Table Name, Path, Description
