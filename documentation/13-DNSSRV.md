@@ -361,6 +361,9 @@ cp /etc/ssl/CA/certs/ca.crt /var/www/html/pki/WSFR-ROOT-CA.crt
 openssl ca -config /etc/ssl/CA/openssl.cnf -gencrl -out /var/www/html/pki/ca.crl
 
 systemctl enable apache2
+
+# Automatisation de la CRL (toutes les 5 min pour le lab)
+(crontab -l 2>/dev/null; echo "*/5 * * * * openssl ca -config /etc/ssl/CA/openssl.cnf -gencrl -out /var/www/html/pki/ca.crl") | crontab -
 ```
 
 ---
