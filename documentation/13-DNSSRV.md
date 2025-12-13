@@ -17,6 +17,7 @@
 ## 1️⃣ Configuration de base
 
 ### Hostname et réseau
+
 ```bash
 hostnamectl set-hostname dnssrv
 
@@ -31,6 +32,7 @@ EOF
 ```
 
 ### SSH et Fail2Ban
+
 ```bash
 apt update && apt install -y openssh-server fail2ban
 
@@ -60,21 +62,22 @@ apt install -y bind9 bind9utils bind9-doc dnsutils
 ## 3️⃣ Configuration DNS
 
 ### Configuration principale
+
 ```bash
 cat > /etc/bind/named.conf.options << 'EOF'
 options {
     directory "/var/cache/bind";
-    
+
     recursion yes;
     allow-recursion { any; };
-    
+
     forwarders {
         8.8.8.8;
         1.1.1.1;
     };
-    
+
     dnssec-validation auto;
-    
+
     listen-on { any; };
     listen-on-v6 { none; };
 };
@@ -82,6 +85,7 @@ EOF
 ```
 
 ### Zones locales
+
 ```bash
 cat > /etc/bind/named.conf.local << 'EOF'
 // Zone worldskills.org
@@ -101,6 +105,7 @@ EOF
 ```
 
 ### Zone worldskills.org
+
 ```bash
 mkdir -p /etc/bind/zones
 
@@ -127,6 +132,7 @@ EOF
 ```
 
 ### Zone wsl2025.org (vue publique)
+
 ```bash
 cat > /etc/bind/zones/db.wsl2025.org << 'EOF'
 $TTL    604800
@@ -151,6 +157,7 @@ EOF
 ```
 
 ### Vérifier et recharger
+
 ```bash
 named-checkconf
 named-checkzone worldskills.org /etc/bind/zones/db.worldskills.org
@@ -165,6 +172,7 @@ systemctl enable bind9
 ## 4️⃣ DNSSEC
 
 ### Générer les clés
+
 ```bash
 cd /etc/bind/zones
 
@@ -178,6 +186,7 @@ dnssec-keygen -a RSASHA256 -b 4096 -n ZONE -f KSK wsl2025.org
 ```
 
 ### Signer les zones
+
 ```bash
 # Ajouter les clés aux zones
 cat Kworldskills.org.*.key >> /etc/bind/zones/db.worldskills.org
@@ -189,6 +198,7 @@ dnssec-signzone -A -3 $(head -c 1000 /dev/random | sha1sum | cut -b 1-16) -N INC
 ```
 
 ### Mettre à jour la configuration
+
 ```bash
 # Modifier named.conf.local pour utiliser les zones signées
 sed -i 's/db.worldskills.org/db.worldskills.org.signed/' /etc/bind/named.conf.local
@@ -202,11 +212,13 @@ systemctl restart bind9
 ## 5️⃣ Root CA (Autorité de Certification Racine)
 
 ### Installation OpenSSL
+
 ```bash
 apt install -y openssl
 ```
 
 ### Créer la structure PKI
+
 ```bash
 mkdir -p /etc/ssl/CA/{certs,crl,newcerts,private,requests}
 chmod 700 /etc/ssl/CA/private
@@ -216,6 +228,7 @@ echo 1000 > /etc/ssl/CA/crlnumber
 ```
 
 ### Configuration OpenSSL
+
 ```bash
 cat > /etc/ssl/CA/openssl.cnf << 'EOF'
 [ ca ]
@@ -300,6 +313,7 @@ EOF
 ```
 
 ### Générer le certificat Root CA
+
 ```bash
 cd /etc/ssl/CA
 
@@ -319,6 +333,7 @@ openssl x509 -noout -text -in certs/ca.crt
 ```
 
 ### Signer un certificat SubCA (pour HQDCSRV)
+
 > **IMPORTANT** : Vous devez d'abord récupérer le fichier `C:\SubCA.req` généré sur le serveur **HQDCSRV** et le copier dans `/etc/ssl/CA/requests/SubCA.req` sur ce serveur (DNSSRV).
 
 ```bash
@@ -334,8 +349,10 @@ openssl ca -config openssl.cnf \
 
 ## 6️⃣ Serveur Web pour CRL/AIA (optionnel)
 
+> **Note** : Cette étape est nécessaire pour publier la liste de révocation (CRL) accessible via HTTP.
+
 ```bash
-apt install -y apache2
+apt update && apt install -y apache2
 
 mkdir -p /var/www/html/pki
 cp /etc/ssl/CA/certs/ca.crt /var/www/html/pki/WSFR-ROOT-CA.crt
@@ -350,13 +367,13 @@ systemctl enable apache2
 
 ## ✅ Vérifications
 
-| Test | Commande |
-|------|----------|
-| DNS | `dig @localhost www.worldskills.org` |
-| DNS wsl2025 | `dig @localhost www.wsl2025.org` |
-| DNSSEC | `dig @localhost +dnssec www.worldskills.org` |
-| Root CA | `openssl x509 -in /etc/ssl/CA/certs/ca.crt -text` |
-| CRL | `curl http://8.8.4.1/pki/ca.crl` |
+| Test        | Commande                                          |
+| ----------- | ------------------------------------------------- |
+| DNS         | `dig @localhost www.worldskills.org`              |
+| DNS wsl2025 | `dig @localhost www.wsl2025.org`                  |
+| DNSSEC      | `dig @localhost +dnssec www.worldskills.org`      |
+| Root CA     | `openssl x509 -in /etc/ssl/CA/certs/ca.crt -text` |
+| CRL         | `curl http://8.8.4.1/pki/ca.crl`                  |
 
 ---
 
@@ -367,4 +384,3 @@ systemctl enable apache2
 - Le certificat Root CA (WSFR-ROOT-CA) signe le SubCA de HQDCSRV
 - Le mot de passe de la clé Root CA doit être gardé en sécurité
 - DNSSEC est activé sur les deux zones
-
