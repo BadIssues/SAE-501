@@ -358,18 +358,21 @@ openssl x509 -noout -text -in certs/ca.crt
 
 ### Signer un certificat SubCA (pour HQDCSRV)
 
-> **IMPORTANT** : 
+> **IMPORTANT** :
+>
 > 1. Vous devez d'abord **créer la Root CA** (étapes ci-dessus) avant de pouvoir signer quoi que ce soit !
-> 2. Ensuite récupérer le fichier `C:\SubCA.req` généré sur **HQDCSRV** et le copier sur DNSSRV.
+> 2. Sur HQDCSRV, exécuter `Install-AdcsCertificationAuthority` qui génère automatiquement un fichier `.req`
+> 3. Récupérer ce fichier `.req` et le copier sur DNSSRV pour le signer.
 
 #### Étape 1 : Récupérer le fichier depuis HQDCSRV
 
 ```bash
 # Depuis DNSSRV, récupérer le fichier via SCP
-scp administrateur@10.4.10.1:/SubCA.req /etc/ssl/CA/requests/
+# Le nom du fichier peut varier (ex: HQDCSRV.hq.wsl2025.org_WSFR-SUB-CA.req)
+scp administrateur@10.4.10.1:/C:/*.req /etc/ssl/CA/requests/SubCA.req
 
 # OU depuis HQDCSRV (PowerShell)
-# scp C:\SubCA.req root@8.8.4.1:/etc/ssl/CA/requests/
+# scp C:\*.req root@8.8.4.1:/etc/ssl/CA/requests/SubCA.req
 ```
 
 #### Étape 2 : Signer le certificat SubCA

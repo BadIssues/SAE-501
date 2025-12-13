@@ -378,62 +378,82 @@ Start-ScheduledTask -TaskName "ShadowGroupSync"
 Install-WindowsFeature -Name ADCS-Cert-Authority, ADCS-Web-Enrollment, Web-Server, Web-Mgmt-Tools -IncludeManagementTools
 ```
 
-### 5.2 Générer la demande de certificat pour la Sub CA
+### 5.2 Configurer ADCS (génère automatiquement une demande)
 
 ```powershell
-# Créer le fichier INF pour la demande
-$inf = @"
-[Version]
-Signature = "`$Windows NT$"
+# Configurer ADCS comme Enterprise Subordinate CA
+# Cela génère automatiquement une demande de certificat (.req)
+Install-AdcsCertificationAuthority `
+    -CAType EnterpriseSubordinateCA `
+    -CACommonName "WSFR-SUB-CA" `
+    -Force
+```
 
-[NewRequest]
-Subject = "CN=WSFR-SUB-CA,OU=Worldskills France Lyon 2025,O=Worldskills France,L=Lyon,S=Auvergne Rhone-Alpes,C=FR"
-KeyLength = 2048
-KeySpec = 1
-KeyUsage = 0xa0
-MachineKeySet = TRUE
-RequestType = PKCS10
-ProviderName = "Microsoft RSA SChannel Cryptographic Provider"
-ProviderType = 12
-SMIME = FALSE
-Exportable = TRUE
+> ⚠️ **Note** : Cette commande génère un fichier `.req` dans `C:\` (ex: `C:\HQDCSRV.hq.wsl2025.org_WSFR-SUB-CA.req`).  
+> Le service certsvc ne démarrera pas tant que le certificat n'est pas installé.
 
-[RequestAttributes]
-CertificateTemplate = SubCA
-"@
-$inf | Out-File -FilePath "C:\SubCA.inf" -Encoding ASCII
-
-# Générer la demande de certificat
-certreq -new C:\SubCA.inf C:\SubCA.req
-
-Write-Host "Fichier C:\SubCA.req généré. Envoyez-le à DNSSRV (8.8.4.1) pour signature."
+```powershell
+# Trouver le fichier .req généré
+dir C:\*.req
 ```
 
 ### 5.3 Signer le certificat sur DNSSRV (Root CA)
 
-> **Sur DNSSRV (8.8.4.1)** : Transférer le fichier `C:\SubCA.req` et exécuter :
+#### Étape 1 : Transférer le .req vers DNSSRV
 
-```bash
-# Sur DNSSRV (Linux avec OpenSSL)
-openssl ca -config /etc/ssl/openssl.cnf -extensions v3_ca -days 3650 -notext -md sha256 -in SubCA.req -out SubCA.cer
+Depuis **HQDCSRV** (PowerShell) :
+```powershell
+# Adapter le nom du fichier .req selon ce qui a été généré
+scp C:\*.req root@8.8.4.1:/etc/ssl/CA/requests/SubCA.req
 ```
 
-### 5.4 Installer le certificat et configurer ADCS
+#### Étape 2 : Sur DNSSRV, signer le certificat
+
+```bash
+cd /etc/ssl/CA
+
+# Signer la demande (mot de passe Root CA requis)
+openssl ca -config openssl.cnf \
+    -extensions v3_intermediate_ca \
+    -days 3650 -notext -md sha256 \
+    -in requests/SubCA.req \
+    -out certs/SubCA.crt
+
+# Confirmer avec 'y' deux fois
+```
+
+#### Étape 3 : Récupérer les certificats sur HQDCSRV
+
+Depuis **HQDCSRV** (PowerShell) :
+```powershell
+scp root@8.8.4.1:/etc/ssl/CA/certs/SubCA.crt C:\SubCA.cer
+scp root@8.8.4.1:/etc/ssl/CA/certs/ca.crt C:\WSFR-ROOT-CA.cer
+```
+
+### 5.4 Installer les certificats
 
 ```powershell
-# Après réception du certificat signé (SubCA.cer), l'installer
-# Récupérer également le certificat Root CA (WSFR-ROOT-CA.cer)
-
-# Installer le certificat Root CA dans le magasin racine
+# 1. Installer le certificat Root CA dans le magasin racine
 Import-Certificate -FilePath "C:\WSFR-ROOT-CA.cer" -CertStoreLocation Cert:\LocalMachine\Root
 
-# Configurer ADCS comme Enterprise Subordinate CA
-Install-AdcsCertificationAuthority `
-    -CAType EnterpriseSubordinateCA `
-    -CACommonName "WSFR-SUB-CA" `
-    -CertFile "C:\SubCA.cer" `
-    -CertificateID "WSFR-SUB-CA" `
-    -Force
+# 2. Installer le certificat SubCA signé
+certutil -installcert C:\SubCA.cer
+
+# 3. Démarrer le service de la CA
+Start-Service certsvc
+
+# 4. Vérifier que le service est démarré
+Get-Service certsvc
+```
+
+#### ✅ Vérification
+
+```powershell
+# Vérifier que la CA répond
+certutil -ping
+
+# Vérifier le certificat installé
+certutil -ca.cert
 ```
 
 ### 5.5 Configurer les paramètres CRL
