@@ -1,0 +1,34 @@
+JALON 15 : NAT EDGE WANRTR
+==========================
+
+IMAGE : J15-EDGE1-nat-translations.png
+DESCRIPTION : Table de translation NAT sur EDGE1.
+POURQUOI : Prouve que les adresses privées sont bien traduites en adresse publique pour aller sur Internet.
+
+IMAGE : J15-EDGE1-nat-stats.png
+DESCRIPTION : Statistiques NAT sur EDGE1.
+POURQUOI : Montre le nombre de paquets traduits, confirmant l'activité du NAT.
+
+IMAGE : J15-EDGE1-nat-acl.png
+DESCRIPTION : ACL définissant le trafic à nater sur EDGE1.
+POURQUOI : Vérifie que seul le trafic autorisé (10.4.0.0/16) est soumis au NAT.
+
+IMAGE : J15-EDGE2-nat-translations.png
+DESCRIPTION : Table NAT sur EDGE2.
+POURQUOI : Montre que le routeur de secours effectue aussi du NAT si nécessaire.
+
+IMAGE : J15-EDGE2-nat-stats.png
+DESCRIPTION : Stats NAT sur EDGE2.
+POURQUOI : Confirmation de la configuration sur le second routeur.
+
+IMAGE : J15-EDGE2-nat-acl.png
+DESCRIPTION : ACL NAT sur EDGE2.
+POURQUOI : Vérification de la cohérence de configuration.
+
+IMAGE : J15-PC-ping-internet.png
+DESCRIPTION : Ping vers 8.8.4.1 depuis un PC interne.
+POURQUOI : Preuve fonctionnelle que les clients ont accès à Internet.
+
+IMAGE : J15-EDGE1-nat-after-ping.png
+DESCRIPTION : Table NAT après le ping du PC.
+POURQUOI : Relie l'action utilisateur (ping) à la technique (translation NAT visible).

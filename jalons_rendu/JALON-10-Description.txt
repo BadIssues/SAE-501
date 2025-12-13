@@ -1,0 +1,74 @@
+JALON 10 : DÉPLOIEMENT VLAN SWITCHES
+====================================
+
+IMAGE : J10-CORESW1-vlans.png
+DESCRIPTION : Liste des VLANs (10, 20, 30, 99, 100) sur CORESW1.
+POURQUOI : Prouve que les VLANs sont bien créés et nommés correctement sur le serveur VTP principal.
+
+IMAGE : J10-CORESW1-vtp.png
+DESCRIPTION : Statut VTP sur CORESW1 (Mode Server, Domaine wsl2025.org).
+POURQUOI : Montre que CORESW1 est bien le serveur VTP qui distribue les VLANs aux autres switches.
+
+IMAGE : J10-CORESW1-trunk.png
+DESCRIPTION : Interfaces trunk actives sur CORESW1.
+POURQUOI : Vérifie que les liens vers CORESW2 et les ACCSW transportent bien les VLANs nécessaires.
+
+IMAGE : J10-CORESW1-lacp.png
+DESCRIPTION : Résumé EtherChannel (Po1) sur CORESW1.
+POURQUOI : Confirme que l'agrégation de liens (LACP) entre les deux cœurs de réseau est active (SU).
+
+IMAGE : J10-CORESW1-stp.png
+DESCRIPTION : Statut Spanning-Tree sur CORESW1.
+POURQUOI : Prouve que CORESW1 est bien le "Root Bridge" pour les VLANs, assurant une topologie optimale.
+
+IMAGE : J10-CORESW2-vlans.png
+DESCRIPTION : Liste des VLANs sur CORESW2.
+POURQUOI : Montre que les VLANs ont bien été propagés via VTP depuis CORESW1.
+
+IMAGE : J10-CORESW2-vtp.png
+DESCRIPTION : Statut VTP sur CORESW2 (Mode Server).
+POURQUOI : CORESW2 agit comme serveur de backup pour la redondance VTP.
+
+IMAGE : J10-CORESW2-lacp.png
+DESCRIPTION : Résumé EtherChannel sur CORESW2.
+POURQUOI : Vérifie que le LACP est bien monté des deux côtés (CORESW1 <-> CORESW2).
+
+IMAGE : J10-CORESW2-stp.png
+DESCRIPTION : Statut Spanning-Tree sur CORESW2.
+POURQUOI : Montre que CORESW2 est le Root Bridge secondaire (backup) en cas de panne de CORESW1.
+
+IMAGE : J10-ACCSW1-vlans.png
+DESCRIPTION : Liste des VLANs sur ACCSW1.
+POURQUOI : Confirme que le switch d'accès a bien reçu les VLANs via VTP.
+
+IMAGE : J10-ACCSW1-vtp.png
+DESCRIPTION : Statut VTP sur ACCSW1 (Mode Client).
+POURQUOI : Prouve que le switch est bien en mode Client VTP pour éviter d'écraser la config VLAN.
+
+IMAGE : J10-ACCSW1-trunk.png
+DESCRIPTION : Interfaces trunk sur ACCSW1.
+POURQUOI : Vérifie la liaison montante (uplink) vers le cœur de réseau.
+
+IMAGE : J10-ACCSW1-portsec.png
+DESCRIPTION : Configuration de la sécurité des ports sur ACCSW1.
+POURQUOI : Montre que le Port-Security est activé pour limiter le nombre d'adresses MAC par port.
+
+IMAGE : J10-ACCSW1-ping.png
+DESCRIPTION : Ping depuis ACCSW1 vers CORESW1 et CORESW2.
+POURQUOI : Valide la connectivité de gestion (VLAN 99) entre l'accès et le cœur.
+
+IMAGE : J10-ACCSW2-vlans.png
+DESCRIPTION : Liste des VLANs sur ACCSW2.
+POURQUOI : Vérification de la propagation VTP sur le deuxième switch d'accès.
+
+IMAGE : J10-ACCSW2-vtp.png
+DESCRIPTION : Statut VTP sur ACCSW2 (Mode Client).
+POURQUOI : Confirmation du mode client VTP.
+
+IMAGE : J10-ACCSW2-trunk.png
+DESCRIPTION : Interfaces trunk sur ACCSW2.
+POURQUOI : Vérification des liens montants.
+
+IMAGE : J10-PC-ping-vip.png
+DESCRIPTION : Ping depuis un PC client vers les passerelles par défaut (VIP HSRP).
+POURQUOI : Preuve ultime que la connectivité de bout en bout fonctionne à travers les VLANs.

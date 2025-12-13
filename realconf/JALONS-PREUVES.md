@@ -24,25 +24,25 @@
 
 ### ✅ Traités dans ce document (Cœur de réseau)
 
-| Jalon | Description |
-|:---:|---|
-| 5 | Plan d'adressage IP + DNS |
-| 10 | Déploiement VLAN switches |
-| 12 | Déploiement OSPF/BGP routeurs |
-| 13 | HSRP configuration switches |
-| 14 | HSRP EDGE routeurs |
-| 15 | NAT EDGE WANRTR |
-| 16 | Accès DMZ |
-| 17 | EDGEX NAT/PAT VPN |
+| Jalon | Description                   |
+| :---: | ----------------------------- |
+|   5   | Plan d'adressage IP + DNS     |
+|  10   | Déploiement VLAN switches     |
+|  12   | Déploiement OSPF/BGP routeurs |
+|  13   | HSRP configuration switches   |
+|  14   | HSRP EDGE routeurs            |
+|  15   | NAT EDGE WANRTR               |
+|  16   | Accès DMZ                     |
+|  17   | EDGEX NAT/PAT VPN             |
 
 ### ❌ Non traités ici
 
-| Jalons | Description |
-|:---:|---|
-| 1-4 | Gestion projet (PilPro) |
-| 7-8 | Simulation EVE-NG (vérifié sur PC) |
-| 6, 9, 11 | ESXi |
-| 18-19 | DNS/CA (Cyber) |
+|  Jalons  | Description                        |
+| :------: | ---------------------------------- |
+|   1-4    | Gestion projet (PilPro)            |
+|   7-8    | Simulation EVE-NG (vérifié sur PC) |
+| 6, 9, 11 | ESXi                               |
+|  18-19   | DNS/CA (Cyber)                     |
 
 ---
 
@@ -84,13 +84,13 @@ show ip interface brief
 
 **Captures à faire :**
 
-| Fichier | Commande | Vérification |
-|---------|----------|--------------|
-| `J10-CORESW1-vlans.png` | `show vlan brief` | VLANs présents |
-| `J10-CORESW1-vtp.png` | `show vtp status` | VTP Server |
-| `J10-CORESW1-trunk.png` | `show interfaces trunk` | Trunks actifs |
-| `J10-CORESW1-lacp.png` | `show etherchannel summary` | Po1 actif |
-| `J10-CORESW1-stp.png` | `show spanning-tree root` | Root Bridge |
+| Fichier                 | Commande                    | Vérification   |
+| ----------------------- | --------------------------- | -------------- |
+| `J10-CORESW1-vlans.png` | `show vlan brief`           | VLANs présents |
+| `J10-CORESW1-vtp.png`   | `show vtp status`           | VTP Server     |
+| `J10-CORESW1-trunk.png` | `show interfaces trunk`     | Trunks actifs  |
+| `J10-CORESW1-lacp.png`  | `show etherchannel summary` | Po1 actif      |
+| `J10-CORESW1-stp.png`   | `show spanning-tree root`   | Root Bridge    |
 
 ### Étape 2 : CORESW2
 
@@ -107,12 +107,12 @@ show ip interface brief
 
 **Captures à faire :**
 
-| Fichier | Commande | Vérification |
-|---------|----------|--------------|
-| `J10-CORESW2-vlans.png` | `show vlan brief` | VLANs présents |
-| `J10-CORESW2-vtp.png` | `show vtp status` | VTP Server backup |
-| `J10-CORESW2-lacp.png` | `show etherchannel summary` | Po1 actif |
-| `J10-CORESW2-stp.png` | `show spanning-tree root` | Secondary Root |
+| Fichier                 | Commande                    | Vérification      |
+| ----------------------- | --------------------------- | ----------------- |
+| `J10-CORESW2-vlans.png` | `show vlan brief`           | VLANs présents    |
+| `J10-CORESW2-vtp.png`   | `show vtp status`           | VTP Server backup |
+| `J10-CORESW2-lacp.png`  | `show etherchannel summary` | Po1 actif         |
+| `J10-CORESW2-stp.png`   | `show spanning-tree root`   | Secondary Root    |
 
 ### Étape 3 : ACCSW1
 
@@ -130,13 +130,13 @@ ping 10.4.99.252
 
 **Captures à faire :**
 
-| Fichier | Commande |
-|---------|----------|
-| `J10-ACCSW1-vlans.png` | `show vlan brief` |
-| `J10-ACCSW1-vtp.png` | `show vtp status` (VTP Client) |
-| `J10-ACCSW1-trunk.png` | `show interfaces trunk` |
-| `J10-ACCSW1-portsec.png` | `show port-security` |
-| `J10-ACCSW1-ping.png` | Ping CORESW1 et CORESW2 |
+| Fichier                  | Commande                       |
+| ------------------------ | ------------------------------ |
+| `J10-ACCSW1-vlans.png`   | `show vlan brief`              |
+| `J10-ACCSW1-vtp.png`     | `show vtp status` (VTP Client) |
+| `J10-ACCSW1-trunk.png`   | `show interfaces trunk`        |
+| `J10-ACCSW1-portsec.png` | `show port-security`           |
+| `J10-ACCSW1-ping.png`    | Ping CORESW1 et CORESW2        |
 
 ### Étape 4 : ACCSW2
 
@@ -154,11 +154,11 @@ ping 10.4.99.252
 
 **Captures à faire :**
 
-| Fichier | Commande |
-|---------|----------|
-| `J10-ACCSW2-vlans.png` | `show vlan brief` |
-| `J10-ACCSW2-vtp.png` | `show vtp status` (VTP Client) |
-| `J10-ACCSW2-trunk.png` | `show interfaces trunk` |
+| Fichier                | Commande                       |
+| ---------------------- | ------------------------------ |
+| `J10-ACCSW2-vlans.png` | `show vlan brief`              |
+| `J10-ACCSW2-vtp.png`   | `show vtp status` (VTP Client) |
+| `J10-ACCSW2-trunk.png` | `show interfaces trunk`        |
 
 ### Étape 5 : Test depuis un PC Client
 
@@ -175,26 +175,26 @@ ping 10.4.99.254
 
 ### 📁 Résumé Jalon 10 – 17 fichiers
 
-| # | Fichier |
-|---|---------|
-| 1 | `J10-CORESW1-vlans.png` |
-| 2 | `J10-CORESW1-vtp.png` |
-| 3 | `J10-CORESW1-trunk.png` |
-| 4 | `J10-CORESW1-lacp.png` |
-| 5 | `J10-CORESW1-stp.png` |
-| 6 | `J10-CORESW2-vlans.png` |
-| 7 | `J10-CORESW2-vtp.png` |
-| 8 | `J10-CORESW2-lacp.png` |
-| 9 | `J10-CORESW2-stp.png` |
-| 10 | `J10-ACCSW1-vlans.png` |
-| 11 | `J10-ACCSW1-vtp.png` |
-| 12 | `J10-ACCSW1-trunk.png` |
-| 13 | `J10-ACCSW1-portsec.png` |
-| 14 | `J10-ACCSW1-ping.png` |
-| 15 | `J10-ACCSW2-vlans.png` |
-| 16 | `J10-ACCSW2-vtp.png` |
-| 17 | `J10-ACCSW2-trunk.png` |
-| 18 | `J10-PC-ping-vip.png` |
+| #   | Fichier                  |
+| --- | ------------------------ |
+| 1   | `J10-CORESW1-vlans.png`  |
+| 2   | `J10-CORESW1-vtp.png`    |
+| 3   | `J10-CORESW1-trunk.png`  |
+| 4   | `J10-CORESW1-lacp.png`   |
+| 5   | `J10-CORESW1-stp.png`    |
+| 6   | `J10-CORESW2-vlans.png`  |
+| 7   | `J10-CORESW2-vtp.png`    |
+| 8   | `J10-CORESW2-lacp.png`   |
+| 9   | `J10-CORESW2-stp.png`    |
+| 10  | `J10-ACCSW1-vlans.png`   |
+| 11  | `J10-ACCSW1-vtp.png`     |
+| 12  | `J10-ACCSW1-trunk.png`   |
+| 13  | `J10-ACCSW1-portsec.png` |
+| 14  | `J10-ACCSW1-ping.png`    |
+| 15  | `J10-ACCSW2-vlans.png`   |
+| 16  | `J10-ACCSW2-vtp.png`     |
+| 17  | `J10-ACCSW2-trunk.png`   |
+| 18  | `J10-PC-ping-vip.png`    |
 
 ---
 
@@ -220,13 +220,13 @@ ping 10.4.254.10
 
 **Captures à faire :**
 
-| Fichier | Commande | Vérification |
-|---------|----------|--------------|
-| `J12-EDGE1-interfaces.png` | `show ip interface brief` | Interfaces UP |
-| `J12-EDGE1-ospf.png` | `show ip ospf neighbor` | Voisin WANRTR |
-| `J12-EDGE1-bgp.png` | `show ip bgp summary` | 2 peers |
-| `J12-EDGE1-routes.png` | `show ip route` | Routes OSPF/BGP |
-| `J12-EDGE1-ping.png` | Ping WANRTR et EDGE2 | Connectivité |
+| Fichier                    | Commande                  | Vérification    |
+| -------------------------- | ------------------------- | --------------- |
+| `J12-EDGE1-interfaces.png` | `show ip interface brief` | Interfaces UP   |
+| `J12-EDGE1-ospf.png`       | `show ip ospf neighbor`   | Voisin WANRTR   |
+| `J12-EDGE1-bgp.png`        | `show ip bgp summary`     | 2 peers         |
+| `J12-EDGE1-routes.png`     | `show ip route`           | Routes OSPF/BGP |
+| `J12-EDGE1-ping.png`       | Ping WANRTR et EDGE2      | Connectivité    |
 
 ### Étape 2 : EDGE2
 
@@ -243,13 +243,13 @@ ping 10.4.254.9
 
 **Captures à faire :**
 
-| Fichier | Commande |
-|---------|----------|
+| Fichier                    | Commande                  |
+| -------------------------- | ------------------------- |
 | `J12-EDGE2-interfaces.png` | `show ip interface brief` |
-| `J12-EDGE2-ospf.png` | `show ip ospf neighbor` |
-| `J12-EDGE2-bgp.png` | `show ip bgp summary` |
-| `J12-EDGE2-routes.png` | `show ip route` |
-| `J12-EDGE2-ping.png` | Ping WANRTR et EDGE1 |
+| `J12-EDGE2-ospf.png`       | `show ip ospf neighbor`   |
+| `J12-EDGE2-bgp.png`        | `show ip bgp summary`     |
+| `J12-EDGE2-routes.png`     | `show ip route`           |
+| `J12-EDGE2-ping.png`       | Ping WANRTR et EDGE1      |
 
 ### Étape 3 : WANRTR
 
@@ -268,20 +268,20 @@ ping vrf MAN 10.4.254.18
 
 **Captures à faire :**
 
-| Fichier | Commande | Vérification |
-|---------|----------|--------------|
-| `J12-WANRTR-vrf.png` | `show vrf` + `show ip vrf interfaces` | VRF INET/MAN |
-| `J12-WANRTR-ospf.png` | `show ip ospf vrf MAN neighbor` | 2 voisins |
-| `J12-WANRTR-bgp.png` | `show bgp vrf INET summary` | 2 peers |
-| `J12-WANRTR-ping.png` | Ping avec VRF | Connectivité |
+| Fichier               | Commande                              | Vérification |
+| --------------------- | ------------------------------------- | ------------ |
+| `J12-WANRTR-vrf.png`  | `show vrf` + `show ip vrf interfaces` | VRF INET/MAN |
+| `J12-WANRTR-ospf.png` | `show ip ospf vrf MAN neighbor`       | 2 voisins    |
+| `J12-WANRTR-bgp.png`  | `show bgp vrf INET summary`           | 2 peers      |
+| `J12-WANRTR-ping.png` | Ping avec VRF                         | Connectivité |
 
 ### 📁 Résumé Jalon 12 – 14 fichiers
 
-| Équipement | Fichiers |
-|------------|----------|
-| EDGE1 | interfaces, ospf, bgp, routes, ping |
-| EDGE2 | interfaces, ospf, bgp, routes, ping |
-| WANRTR | vrf, ospf, bgp, ping |
+| Équipement | Fichiers                            |
+| ---------- | ----------------------------------- |
+| EDGE1      | interfaces, ospf, bgp, routes, ping |
+| EDGE2      | interfaces, ospf, bgp, routes, ping |
+| WANRTR     | vrf, ospf, bgp, ping                |
 
 ---
 
@@ -299,11 +299,13 @@ show track 10
 ```
 
 **Vérifier :**
+
 - État "Active" pour les groupes 10, 20, 99
 - Priority = 110
 - Track 10 = UP
 
 **Captures :**
+
 - `J13-CORESW1-hsrp.png` → show standby brief (Active)
 - `J13-CORESW1-track.png` → show track 10 (UP)
 
@@ -317,10 +319,12 @@ show track 20
 ```
 
 **Vérifier :**
+
 - État "Standby" pour les groupes 10, 20, 99
 - Priority = 100
 
 **Captures :**
+
 - `J13-CORESW2-hsrp.png` → show standby brief (Standby)
 - `J13-CORESW2-track.png` → show track 20
 
@@ -344,6 +348,7 @@ end
 ```
 
 **3. Observer :**
+
 - Le ping continue après quelques secondes
 - CORESW2 devient Active
 
@@ -352,6 +357,7 @@ end
 ```cisco
 show standby brief
 ```
+
 → Maintenant Active
 
 **5. Réactiver sur CORESW1 :**
@@ -366,6 +372,7 @@ end
 **6. Vérifier que CORESW1 redevient Active (preempt)**
 
 **Captures :**
+
 - `J13-failover-avant.png` → show standby brief avant shutdown
 - `J13-failover-apres.png` → show standby brief après shutdown
 - `J13-failover-ping.png` → Ping continu qui ne s'arrête pas
@@ -384,20 +391,21 @@ end
 ! Vérification finale
 show standby brief
 ```
+
 → CORESW1 = Active, CORESW2 = Standby
 
 ### 📁 Résumé Jalon 13 – 7 fichiers + vidéo
 
-| Fichier |
-|---------|
-| `J13-CORESW1-hsrp.png` |
-| `J13-CORESW1-track.png` |
-| `J13-CORESW2-hsrp.png` |
-| `J13-CORESW2-track.png` |
-| `J13-failover-avant.png` |
-| `J13-failover-apres.png` |
-| `J13-failover-ping.png` |
-| *(Optionnel)* `J13-VIDEO-HSRP-Failover.mp4` |
+| Fichier                                     |
+| ------------------------------------------- |
+| `J13-CORESW1-hsrp.png`                      |
+| `J13-CORESW1-track.png`                     |
+| `J13-CORESW2-hsrp.png`                      |
+| `J13-CORESW2-track.png`                     |
+| `J13-failover-avant.png`                    |
+| `J13-failover-apres.png`                    |
+| `J13-failover-ping.png`                     |
+| _(Optionnel)_ `J13-VIDEO-HSRP-Failover.mp4` |
 
 ---
 
@@ -413,11 +421,13 @@ show track 10
 ```
 
 **Vérifier :**
+
 - Groupe 30 (VLAN DMZ) = Active
 - Priority = 110
 - VIP = 217.4.160.254
 
 **Captures :**
+
 - `J14-EDGE1-hsrp.png` → show standby brief (Active)
 - `J14-EDGE1-track.png` → show track 10
 
@@ -429,20 +439,22 @@ show track 20
 ```
 
 **Vérifier :**
+
 - Groupe 30 = Standby
 - Priority = 100
 
 **Captures :**
+
 - `J14-EDGE2-hsrp.png` → show standby brief (Standby)
 - `J14-EDGE2-track.png` → show track 20
 
 ### 📁 Résumé Jalon 14 – 4 fichiers
 
-| Fichier |
-|---------|
-| `J14-EDGE1-hsrp.png` |
+| Fichier               |
+| --------------------- |
+| `J14-EDGE1-hsrp.png`  |
 | `J14-EDGE1-track.png` |
-| `J14-EDGE2-hsrp.png` |
+| `J14-EDGE2-hsrp.png`  |
 | `J14-EDGE2-track.png` |
 
 ---
@@ -460,10 +472,12 @@ show access-lists NAT-ACL
 ```
 
 **Vérifier :**
+
 - NAT-ACL autorise `10.4.0.0/16`
 - Translations présentes (si trafic actif)
 
 **Captures :**
+
 - `J15-EDGE1-nat-translations.png`
 - `J15-EDGE1-nat-stats.png`
 - `J15-EDGE1-nat-acl.png`
@@ -477,6 +491,7 @@ show access-lists NAT-ACL
 ```
 
 **Captures :**
+
 - `J15-EDGE2-nat-translations.png`
 - `J15-EDGE2-nat-stats.png`
 
@@ -497,20 +512,21 @@ show ip nat translations
 **3. Vérifier que la translation apparaît**
 
 **Captures :**
+
 - `J15-PC-ping-internet.png` → Ping depuis PC vers 8.8.4.1
 - `J15-EDGE1-nat-after-ping.png` → show ip nat translations avec entrée
 
 ### 📁 Résumé Jalon 15 – 7 fichiers
 
-| Fichier |
-|---------|
+| Fichier                          |
+| -------------------------------- |
 | `J15-EDGE1-nat-translations.png` |
-| `J15-EDGE1-nat-stats.png` |
-| `J15-EDGE1-nat-acl.png` |
+| `J15-EDGE1-nat-stats.png`        |
+| `J15-EDGE1-nat-acl.png`          |
 | `J15-EDGE2-nat-translations.png` |
-| `J15-EDGE2-nat-stats.png` |
-| `J15-PC-ping-internet.png` |
-| `J15-EDGE1-nat-after-ping.png` |
+| `J15-EDGE2-nat-stats.png`        |
+| `J15-PC-ping-internet.png`       |
+| `J15-EDGE1-nat-after-ping.png`   |
 
 ---
 
@@ -527,11 +543,13 @@ show standby brief
 ```
 
 **Vérifier :**
+
 - Interface Gi0/1.30 UP
 - IP = 217.4.160.253/24
 - HSRP VIP = 217.4.160.254
 
 **Captures :**
+
 - `J16-EDGE1-dmz-interface.png`
 - `J16-EDGE1-dmz-hsrp.png`
 
@@ -543,10 +561,12 @@ show standby brief
 ```
 
 **Vérifier :**
+
 - Interface Gi0/1.30 UP
 - IP = 217.4.160.252/24
 
 **Capture :**
+
 - `J16-EDGE2-dmz-interface.png`
 
 ### Étape 3 : Test Ping entre EDGE1 et EDGE2 via DMZ
@@ -573,13 +593,13 @@ ping 217.4.160.254
 
 ### 📁 Résumé Jalon 16 – 5 fichiers
 
-| Fichier |
-|---------|
-| `J16-EDGE1-dmz-interface.png` |
-| `J16-EDGE1-dmz-hsrp.png` |
-| `J16-EDGE2-dmz-interface.png` |
-| `J16-ping-dmz.png` |
-| `J16-dmz-server-ping.png` *(si serveur disponible)* |
+| Fichier                                             |
+| --------------------------------------------------- |
+| `J16-EDGE1-dmz-interface.png`                       |
+| `J16-EDGE1-dmz-hsrp.png`                            |
+| `J16-EDGE2-dmz-interface.png`                       |
+| `J16-ping-dmz.png`                                  |
+| `J16-dmz-server-ping.png` _(si serveur disponible)_ |
 
 ---
 
@@ -597,13 +617,14 @@ show ip route static
 
 **Vérifier les règles NAT statiques :**
 
-| IP Publique | IP Privée | Service |
-|-------------|-----------|---------|
-| `191.4.157.33:4443` | `10.4.10.2:443` | VPN OpenVPN |
-| `191.4.157.33:80` | `10.4.10.3:80` | Webmail HTTP |
-| `191.4.157.33:443` | `10.4.10.3:443` | Webmail HTTPS |
+| IP Publique         | IP Privée       | Service       |
+| ------------------- | --------------- | ------------- |
+| `191.4.157.33:4443` | `10.4.10.2:443` | VPN OpenVPN   |
+| `191.4.157.33:80`   | `10.4.10.3:80`  | Webmail HTTP  |
+| `191.4.157.33:443`  | `10.4.10.3:443` | Webmail HTTPS |
 
 **Captures :**
+
 - `J17-EDGE1-nat-config.png` → show run | include nat
 - `J17-EDGE1-loopback.png` → show ip interface Loopback0
 - `J17-EDGE1-routes-null0.png` → show ip route static
@@ -617,13 +638,14 @@ show ip interface Loopback0
 
 **Vérifier les règles NAT statiques (backup) :**
 
-| IP Publique | IP Privée | Service |
-|-------------|-----------|---------|
-| `191.4.157.34:4443` | `10.4.10.2:443` | VPN OpenVPN |
-| `191.4.157.34:80` | `10.4.10.3:80` | Webmail HTTP |
-| `191.4.157.34:443` | `10.4.10.3:443` | Webmail HTTPS |
+| IP Publique         | IP Privée       | Service       |
+| ------------------- | --------------- | ------------- |
+| `191.4.157.34:4443` | `10.4.10.2:443` | VPN OpenVPN   |
+| `191.4.157.34:80`   | `10.4.10.3:80`  | Webmail HTTP  |
+| `191.4.157.34:443`  | `10.4.10.3:443` | Webmail HTTPS |
 
 **Captures :**
+
 - `J17-EDGE2-nat-config.png`
 - `J17-EDGE2-loopback.png`
 
@@ -637,6 +659,7 @@ ping 191.4.157.34
 ```
 
 Si serveur VPN/Webmail configuré :
+
 - Connexion HTTPS vers `https://webmail.wsl2025.org`
 - Connexion VPN vers `vpn.wsl2025.org:4443`
 
@@ -644,14 +667,14 @@ Si serveur VPN/Webmail configuré :
 
 ### 📁 Résumé Jalon 17 – 5-6 fichiers
 
-| Fichier |
-|---------|
-| `J17-EDGE1-nat-config.png` |
-| `J17-EDGE1-loopback.png` |
-| `J17-EDGE1-routes-null0.png` |
-| `J17-EDGE2-nat-config.png` |
-| `J17-EDGE2-loopback.png` |
-| `J17-internet-ping-loopback.png` *(si possible)* |
+| Fichier                                          |
+| ------------------------------------------------ |
+| `J17-EDGE1-nat-config.png`                       |
+| `J17-EDGE1-loopback.png`                         |
+| `J17-EDGE1-routes-null0.png`                     |
+| `J17-EDGE2-nat-config.png`                       |
+| `J17-EDGE2-loopback.png`                         |
+| `J17-internet-ping-loopback.png` _(si possible)_ |
 
 ---
 
@@ -663,60 +686,60 @@ Si serveur VPN/Webmail configuré :
 
 ### Jalon 10 (17 captures)
 
-| Équipement | Captures |
-|------------|----------|
-| CORESW1 | vlans, vtp, trunk, lacp, stp |
-| CORESW2 | vlans, vtp, lacp, stp |
-| ACCSW1 | vlans, vtp, trunk, portsec, ping |
-| ACCSW2 | vlans, vtp, trunk |
-| PC | ping VIP |
+| Équipement | Captures                         |
+| ---------- | -------------------------------- |
+| CORESW1    | vlans, vtp, trunk, lacp, stp     |
+| CORESW2    | vlans, vtp, lacp, stp            |
+| ACCSW1     | vlans, vtp, trunk, portsec, ping |
+| ACCSW2     | vlans, vtp, trunk                |
+| PC         | ping VIP                         |
 
 ### Jalon 12 (14 captures)
 
-| Équipement | Captures |
-|------------|----------|
-| EDGE1 | interfaces, ospf, bgp, routes, ping |
-| EDGE2 | interfaces, ospf, bgp, routes, ping |
-| WANRTR | vrf, ospf, bgp, ping |
+| Équipement | Captures                            |
+| ---------- | ----------------------------------- |
+| EDGE1      | interfaces, ospf, bgp, routes, ping |
+| EDGE2      | interfaces, ospf, bgp, routes, ping |
+| WANRTR     | vrf, ospf, bgp, ping                |
 
 ### Jalon 13 (7 captures + vidéo)
 
-| Équipement | Captures |
-|------------|----------|
-| CORESW1 | hsrp (Active), track |
-| CORESW2 | hsrp (Standby), track |
-| Failover | avant, après, ping |
+| Équipement | Captures              |
+| ---------- | --------------------- |
+| CORESW1    | hsrp (Active), track  |
+| CORESW2    | hsrp (Standby), track |
+| Failover   | avant, après, ping    |
 
 ### Jalon 14 (4 captures)
 
-| Équipement | Captures |
-|------------|----------|
-| EDGE1 | hsrp, track |
-| EDGE2 | hsrp, track |
+| Équipement | Captures    |
+| ---------- | ----------- |
+| EDGE1      | hsrp, track |
+| EDGE2      | hsrp, track |
 
 ### Jalon 15 (7 captures)
 
-| Équipement | Captures |
-|------------|----------|
-| EDGE1 | translations, stats, acl |
-| EDGE2 | translations, stats |
-| PC | ping internet + translations |
+| Équipement | Captures                     |
+| ---------- | ---------------------------- |
+| EDGE1      | translations, stats, acl     |
+| EDGE2      | translations, stats          |
+| PC         | ping internet + translations |
 
 ### Jalon 16 (5 captures)
 
-| Équipement | Captures |
-|------------|----------|
-| EDGE1 | interface, hsrp |
-| EDGE2 | interface |
-| Ping | entre EDGE + depuis serveur |
+| Équipement | Captures                    |
+| ---------- | --------------------------- |
+| EDGE1      | interface, hsrp             |
+| EDGE2      | interface                   |
+| Ping       | entre EDGE + depuis serveur |
 
 ### Jalon 17 (5-6 captures)
 
-| Équipement | Captures |
-|------------|----------|
-| EDGE1 | nat config, loopback, routes null0 |
-| EDGE2 | nat config, loopback |
-| Internet | ping loopback |
+| Équipement | Captures                           |
+| ---------- | ---------------------------------- |
+| EDGE1      | nat config, loopback, routes null0 |
+| EDGE2      | nat config, loopback               |
+| Internet   | ping loopback                      |
 
 ---
 

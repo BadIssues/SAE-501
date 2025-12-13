@@ -1,0 +1,21 @@
+================================================================================
+                        LISTE DES PREUVES À FOURNIR (MANQUANTES)
+================================================================================
+
+JALON 5 (Adressage)
+[ ] PLAN-ADRESSAGE-IP.pdf (ou .txt)
+[ ] Schema-DNS.png
+
+JALON 13 (HSRP Switches - Failover)
+[ ] J13-failover-avant.png
+[ ] J13-failover-apres.png
+[ ] J13-failover-ping.png
+[ ] J13-VIDEO-HSRP-Failover.mp4 (Optionnel)
+
+JALON 16 (DMZ)
+[ ] J16-dmz-server-ping.png (si serveur disponible)
+
+JALON 17 (NAT/PAT VPN)
+[ ] J17-internet-ping-loopback.png (si possible)
+
+TOUT LE RESTE EST PRÉSENT ! ✅

@@ -1,0 +1,30 @@
+JALON 13 : HSRP CONFIGURATION SWITCHES
+======================================
+
+IMAGE : J13-CORESW1-hsrp.png
+DESCRIPTION : État HSRP sur CORESW1 (Active).
+POURQUOI : Montre que CORESW1 est bien le routeur actif par défaut pour les VLANs (Priorité 110).
+
+IMAGE : J13-CORESW1-track.png
+DESCRIPTION : État du tracking d'interface sur CORESW1.
+POURQUOI : Prouve que le mécanisme de basculement est prêt à déclencher si le lien montant tombe.
+
+IMAGE : J13-CORESW2-hsrp.png
+DESCRIPTION : État HSRP sur CORESW2 (Standby).
+POURQUOI : Confirme que CORESW2 est prêt à prendre le relais (Standby, Priorité 100).
+
+IMAGE : J13-CORESW2-track.png
+DESCRIPTION : État du tracking sur CORESW2.
+POURQUOI : Vérification de la configuration de redondance sur le switch de secours.
+
+IMAGE : J13-failover-avant.png  [MANQUANT]
+DESCRIPTION : État HSRP avant la coupure d'interface.
+POURQUOI : Sert de référence pour prouver le basculement.
+
+IMAGE : J13-failover-apres.png  [MANQUANT]
+DESCRIPTION : État HSRP après coupure (CORESW2 devient Active).
+POURQUOI : Preuve visuelle que le mécanisme de haute disponibilité fonctionne.
+
+IMAGE : J13-failover-ping.png   [MANQUANT]
+DESCRIPTION : Ping continu pendant la coupure.
+POURQUOI : Montre que la perte de paquets est minime ou nulle pour l'utilisateur final.

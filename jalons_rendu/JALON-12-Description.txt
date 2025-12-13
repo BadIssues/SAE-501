@@ -1,0 +1,58 @@
+JALON 12 : DÉPLOIEMENT OSPF/BGP ROUTEURS
+========================================
+
+IMAGE : J12-EDGE1-interfaces.png
+DESCRIPTION : État des interfaces sur EDGE1 (Loopback, VLANs).
+POURQUOI : Montre que les interfaces physiques et logiques sont UP/UP avec les bonnes IPs.
+
+IMAGE : J12-EDGE1-ospf.png
+DESCRIPTION : Voisinage OSPF sur EDGE1.
+POURQUOI : Prouve que EDGE1 a bien établi une adjacence OSPF avec WANRTR dans la VRF MAN.
+
+IMAGE : J12-EDGE1-bgp.png
+DESCRIPTION : Résumé des sessions BGP sur EDGE1.
+POURQUOI : Montre les sessions eBGP avec WANRTR et iBGP avec EDGE2 actives.
+
+IMAGE : J12-EDGE1-routes.png
+DESCRIPTION : Table de routage complète sur EDGE1.
+POURQUOI : Vérifie la présence des routes apprises via OSPF (réseaux MAN) et BGP (Internet).
+
+IMAGE : J12-EDGE1-ping.png
+DESCRIPTION : Tests de connectivité depuis EDGE1.
+POURQUOI : Valide que le routeur peut joindre ses voisins et Internet.
+
+IMAGE : J12-EDGE2-interfaces.png
+DESCRIPTION : État des interfaces sur EDGE2.
+POURQUOI : Vérification de la configuration IP et de l'état des liens.
+
+IMAGE : J12-EDGE2-ospf.png
+DESCRIPTION : Voisinage OSPF sur EDGE2.
+POURQUOI : Confirme la redondance du lien OSPF vers WANRTR.
+
+IMAGE : J12-EDGE2-bgp.png
+DESCRIPTION : Résumé des sessions BGP sur EDGE2.
+POURQUOI : Vérifie que le BGP est monté pour la redondance Internet.
+
+IMAGE : J12-EDGE2-routes.png
+DESCRIPTION : Table de routage sur EDGE2.
+POURQUOI : Montre que les routes sont bien reçues et installées.
+
+IMAGE : J12-EDGE2-ping.png
+DESCRIPTION : Tests de connectivité depuis EDGE2.
+POURQUOI : Validation finale de la connectivité du routeur de secours.
+
+IMAGE : J12-WANRTR-vrf.png
+DESCRIPTION : Configuration des VRF (INET et MAN) sur WANRTR.
+POURQUOI : Prouve la segmentation du trafic entre Internet public et le réseau MAN privé.
+
+IMAGE : J12-WANRTR-ospf.png
+DESCRIPTION : Voisins OSPF dans la VRF MAN sur WANRTR.
+POURQUOI : Montre que le cœur de réseau voit bien les deux routeurs EDGE via OSPF.
+
+IMAGE : J12-WANRTR-bgp.png
+DESCRIPTION : Sessions BGP dans la VRF INET sur WANRTR.
+POURQUOI : Confirme l'échange de routes BGP avec les routeurs EDGE pour l'accès Internet.
+
+IMAGE : J12-WANRTR-ping.png
+DESCRIPTION : Tests de ping VRF-aware depuis WANRTR.
+POURQUOI : Vérifie que le routeur central peut joindre les deux sites dans leurs contextes respectifs.
