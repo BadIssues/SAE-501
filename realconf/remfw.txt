@@ -99,6 +99,8 @@ ip access-list extended FIREWALL-INBOUND
  permit tcp any any eq 636
  remark === Allow NTP ===
  permit udp any any eq ntp
+ remark === Allow OSPF ===
+ permit ospf any any
  remark === Deny all other ===
  deny   ip any any log
 !
