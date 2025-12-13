@@ -368,20 +368,51 @@ systemctl enable apache2
 
 ---
 
-## ✅ Vérifications
+## ✅ Vérifications complètes (Checklist SAE 501)
 
-| Test        | Commande                                          |
-| ----------- | ------------------------------------------------- |
-| DNS         | `dig @localhost www.worldskills.org`              |
-| DNS wsl2025 | `dig @localhost www.wsl2025.org`                  |
-| DNSSEC      | `dig @localhost +dnssec www.worldskills.org`      |
-| Root CA     | `openssl x509 -in /etc/ssl/CA/certs/ca.crt -text` |
-| CRL         | `curl http://8.8.4.1/pki/ca.crl`                  |
+### 1. Configuration Système (Sujet 3.1)
+| Test | Commande attendue | Résultat attendu |
+|------|-------------------|------------------|
+| Hostname | `hostname` | `dnssrv` |
+| Domaine DNS | `cat /etc/resolv.conf` | `wsl2025.org` (ou configuré via DHCP/Interface) |
+| Timezone | `timedatectl` | Time zone correcte (Paris) |
+| NTP | `ntpq -p` | Synchronisé avec `hqinfrasrv` (si accessible) ou source externe |
+| Fail2Ban | `fail2ban-client status sshd` | Status `active` |
+
+### 2. Service DNS (Sujet 3.4 - DNSSRV)
+| Test | Commande attendue | Résultat attendu |
+|------|-------------------|------------------|
+| **Zone worldskills.org** | | |
+| Site Web | `dig @localhost www.worldskills.org` | `8.8.4.2` (inetsrv) |
+| FTP | `dig @localhost ftp.worldskills.org` | `8.8.4.2` (inetsrv) |
+| WAN Router | `dig @localhost wanrtr.worldskills.org` | `8.8.4.6` |
+| **Zone wsl2025.org** | | |
+| Webmail | `dig @localhost webmail.wsl2025.org` | `191.4.157.33` |
+| VPN | `dig @localhost vpn.wsl2025.org` | `191.4.157.33` |
+| Firewall HQ | `dig @localhost hqfwsrv.wsl2025.org` | `217.4.160.1` |
+| Alias WWW | `dig @localhost www.wsl2025.org` | CNAME -> `hqfwsrv` |
+| Alias Auth | `dig @localhost authentication.wsl2025.org` | CNAME -> `hqfwsrv` |
+| **Sécurité** | | |
+| DNSSEC | `dig @localhost +dnssec www.worldskills.org` | Présence de l'enregistrement `RRSIG` |
+
+### 3. Service PKI / Root CA (Sujet 3.4)
+| Test | Commande attendue | Résultat attendu |
+|------|-------------------|------------------|
+| Certificat Root | `openssl x509 -in /etc/ssl/CA/certs/ca.crt -text -noout` | Issuer=Subject=`CN=WSFR-ROOT-CA`, Org=`Worldskills France`, OU=`Worldskills France Lyon 2025` |
+| CRL (HTTP) | `curl -I http://8.8.4.1/pki/ca.crl` | `HTTP/1.1 200 OK` |
+| Contenu CRL | `openssl crl -inform DER -in /var/www/html/pki/ca.crl -text -noout` | Affiche la liste (vide ou avec révocations) |
+| Automatisation | `crontab -l` | Ligne présente pour `openssl ca -gencrl` |
+
+### 4. Réseau (Sujet 2.1)
+| Test | Commande attendue | Résultat attendu |
+|------|-------------------|------------------|
+| IP Statique | `ip addr show eth0` | `8.8.4.1/29` |
+| Passerelle | `ip route show` | default via `8.8.4.6` |
+| Ping Gateway | `ping -c 3 8.8.4.6` | Réponse (si routeur up) |
 
 ---
 
 ## 📝 Notes
-
 - **IP** : 8.8.4.1
 - Ce serveur est le DNS public pour worldskills.org et wsl2025.org (vue externe)
 - Le certificat Root CA (WSFR-ROOT-CA) signe le SubCA de HQDCSRV
