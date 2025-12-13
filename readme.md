@@ -200,7 +200,7 @@ graph TD
 
         %% VLAN 30 - DMZ
         subgraph DMZ ["🛡️ VLAN 30 - DMZ (217.4.160.0/24)"]
-            HQFWSRV["🔥 HQFWSRV<br/>nftables"]
+            HQFWSRV["🔥 HQFWSRV<br/>pfSense"]
             HQWEBSRV["🌐 HQWEBSRV<br/>IIS + RDS"]
         end
     end
@@ -292,7 +292,7 @@ graph TD
   <img src="https://img.shields.io/badge/IIS-Web_Server-5E5E5E?style=for-the-badge&logo=microsoft&logoColor=white" alt="IIS"/>
   <img src="https://img.shields.io/badge/Docker-HA_Web-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker"/>
   <img src="https://img.shields.io/badge/Ansible-Automation-EE0000?style=for-the-badge&logo=ansible&logoColor=white" alt="Ansible"/>
-  <img src="https://img.shields.io/badge/nftables-Firewall-4EAA25?style=for-the-badge&logo=linux&logoColor=white" alt="nftables"/>
+  <img src="https://img.shields.io/badge/pfSense-Firewall-212121?style=for-the-badge&logo=pfsense&logoColor=white" alt="pfSense"/>
 </p>
 <p align="center">
   <img src="https://img.shields.io/badge/Postfix-SMTP-blue?style=flat-square" alt="Postfix"/>
@@ -327,28 +327,144 @@ graph TD
 
 ---
 
-## 📊 Plan d'Adressage IP (N=4)
+## 📊 Plan d'Adressage IP Complet (N=4)
 
-### Réseaux Principaux
+### 🏷️ VLANs
 
-|      Zone       | VLAN | Nom        | Réseau           | Passerelle (VIP) |  Capacité |
-| :-------------: | :--: | ---------- | ---------------- | ---------------- | --------: |
-|    🏢 **HQ**    |  10  | Servers    | `10.4.10.0/24`   | `10.4.10.254`    | 254 hosts |
-|    🏢 **HQ**    |  20  | Clients    | `10.4.20.0/23`   | `10.4.20.254`    | 510 hosts |
-|    🏢 **HQ**    |  30  | DMZ        | `217.4.160.0/24` | `217.4.160.254`  | 254 hosts |
-|    🏢 **HQ**    |  99  | Management | `10.4.99.0/24`   | `10.4.99.254`    | 254 hosts |
-|  🏭 **Remote**  | 100  | Remote LAN | `10.4.100.0/25`  | `10.4.100.126`   | 126 hosts |
-| 🌐 **Internet** |  -   | Public     | `8.8.4.0/29`     | `8.8.4.6`        |   6 hosts |
+| VLAN | Nom | Description | Réseau |
+|:---:|---|---|---|
+| 10 | Servers | Serveurs HQ | `10.4.10.0/24` |
+| 20 | Clients | Clients HQ (DHCP) | `10.4.20.0/23` |
+| 30 | DMZ | Zone DMZ publique | `217.4.160.0/24` |
+| 99 | Management | Gestion équipements | `10.4.99.0/24` |
+| 100 | CORESW1-EDGE1 | Lien CORESW1 ↔ EDGE1 | `10.4.254.0/30` |
+| 200 | CORESW2-EDGE2 | Lien CORESW2 ↔ EDGE2 | `10.4.254.4/30` |
+| 300 | IBGP_peering | iBGP EDGE1 ↔ EDGE2 | `10.4.254.8/30` |
+| 666 | Blackhole | Native VLAN (sécurité) | N/A |
 
-### Liaisons d'Interconnexion
+### 🏢 Site HQ - VLAN 10 (Servers) - `10.4.10.0/24`
 
-| Liaison        | VLAN | Réseau           | Équipements | VRF  | Protocole |
-| -------------- | :--: | ---------------- | ----------- | :--: | :-------: |
-| EDGE1 ↔ WANRTR |  13  | `10.4.254.12/30` | .13 / .14   | MAN  |   OSPF    |
-| EDGE1 ↔ WANRTR |  14  | `91.4.222.96/29` | .97 / .98   | INET |   eBGP    |
-| EDGE2 ↔ WANRTR |  15  | `10.4.254.16/30` | .18 / .17   | MAN  |   OSPF    |
-| EDGE2 ↔ WANRTR |  16  | `31.4.126.12/30` | .13 / .14   | INET |   eBGP    |
-| WANRTR ↔ REMFW |  -   | `10.116.4.0/30`  | .2 / .1     | MAN  |   OSPF    |
+| Équipement | IP | Rôle |
+|---|---|---|
+| HQDCSRV | `10.4.10.1` | Child DC, DNS, ADCS SubCA, GPO |
+| HQINFRASRV | `10.4.10.2` | DHCP, VPN, NTP, Samba, iSCSI |
+| HQMAILSRV | `10.4.10.3` | SMTP, IMAP, Webmail, DHCP Failover |
+| DCWSL | `10.4.10.4` | Forest Root DC, DNS wsl2025.org |
+| HQFWSRV (LAN) | `10.4.10.5` | pfSense - interface Servers |
+| CORESW1 | `10.4.10.253` | HSRP Active |
+| CORESW2 | `10.4.10.252` | HSRP Standby |
+| **VIP HSRP** | `10.4.10.254` | **Gateway virtuelle** |
+
+### 🏢 Site HQ - VLAN 20 (Clients) - `10.4.20.0/23`
+
+| Équipement | IP | Rôle |
+|---|---|---|
+| HQCLT | DHCP | Client Windows 11 |
+| CORESW1 | `10.4.20.253` | HSRP Active |
+| CORESW2 | `10.4.20.252` | HSRP Standby |
+| **VIP HSRP** | `10.4.20.254` | **Gateway virtuelle** |
+
+> **DHCP** : Plage `10.4.20.1 - 10.4.21.200` • Lease 2h • DNS: `hqdcsrv.hq.wsl2025.org`
+
+### 🏢 Site HQ - VLAN 30 (DMZ) - `217.4.160.0/24`
+
+| Équipement | IP | Rôle |
+|---|---|---|
+| HQFWSRV (WAN) | `217.4.160.1` | pfSense - interface DMZ |
+| HQWEBSRV | `217.4.160.2` | IIS, RDS (Word/Excel) |
+| EDGE1 | `217.4.160.253` | HSRP Active |
+| EDGE2 | `217.4.160.252` | HSRP Standby |
+| **VIP HSRP** | `217.4.160.254` | **Gateway virtuelle publique** |
+
+### 🏢 Site HQ - VLAN 99 (Management) - `10.4.99.0/24`
+
+| Équipement | IP | Rôle |
+|---|---|---|
+| MGMTCLT | `10.4.99.1` | Ansible (Debian GUI) |
+| ACCSW1 | `10.4.99.11` | Access Switch 1 |
+| ACCSW2 | `10.4.99.12` | Access Switch 2 |
+| CORESW1 | `10.4.99.253` | HSRP Active |
+| CORESW2 | `10.4.99.252` | HSRP Standby |
+| **VIP HSRP** | `10.4.99.254` | **Gateway virtuelle** |
+
+### 🔗 Liens Internes (Core Network)
+
+| Liaison | VLAN | Réseau | IP Équipement 1 | IP Équipement 2 |
+|---|:---:|---|---|---|
+| CORESW1 ↔ EDGE1 | 100 | `10.4.254.0/30` | CORESW1: `.2` | EDGE1: `.1` |
+| CORESW2 ↔ EDGE2 | 200 | `10.4.254.4/30` | CORESW2: `.6` | EDGE2: `.5` |
+| EDGE1 ↔ EDGE2 (iBGP) | 300 | `10.4.254.8/30` | EDGE1: `.9` | EDGE2: `.10` |
+| EDGE1 ↔ WANRTR (MAN) | 13 | `10.4.254.12/30` | EDGE1: `.13` | WANRTR: `.14` |
+| EDGE2 ↔ WANRTR (MAN) | 15 | `10.4.254.16/30` | EDGE2: `.18` | WANRTR: `.17` |
+
+### 🌐 Liens Internet (VRF INET)
+
+| Liaison | VLAN | Réseau | IP Équipement 1 | IP Équipement 2 |
+|---|:---:|---|---|---|
+| EDGE1 ↔ WANRTR | 14 | `91.4.222.96/29` | EDGE1: `.97` | WANRTR: `.98` |
+| EDGE2 ↔ WANRTR | 16 | `31.4.126.12/30` | EDGE2: `.13` | WANRTR: `.14` |
+
+**Provider Independent IPs (Loopback0)** : `191.4.157.32/28`
+- EDGE1: `191.4.157.33` • EDGE2: `191.4.157.34`
+
+### 🌍 Zone Internet - `8.8.4.0/29`
+
+| Équipement | IP | Rôle |
+|---|---|---|
+| DNSSRV | `8.8.4.1` | DNS Public, Root CA |
+| INETSRV | `8.8.4.2` | Web HA (Docker), FTPS |
+| VPNCLT | `8.8.4.3` | Client VPN (test) |
+| INETCLT | `8.8.4.4` | Client Internet (test) |
+| WANRTR | `8.8.4.6` | Gateway Internet |
+
+### 🏭 Site Remote - `10.4.100.0/25`
+
+| Équipement | IP | Rôle |
+|---|---|---|
+| REMDCSRV | `10.4.100.1` | AD Child, DNS, DHCP |
+| REMINFRASRV | `10.4.100.2` | DFS, Failover |
+| REMCLT | DHCP | Client Windows 11 |
+| REMFW | `10.4.100.126` | Gateway / Firewall |
+
+> **Lien WAN** : REMFW (`10.116.4.1`) ↔ WANRTR (`10.116.4.2`) via `10.116.4.0/30`
+> **DHCP** : Plage `10.4.100.10 - 10.4.100.120` • DNS: `remdcsrv.rem.wsl2025.org`
+
+### ⚙️ Configuration HSRP
+
+| Groupe | VLAN | VIP | Active | Standby | Priority |
+|:---:|:---:|---|---|---|---|
+| 10 | 10 | `10.4.10.254` | CORESW1 | CORESW2 | 110/100 |
+| 20 | 20 | `10.4.20.254` | CORESW1 | CORESW2 | 110/100 |
+| 99 | 99 | `10.4.99.254` | CORESW1 | CORESW2 | 110/100 |
+| 30 | 30 | `217.4.160.254` | EDGE1 | EDGE2 | 110/100 |
+
+### 🔀 Protocoles de Routage
+
+**OSPF Area 4 (NSSA) - VRF MAN**
+- Participants : EDGE1, EDGE2, WANRTR, REMFW
+- Auth : MD5 (`P@ssw0rd`)
+- Network Type : Point-to-Point
+
+**BGP**
+| AS | Équipements | Type |
+|---|---|---|
+| 65416 | EDGE1, EDGE2 | iBGP entre eux |
+| 65430 | WANRTR | eBGP avec EDGE1/EDGE2 |
+
+**Réseaux annoncés :**
+- AS 65416 : `191.4.157.32/28`, `217.4.160.0/24`
+- AS 65430 : `8.8.4.0/29`
+
+### 🔄 Configuration NAT
+
+**PAT (Overload)** : `10.4.0.0/16` → Interface WAN
+
+**Static NAT :**
+| Service | IP Publique | IP Privée | Port |
+|---|---|---|---|
+| VPN OpenVPN | `191.4.157.33:4443` | `10.4.10.2:443` | TCP |
+| Webmail HTTP | `191.4.157.33:80` | `10.4.10.3:80` | TCP |
+| Webmail HTTPS | `191.4.157.33:443` | `10.4.10.3:443` | TCP |
 
 ---
 
@@ -362,7 +478,7 @@ graph TD
 | **HQINFRASRV** | Debian 13            | `10.4.10.2`   | DHCP, VPN OpenVPN, NTP, Samba, iSCSI | [📘](documentation/01-HQINFRASRV.md) |
 | **HQMAILSRV**  | Debian 13            | `10.4.10.3`   | Postfix, Dovecot, Roundcube, ZFS     | [📘](documentation/02-HQMAILSRV.md)  |
 | **DCWSL**      | Debian 13 (Samba AD) | `10.4.10.4`   | Forest Root DC, DNS wsl2025.org      |   [📘](documentation/03-DCWSL.md)    |
-| **HQFWSRV**    | Debian 13            | `217.4.160.1` | Firewall nftables, NAT/Routing       |  [📘](documentation/05-HQFWSRV.md)   |
+| **HQFWSRV**    | pfSense              | `217.4.160.1` | Firewall, NAT/PAT, Routing           |  [📘](documentation/05-HQFWSRV.md)   |
 | **HQWEBSRV**   | Windows Server 2022  | `217.4.160.2` | IIS, RDS (RemoteApp)                 |  [📘](documentation/06-HQWEBSRV.md)  |
 
 ### 🏭 Site Remote (3 équipements)
