@@ -319,8 +319,10 @@ openssl x509 -noout -text -in certs/ca.crt
 ```
 
 ### Signer un certificat SubCA (pour HQDCSRV)
+> **IMPORTANT** : Vous devez d'abord récupérer le fichier `C:\SubCA.req` généré sur le serveur **HQDCSRV** et le copier dans `/etc/ssl/CA/requests/SubCA.req` sur ce serveur (DNSSRV).
+
 ```bash
-# Quand HQDCSRV envoie sa demande (SubCA.req)
+# Une fois le fichier SubCA.req copié dans requests/
 openssl ca -config openssl.cnf \
     -extensions v3_intermediate_ca \
     -days 3650 -notext -md sha256 \
