@@ -140,6 +140,7 @@ Get-DnsServerSigningKey -ZoneName "wsl2025.org"
 ## 4️⃣ Vérifications
 
 ### ✅ Vérification Active Directory
+
 ```powershell
 # Vérifier le domaine
 Get-ADDomain
@@ -154,6 +155,7 @@ Get-ADDomainController | Select-Object Name, IsGlobalCatalog
 ```
 
 ### ✅ Vérification DNS
+
 ```powershell
 # Vérifier la zone
 Get-DnsServerZone -Name "wsl2025.org"

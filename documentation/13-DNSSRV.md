@@ -358,15 +358,52 @@ openssl x509 -noout -text -in certs/ca.crt
 
 ### Signer un certificat SubCA (pour HQDCSRV)
 
-> **IMPORTANT** : Vous devez d'abord récupérer le fichier `C:\SubCA.req` généré sur le serveur **HQDCSRV** et le copier dans `/etc/ssl/CA/requests/SubCA.req` sur ce serveur (DNSSRV).
+> **IMPORTANT** : 
+> 1. Vous devez d'abord **créer la Root CA** (étapes ci-dessus) avant de pouvoir signer quoi que ce soit !
+> 2. Ensuite récupérer le fichier `C:\SubCA.req` généré sur **HQDCSRV** et le copier sur DNSSRV.
+
+#### Étape 1 : Récupérer le fichier depuis HQDCSRV
 
 ```bash
-# Une fois le fichier SubCA.req copié dans requests/
+# Depuis DNSSRV, récupérer le fichier via SCP
+scp administrateur@10.4.10.1:/SubCA.req /etc/ssl/CA/requests/
+
+# OU depuis HQDCSRV (PowerShell)
+# scp C:\SubCA.req root@8.8.4.1:/etc/ssl/CA/requests/
+```
+
+#### Étape 2 : Signer le certificat SubCA
+
+```bash
+cd /etc/ssl/CA
+
+# Signer la demande (il demandera le mot de passe de la clé Root CA)
 openssl ca -config openssl.cnf \
     -extensions v3_intermediate_ca \
     -days 3650 -notext -md sha256 \
     -in requests/SubCA.req \
     -out certs/SubCA.crt
+
+# Confirmer avec 'y' deux fois
+```
+
+#### Étape 3 : Renvoyer les certificats vers HQDCSRV
+
+```bash
+# Copier les 2 fichiers vers HQDCSRV
+scp /etc/ssl/CA/certs/SubCA.crt administrateur@10.4.10.1:/
+scp /etc/ssl/CA/certs/ca.crt administrateur@10.4.10.1:/WSFR-ROOT-CA.cer
+```
+
+#### ✅ Vérification
+
+```bash
+# Vérifier le certificat SubCA généré
+openssl x509 -in certs/SubCA.crt -text -noout | head -30
+
+# Vérifier que les fichiers sont dans requests et certs
+ls -la requests/
+ls -la certs/
 ```
 
 ---
@@ -438,6 +475,23 @@ systemctl enable apache2
 | Bannière SSH      | `ssh admin@localhost`                   | Affiche "/!\ Restricted access..." |
 | Timeout SSH       | `grep ClientAlive /etc/ssh/sshd_config` | Interval 300 (5min)                |
 | NTP               | `ntpq -p`                               | Synchronisé                        |
+
+---
+
+## 📋 Checklist finale
+
+- [ ] Hostname configuré (dnssrv)
+- [ ] IP statique (8.8.4.1/29)
+- [ ] SSH + Fail2Ban configurés
+- [ ] Utilisateur admin créé
+- [ ] BIND9 installé et configuré
+- [ ] Zone worldskills.org créée (inetsrv, www, ftp, wanrtr)
+- [ ] Zone wsl2025.org créée (hqfwsrv, vpn, webmail, www, authentication)
+- [ ] DNSSEC activé sur les deux zones
+- [ ] Root CA WSFR-ROOT-CA créée
+- [ ] Certificat SubCA signé pour HQDCSRV
+- [ ] Apache installé pour CRL
+- [ ] CRL automatisée (cron)
 
 ---
 
