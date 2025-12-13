@@ -82,6 +82,23 @@ Install-ADDSDomain `
 
 > ⚠️ Le serveur redémarre automatiquement après l'installation.
 
+### 2.3 ✅ Vérification AD
+```powershell
+# Vérifier le domaine
+Get-ADDomain
+
+# Vérifier la forêt
+Get-ADForest
+
+# Vérifier le trust avec le parent
+Get-ADTrust -Filter *
+
+# Résultat attendu :
+# Name           : hq.wsl2025.org
+# Forest         : wsl2025.org
+# ParentDomain   : wsl2025.org
+```
+
 ---
 
 ## 3️⃣ Configuration DNS
@@ -91,6 +108,8 @@ Install-ADDSDomain `
 ```powershell
 # La zone est créée automatiquement lors de la promotion AD
 Get-DnsServerZone
+
+# Résultat attendu : zone "hq.wsl2025.org" de type Primary, DsIntegrated = True
 ```
 
 ### 3.2 Créer les enregistrements DNS requis
@@ -111,6 +130,19 @@ Add-DnsServerResourceRecordCName -ZoneName "hq.wsl2025.org" -Name "pki" -HostNam
 ```powershell
 # Forwarder vers DNSSRV pour les requêtes externes
 Set-DnsServerForwarder -IPAddress 8.8.4.1
+```
+
+### 3.5 ✅ Vérification DNS
+```powershell
+# Vérifier les enregistrements créés
+Get-DnsServerResourceRecord -ZoneName "hq.wsl2025.org" | Format-Table RecordType, HostName, RecordData
+
+# Tester la résolution
+Resolve-DnsName hqdcsrv.hq.wsl2025.org
+Resolve-DnsName pki.hq.wsl2025.org
+
+# Tester le forwarder (résolution externe)
+Resolve-DnsName google.com
 ```
 
 ### 3.4 Activer DNSSEC
@@ -149,6 +181,12 @@ New-ADOrganizationalUnit -Name "Shadow groups" -Path "DC=hq,DC=wsl2025,DC=org"
 
 # OU Groups à la racine (pour FirstGroup et LastGroup)
 New-ADOrganizationalUnit -Name "Groups" -Path "DC=hq,DC=wsl2025,DC=org"
+```
+
+#### ✅ Vérification OUs
+```powershell
+# Lister toutes les OUs créées
+Get-ADOrganizationalUnit -Filter * | Select-Object Name, DistinguishedName | Format-Table -AutoSize
 ```
 
 ### 4.2 Créer les groupes de sécurité
@@ -222,6 +260,24 @@ for ($i = 1; $i -le 1000; $i++) {
     if ($i % 100 -eq 0) { Write-Host "Créé $i utilisateurs..." }
 }
 Write-Host "Provisioning terminé : 1000 utilisateurs créés"
+```
+
+#### ✅ Vérification Utilisateurs et Groupes
+```powershell
+# Compter le nombre total d'utilisateurs
+(Get-ADUser -Filter * -SearchBase "DC=hq,DC=wsl2025,DC=org").Count
+
+# Vérifier les 4 utilisateurs HQ
+Get-ADUser -Filter * -SearchBase "OU=Users,OU=HQ,DC=hq,DC=wsl2025,DC=org" -SearchScope Subtree | 
+    Where-Object {$_.SamAccountName -notlike "wslusr*"} | 
+    Select-Object Name, SamAccountName
+
+# Vérifier les groupes
+Get-ADGroup -Filter * -SearchBase "DC=hq,DC=wsl2025,DC=org" | Select-Object Name
+
+# Vérifier le nombre de membres dans FirstGroup et LastGroup
+(Get-ADGroupMember -Identity "FirstGroup").Count  # Doit être 500
+(Get-ADGroupMember -Identity "LastGroup").Count   # Doit être 500
 ```
 
 ### 4.5 Shadow Group - Synchronisation automatique
@@ -404,6 +460,22 @@ Restart-Service certsvc
 certutil -crl
 ```
 
+#### ✅ Vérification ADCS
+```powershell
+# Vérifier que la CA est fonctionnelle
+certutil -ping
+
+# Vérifier la configuration de la CA
+certutil -getreg CA\CRLPeriod
+certutil -getreg CA\CRLDeltaPeriod
+
+# Vérifier le site IIS PKI
+Get-IISSite -Name "PKI"
+
+# Tester l'accès HTTP (depuis un autre poste)
+# Invoke-WebRequest -Uri "http://pki.hq.wsl2025.org" -UseBasicParsing
+```
+
 ### 5.8 Créer les templates de certificats
 
 #### Template WSFR_Services (On-demand pour services)
@@ -519,6 +591,21 @@ Enable-DedupVolume -Volume "D:" -UsageType Default
 
 # Configurer les paramètres de déduplication
 Set-DedupVolume -Volume "D:" -MinimumFileAgeDays 0
+```
+
+#### ✅ Vérification Stockage RAID-5
+```powershell
+# Vérifier le pool de stockage
+Get-StoragePool -FriendlyName "DataPool"
+
+# Vérifier le disque virtuel
+Get-VirtualDisk -FriendlyName "DataDisk" | Select-Object FriendlyName, ResiliencySettingName, Size
+
+# Vérifier le volume D:
+Get-Volume -DriveLetter D
+
+# Vérifier la déduplication
+Get-DedupStatus -Volume "D:"
 ```
 
 ---
@@ -657,6 +744,26 @@ foreach ($dept in $departments) {
 
     Set-Acl $deptPath $acl
 }
+```
+
+#### ✅ Vérification Partages
+```powershell
+# Lister tous les partages SMB
+Get-SmbShare | Format-Table Name, Path, Description
+
+# Vérifier les permissions sur les partages
+Get-SmbShareAccess -Name "users$"
+Get-SmbShareAccess -Name "Department$"
+Get-SmbShareAccess -Name "Public$"
+
+# Vérifier les quotas FSRM
+Get-FsrmQuota -Path "D:\shares\datausers\*"
+
+# Vérifier le file screen (blocage exécutables)
+Get-FsrmFileScreen -Path "D:\shares\datausers"
+
+# Tester l'accès aux partages (depuis ce serveur)
+Test-Path "\\hq.wsl2025.org\users$"
 ```
 
 ---
