@@ -171,12 +171,14 @@ Invoke-DnsServerZoneSign -ZoneName "hq.wsl2025.org" -Force
 #### 🖥️ Alternative via interface graphique (si erreur PowerShell)
 
 Si les commandes PowerShell échouent avec "Access Denied" :
+
 1. Ouvrir **DNS Manager** (dnsmgmt.msc)
 2. Clic droit sur la zone `hq.wsl2025.org`
 3. **DNSSEC** → **Sign the Zone...**
 4. Suivre l'assistant avec les paramètres par défaut
 
 #### ✅ Vérification DNSSEC
+
 ```powershell
 # Vérifier que la zone est signée
 Get-DnsServerZone -Name "hq.wsl2025.org" | Select-Object ZoneName, IsSigned
@@ -1107,7 +1109,7 @@ gpresult /r
 ## 📋 Checklist finale
 
 - [ ] Serveur renommé HQDCSRV
-- [ ] IP statique configurée (10.4.10.1/27)
+- [ ] IP statique configurée (10.4.10.1/24, Gateway 10.4.10.254)
 - [ ] Child domain hq.wsl2025.org créé
 - [ ] Zone DNS hq.wsl2025.org configurée avec DNSSEC
 - [ ] Enregistrements DNS créés (hqdcsrv, hqwebsrv, pki)

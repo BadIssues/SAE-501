@@ -123,6 +123,7 @@ Invoke-DnsServerZoneSign -ZoneName "wsl2025.org" -SignWithDefault -Force
 ```
 
 #### ✅ Vérification DNSSEC
+
 ```powershell
 # Vérifier que la zone est signée
 Get-DnsServerZone -Name "wsl2025.org" | Select-Object ZoneName, IsSigned
@@ -138,12 +139,54 @@ Get-DnsServerSigningKey -ZoneName "wsl2025.org"
 
 ## 4️⃣ Vérifications
 
+### ✅ Vérification Active Directory
+```powershell
+# Vérifier le domaine
+Get-ADDomain
+# Résultat attendu : Name = wsl2025, DNSRoot = wsl2025.org
+
+# Vérifier la forêt
+Get-ADForest
+# Résultat attendu : RootDomain = wsl2025.org
+
+# Vérifier le Global Catalog
+Get-ADDomainController | Select-Object Name, IsGlobalCatalog
+```
+
+### ✅ Vérification DNS
+```powershell
+# Vérifier la zone
+Get-DnsServerZone -Name "wsl2025.org"
+
+# Vérifier tous les enregistrements
+Get-DnsServerResourceRecord -ZoneName "wsl2025.org" | Format-Table RecordType, HostName -AutoSize
+
+# Test de résolution
+Resolve-DnsName hqinfrasrv.wsl2025.org
+Resolve-DnsName www.wsl2025.org
+Resolve-DnsName vpn.wsl2025.org
+```
+
+### Tableau récapitulatif
+
 | Test            | Commande PowerShell                 | Résultat Attendu    |
 | --------------- | ----------------------------------- | ------------------- |
 | Domaine         | `Get-ADDomain`                      | `wsl2025.org`       |
 | DNS Local       | `Resolve-DnsName dcwsl.wsl2025.org` | `10.4.10.4`         |
 | DNS Forward     | `Resolve-DnsName google.com`        | Réponse via 8.8.4.1 |
 | Enregistrements | `Resolve-DnsName vpn.wsl2025.org`   | `191.4.157.33`      |
+
+---
+
+## 📋 Checklist finale
+
+- [ ] Serveur renommé DCWSL
+- [ ] IP statique configurée (10.4.10.4/24, Gateway 10.4.10.254)
+- [ ] Forêt wsl2025.org créée
+- [ ] DNS zone wsl2025.org configurée
+- [ ] 15 enregistrements DNS créés
+- [ ] Forwarder vers DNSSRV (8.8.4.1)
+- [ ] DNSSEC activé (zone signée)
 
 ---
 
