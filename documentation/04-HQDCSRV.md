@@ -514,9 +514,11 @@ Restart-Service certsvc
 # Créer le dossier pour les CRL
 New-Item -Path "C:\inetpub\PKI" -ItemType Directory -Force
 
-# Configurer les permissions
+# Configurer les permissions NTFS (IIS_IUSRS + IUSR pour l'accès anonyme)
 $acl = Get-Acl "C:\inetpub\PKI"
 $rule = New-Object System.Security.AccessControl.FileSystemAccessRule("IIS_IUSRS", "ReadAndExecute", "ContainerInherit,ObjectInherit", "None", "Allow")
+$acl.AddAccessRule($rule)
+$rule = New-Object System.Security.AccessControl.FileSystemAccessRule("IUSR", "ReadAndExecute", "ContainerInherit,ObjectInherit", "None", "Allow")
 $acl.AddAccessRule($rule)
 Set-Acl "C:\inetpub\PKI" $acl
 
@@ -531,6 +533,9 @@ New-IISSite -Name "PKI" -PhysicalPath "C:\inetpub\PKI" -BindingInformation "*:80
 
 # Permettre le double escaping pour les fichiers .crl
 Set-WebConfigurationProperty -PSPath "IIS:\Sites\PKI" -Filter "system.webServer/security/requestFiltering" -Name "allowDoubleEscaping" -Value $true
+
+# Activer le Directory Browsing (IMPORTANT pour lister les fichiers CRL)
+Set-WebConfigurationProperty -PSPath "IIS:\Sites\PKI" -Filter "system.webServer/directoryBrowse" -Name "enabled" -Value $true
 
 # Démarrer le site
 Start-IISSite -Name "PKI"
