@@ -1076,19 +1076,43 @@ Invoke-GPUpdate -Computer "REMCLT" -Force
 > **Sujet** : "Use HQINFRASRV as time reference"
 
 ```powershell
-# Configurer la source NTP (HQINFRASRV)
-w32tm /config /manualpeerlist:"10.4.10.2" /syncfromflags:manual /reliable:no /update
+# 1. Désactiver le provider Hyper-V/VMware (si VM)
+Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\W32Time\TimeProviders\VMICTimeProvider" -Name "Enabled" -Value 0
 
-# Redémarrer le service
+# 2. Configurer le serveur NTP avec HQINFRASRV
+# Flag 0x8 = UseAsFallbackOnly + Client mode
+w32tm /config /manualpeerlist:"hqinfrasrv.wsl2025.org,0x8" /syncfromflags:manual /update
+
+# 3. Redémarrer le service
 Restart-Service w32time
 
-# Forcer la synchronisation
+# 4. Forcer la synchronisation
 w32tm /resync /force
-
-# Vérifier
-w32tm /query /status
-w32tm /query /source
 ```
+
+### 9.2 Vérification NTP
+
+```powershell
+# Vérifier la source NTP
+w32tm /query /source
+# Attendu : hqinfrasrv.wsl2025.org,0x8
+
+# Vérifier le statut de synchronisation
+w32tm /query /status
+
+# Vérifier les peers
+w32tm /query /peers
+
+# Tester la connexion au serveur NTP
+w32tm /stripchart /computer:hqinfrasrv.wsl2025.org /samples:3
+```
+
+**Attendu** :
+- Source : `hqinfrasrv.wsl2025.org,0x8`
+- Stratum : 11 (HQINFRASRV stratum 10 + 1)
+- État : Synchronisé
+
+> 💡 **Note** : L'authentification NTP est gérée par la restriction réseau sur HQINFRASRV. Seuls les clients du réseau interne peuvent se synchroniser.
 
 ---
 
