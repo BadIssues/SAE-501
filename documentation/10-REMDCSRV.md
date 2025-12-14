@@ -463,7 +463,23 @@ Get-ADGroupMember -Identity "Warehouse" | Select-Object Name
 
 ---
 
-## 7️⃣ Configuration DFS
+## 7️⃣ Configuration des Partages (File Services)
+
+> **Sujet - DFS Remote** :
+> ```
+> Create a DFS Domain root with REMINFRASRV
+> There are two shared folders:
+> 1. Home drives - Share path: \\rem.wsl2025.org\users
+>    - Local path: C:\shares\datausers
+>    - Administrators: Full control | Users: accès/vue leur dossier seulement
+>    - Quota: 20 Mo
+> 2. Department share - Located on C:\shares\Department
+>    - Mounted with letter S:
+>    - Users: accès/vue leur département seulement
+> ```
+>
+> ⚠️ **Note** : Le namespace DFS (`\\rem.wsl2025.org\...`) sera créé sur **REMINFRASRV**.
+> Sur REMDCSRV, on crée les partages locaux qui seront ensuite ajoutés au namespace DFS.
 
 ### 7.1 Créer les répertoires de partage
 
@@ -944,7 +960,11 @@ Write-Host "`n⚠️  CONFIGURER CHAQUE GPO EN GUI (voir sections 8.1 à 8.4)" -
 
 ### 8.3 GPO REM-DriveMappings (GUI)
 
-> **Sujet** : "Mapping shares Department" + "Home drives mounted with letter U: and S:"
+> **Sujet** : "Mapping shares Department and Public" + "Home drives"
+>
+> ⚠️ **Note DFS** : Le sujet demande des chemins via le namespace DFS (`\\rem.wsl2025.org\users`). 
+> Actuellement on utilise le chemin direct vers REMDCSRV. Une fois REMINFRASRV configuré avec DFS, 
+> remplacer les chemins par le namespace DFS.
 
 1. Dans **gpmc.msc**, clic droit sur **REM-DriveMappings** → **Modifier**
 
@@ -963,10 +983,12 @@ Write-Host "`n⚠️  CONFIGURER CHAQUE GPO EN GUI (voir sections 8.1 à 8.4)" -
 4. Configurer :
 
    - **Action** : Mettre à jour
-   - **Emplacement** : `\\remdcsrv.rem.wsl2025.org\users\%USERNAME%`
+   - **Emplacement** : `\\rem.wsl2025.org\users\%USERNAME%`
    - **Reconnecter** : ✅ Coché
    - **Libellé** : `Home`
    - **Lettre de lecteur** : `Utiliser : U:`
+
+   > 💡 **Alternative sans DFS** : `\\remdcsrv.rem.wsl2025.org\users\%USERNAME%`
 
 5. **OK**
 
@@ -984,7 +1006,24 @@ Write-Host "`n⚠️  CONFIGURER CHAQUE GPO EN GUI (voir sections 8.1 à 8.4)" -
 
 8. **OK**
 
-> ✅ **Résultat** : Les utilisateurs auront automatiquement les lecteurs U: (home) et S: (department) à la connexion.
+#### Lecteur P: (Public - partage HQ)
+
+> ⚠️ **Note** : Le partage Public n'existe que sur HQ. Le sujet demande "Mapping Department and Public" 
+> mais ne définit pas de Public pour Remote. On mappe donc vers le Public de HQ.
+
+9. Clic droit sur **Mappages de lecteurs** → **Nouveau** → **Lecteur mappé**
+
+10. Configurer :
+
+    - **Action** : Mettre à jour
+    - **Emplacement** : `\\hqdcsrv.hq.wsl2025.org\Public$`
+    - **Reconnecter** : ✅ Coché
+    - **Libellé** : `Public`
+    - **Lettre de lecteur** : `Utiliser : P:`
+
+11. **OK**
+
+> ✅ **Résultat** : Les utilisateurs auront automatiquement les lecteurs U: (home), S: (department) et P: (public HQ) à la connexion.
 
 ---
 
@@ -1108,6 +1147,7 @@ w32tm /stripchart /computer:hqinfrasrv.wsl2025.org /samples:3
 ```
 
 **Attendu** :
+
 - Source : `hqinfrasrv.wsl2025.org,0x8`
 - Stratum : 11 (HQINFRASRV stratum 10 + 1)
 - État : Synchronisé
