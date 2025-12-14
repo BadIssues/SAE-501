@@ -86,20 +86,25 @@ ip access-list extended FIREWALL-INBOUND
  permit tcp any any eq 80
  remark === Allow ICMP ===
  permit icmp any any
- remark === Allow Microsoft Services ===
+ remark === Allow Microsoft Services (requests and responses) ===
  permit tcp any any eq 445
  permit udp any any eq 445
+ permit udp any eq 445 any
  permit tcp any any range 135 139
  permit udp any any range 135 139
- remark === Allow Kerberos ===
+ permit udp any range 135 139 any
+ remark === Allow Kerberos (requests and responses) ===
  permit tcp any any eq 88
  permit udp any any eq 88
- remark === Allow LDAP ===
+ permit udp any eq 88 any
+ remark === Allow LDAP (requests and responses) ===
  permit tcp any any eq 389
  permit udp any any eq 389
+ permit udp any eq 389 any
  permit tcp any any eq 636
- remark === Allow NTP ===
+ remark === Allow NTP (requests and responses) ===
  permit udp any any eq ntp
+ permit udp any eq ntp any
  remark === Allow OSPF ===
  permit ospf any any
  remark === Deny all other ===
