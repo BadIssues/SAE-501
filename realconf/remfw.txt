@@ -76,8 +76,9 @@ ip access-list extended FIREWALL-INBOUND
  permit tcp any any established
  remark === Allow SSH from HQ ===
  permit tcp 10.4.0.0 0.0.255.255 any eq 22
- remark === Allow DNS ===
+ remark === Allow DNS (requests and responses) ===
  permit udp any any eq domain
+ permit udp any eq domain any
  permit tcp any any eq domain
  remark === Allow HTTPS ===
  permit tcp any any eq 443
