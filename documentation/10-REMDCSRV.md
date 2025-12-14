@@ -467,6 +467,8 @@ Get-ADGroupMember -Identity "Warehouse" | Select-Object Name
 
 ### 7.1 Créer les répertoires de partage
 
+#### PowerShell
+
 ```powershell
 # Créer la structure de dossiers
 New-Item -Path "C:\shares" -ItemType Directory -Force
@@ -479,7 +481,23 @@ foreach ($dept in @("IT", "Direction", "Warehouse")) {
 }
 ```
 
+#### GUI (Explorateur Windows)
+
+1. Ouvrir **Explorateur de fichiers** → `C:\`
+2. Clic droit → **Nouveau** → **Dossier** → Nommer `shares`
+3. Dans `C:\shares`, créer :
+   - `datausers`
+   - `Department`
+4. Dans `C:\shares\Department`, créer :
+   - `IT`
+   - `Direction`
+   - `Warehouse`
+
+---
+
 ### 7.2 Créer les dossiers personnels utilisateurs
+
+#### PowerShell
 
 ```powershell
 # Créer les dossiers pour chaque utilisateur
@@ -488,6 +506,16 @@ New-Item -Path "C:\shares\datausers\rtaha" -ItemType Directory -Force
 New-Item -Path "C:\shares\datausers\dpeltier" -ItemType Directory -Force
 ```
 
+#### GUI (Explorateur Windows)
+
+1. Ouvrir `C:\shares\datausers`
+2. Créer 3 dossiers :
+   - `estique`
+   - `rtaha`
+   - `dpeltier`
+
+---
+
 ### 7.3 Configurer les permissions NTFS - Home Drives
 
 > **Sujet** :
@@ -495,6 +523,34 @@ New-Item -Path "C:\shares\datausers\dpeltier" -ItemType Directory -Force
 > - "Administrators must have Full control access on all folders"
 > - "Users can only access their personal folder"
 > - "Users can only see their personal folder"
+
+#### GUI (Explorateur Windows)
+
+**Sur le dossier parent `C:\shares\datausers` :**
+
+1. Clic droit sur `C:\shares\datausers` → **Propriétés** → onglet **Sécurité**
+2. Cliquer **Avancé**
+3. Cliquer **Désactiver l'héritage** → **Supprimer toutes les autorisations héritées**
+4. Cliquer **Ajouter** → **Sélectionner un principal** :
+   - `Administrateurs` → Full Control → **OK**
+5. Cliquer **Ajouter** → **Sélectionner un principal** :
+   - `SYSTEM` → Full Control → **OK**
+6. Cliquer **Ajouter** → **Sélectionner un principal** :
+   - `Utilisateurs authentifiés` → Lecture et exécution → S'applique à : **Ce dossier seulement** → **OK**
+7. **Appliquer** → **OK**
+
+**Sur chaque dossier utilisateur (ex: `C:\shares\datausers\estique`) :**
+
+1. Clic droit → **Propriétés** → onglet **Sécurité** → **Avancé**
+2. Cliquer **Désactiver l'héritage** → **Supprimer toutes les autorisations héritées**
+3. Ajouter :
+   - `Administrateurs` → Full Control
+   - `SYSTEM` → Full Control
+   - `REM\estique` → Modification (pour l'utilisateur correspondant)
+4. **Appliquer** → **OK**
+5. Répéter pour `rtaha` et `dpeltier`
+
+#### PowerShell
 
 > ⚠️ **Note** : Utilisation des SID universels pour compatibilité toutes langues Windows
 
@@ -559,6 +615,34 @@ foreach ($login in @("estique", "rtaha", "dpeltier")) {
 > - "Users can only access their department folder"
 > - "Users can only see their department folder"
 
+#### GUI (Explorateur Windows)
+
+**Sur le dossier parent `C:\shares\Department` :**
+
+1. Clic droit sur `C:\shares\Department` → **Propriétés** → onglet **Sécurité**
+2. Cliquer **Avancé** → **Désactiver l'héritage** → **Supprimer toutes les autorisations héritées**
+3. Ajouter :
+   - `Administrateurs` → Full Control
+   - `SYSTEM` → Full Control
+   - `Utilisateurs authentifiés` → Lecture et exécution → **Ce dossier seulement**
+4. **Appliquer** → **OK**
+
+**Sur chaque dossier département :**
+
+| Dossier | Groupe à ajouter | Permission |
+|---------|------------------|------------|
+| `C:\shares\Department\IT` | `REM\IT` | Modification |
+| `C:\shares\Department\Direction` | `REM\Direction` | Modification |
+| `C:\shares\Department\Warehouse` | `REM\Warehouse` | Modification |
+
+Pour chaque dossier :
+1. Clic droit → **Propriétés** → **Sécurité** → **Avancé**
+2. **Désactiver l'héritage** → **Supprimer toutes les autorisations héritées**
+3. Ajouter `Administrateurs`, `SYSTEM` (Full Control) et le groupe correspondant (Modification)
+4. **Appliquer** → **OK**
+
+#### PowerShell
+
 ```powershell
 # === DÉFINITION DES SID UNIVERSELS (si pas déjà fait) ===
 $adminSID = New-Object System.Security.Principal.SecurityIdentifier("S-1-5-32-544")      # Administrators
@@ -616,6 +700,34 @@ foreach ($dept in @("IT", "Direction", "Warehouse")) {
 
 > ⚠️ **Note** : On utilise "Everyone" au niveau SMB car les **permissions NTFS** (7.3/7.4) contrôlent l'accès réel. C'est une pratique courante et sécurisée.
 
+#### GUI (Server Manager)
+
+1. Ouvrir **Server Manager** → **Services de fichiers et de stockage** → **Partages**
+2. Cliquer **Tâches** → **Nouveau partage...**
+
+**Partage users :**
+3. Sélectionner **Partage SMB - Rapide** → **Suivant**
+4. **Emplacement du partage** : `C:\shares\datausers` → **Suivant**
+5. **Nom du partage** : `users` → **Suivant**
+6. ✅ Cocher **Activer l'énumération basée sur l'accès** (ABE) → **Suivant**
+7. **Autorisations** : Laisser par défaut ou personnaliser → **Suivant**
+8. **Créer**
+
+**Partage Department :**
+9. Répéter les étapes 2-8 avec :
+   - Emplacement : `C:\shares\Department`
+   - Nom : `Department`
+   - ✅ ABE activé
+
+#### Activer ABE sur un partage existant (GUI)
+
+1. Dans **Server Manager** → **Services de fichiers et de stockage** → **Partages**
+2. Clic droit sur le partage → **Propriétés**
+3. Onglet **Paramètres** → ✅ Cocher **Activer l'énumération basée sur l'accès**
+4. **OK**
+
+#### PowerShell
+
 ```powershell
 # Partage users (Home drives)
 # Share path: \\rem.wsl2025.org\users
@@ -644,6 +756,38 @@ Get-SmbShare -Name "users", "Department" | Select-Object Name, Path, FolderEnume
 
 > **Sujet** : "Limit the storage quota to 20Mb"
 
+#### GUI (Gestionnaire de ressources du serveur de fichiers)
+
+**Étape 1 : Ouvrir FSRM**
+
+1. **Win+R** → `fsrm.msc` → Entrée
+2. Ou via **Server Manager** → **Outils** → **Gestionnaire de ressources du serveur de fichiers**
+
+**Étape 2 : Créer un modèle de quota**
+
+1. Dans le panneau gauche : **Gestion de quota** → **Modèles de quotas**
+2. Clic droit → **Créer un modèle de quota...**
+3. Configurer :
+   - **Nom du modèle** : `UserQuota20MB`
+   - **Description** : `Quota utilisateur 20 Mo - STRICT`
+   - **Limite d'espace** : `20` Mo
+   - ✅ **Limite inconditionnelle** (Hard Limit - bloque l'écriture)
+   - ❌ Ne PAS cocher "Limite conditionnelle" (Soft Limit)
+4. Cliquer **OK**
+
+**Étape 3 : Appliquer un quota automatique**
+
+1. Dans le panneau gauche : **Gestion de quota** → **Quotas automatiques**
+2. Clic droit → **Créer un quota automatique...**
+3. Configurer :
+   - **Chemin du quota automatique** : `C:\shares\datausers`
+   - **Dériver les propriétés de ce modèle de quota** : Sélectionner `UserQuota20MB`
+4. Cliquer **Créer**
+
+> ✅ Le quota sera automatiquement appliqué à chaque sous-dossier utilisateur !
+
+#### PowerShell
+
 ```powershell
 # Créer le template de quota avec HARD LIMIT (bloque l'écriture au-delà)
 New-FsrmQuotaTemplate -Name "UserQuota20MB" `
@@ -654,6 +798,12 @@ New-FsrmQuotaTemplate -Name "UserQuota20MB" `
 
 # Appliquer le quota automatique sur datausers
 New-FsrmAutoQuota -Path "C:\shares\datausers" -Template "UserQuota20MB"
+
+# Appliquer aux dossiers existants
+Get-ChildItem "C:\shares\datausers" -Directory | ForEach-Object {
+    New-FsrmQuota -Path $_.FullName -Template "UserQuota20MB" -ErrorAction SilentlyContinue
+    Write-Host "Quota appliqué: $($_.FullName)" -ForegroundColor Green
+}
 
 # Vérifier
 Get-FsrmAutoQuota -Path "C:\shares\datausers"
