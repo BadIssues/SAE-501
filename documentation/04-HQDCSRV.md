@@ -676,102 +676,50 @@ Get-CATemplate
 3. Répéter 3 fois pour avoir 3 disques de 1 Go
 4. Redémarrer la VM si nécessaire
 
-### 6.1 Mettre les disques en ligne
-
-> ⚠️ **Important** : Les nouveaux disques sont "Hors connexion" par défaut. Ne PAS les initialiser !
-
-#### Méthode PowerShell
+### 6.1 Ouvrir la Gestion des disques
 
 ```powershell
-# Mettre tous les disques hors ligne en ligne
-Get-Disk | Where-Object IsOffline -eq $true | Set-Disk -IsOffline $false
-
-# Vérifier les disques poolables (doit afficher 3 disques)
-Get-PhysicalDisk | Where-Object CanPool -eq $true | Format-Table FriendlyName, Size, MediaType
+diskmgmt.msc
 ```
 
-#### Méthode GUI
+### 6.2 Mettre les disques en ligne et les initialiser
 
-1. Ouvrir **Gestion des disques** (`diskmgmt.msc`)
-2. Si la fenêtre "Initialiser le disque" apparaît → **Cliquer sur Annuler**
-3. Clic droit sur chaque disque "Hors connexion" → **En ligne**
-4. **Ne pas initialiser** les disques !
+1. Clic droit sur chaque disque "Hors connexion" (à gauche) → **En ligne**
+2. Si "Lecture seule" : Clic droit → **Propriétés** → Décocher lecture seule
+   - Ou en PowerShell : `Set-Disk -Number X -IsReadOnly $false`
+3. Clic droit sur chaque disque → **Initialiser le disque**
+4. Sélectionner les 3 disques → **GPT (GUID Partition Table)** → **OK**
 
-### 6.2 Créer le pool de stockage
+### 6.3 Convertir en disques dynamiques
 
-#### Méthode PowerShell
+1. Clic droit sur **Disque 1** (la partie grise à gauche) → **Convertir en disque dynamique...**
+2. Cocher les 3 disques (Disque 1, 2 et 3) → **OK**
+3. **Convertir** → **Oui** pour confirmer
 
-```powershell
-# Récupérer les disques poolables
-$disks = Get-PhysicalDisk | Where-Object CanPool -eq $true
+### 6.4 Créer le volume RAID-5
 
-# Créer le pool de stockage
-New-StoragePool -FriendlyName "DataPool" `
-    -StorageSubSystemFriendlyName "Windows Storage*" `
-    -PhysicalDisks $disks
-```
+1. Clic droit sur l'espace **Non alloué** d'un des disques
+2. Sélectionner **Nouveau volume RAID-5...**
+3. **Suivant**
+4. Ajouter les 3 disques dans la liste (utiliser le bouton **Ajouter >>**)
+5. Vérifier que l'espace est identique sur les 3 disques
+6. **Suivant**
+7. Lettre de lecteur : **D:**
+8. **Suivant**
+9. Système de fichiers : **NTFS**
+10. Nom du volume : `DATA`
+11. ✅ Cocher **Effectuer un formatage rapide**
+12. **Suivant** → **Terminer**
 
-#### Méthode GUI
+> ⚠️ Le volume mettra quelques minutes à se synchroniser (resync). Tu peux continuer pendant ce temps.
 
-1. Ouvrir **Server Manager** → **Services de fichiers et de stockage** → **Pools de stockage**
-2. Dans la section **Disques physiques**, vérifier que les 3 disques apparaissent comme "Primordial"
-3. Clic droit sur **Primordial** → **Nouveau pool de stockage...**
-4. Nom : `DataPool`
-5. Sélectionner les 3 disques → **Créer**
+### 6.5 Vérification RAID-5
 
-### 6.3 Créer le disque virtuel RAID-5 (Parity)
+Dans la Gestion des disques, tu dois voir :
+- **Disque 1, 2, 3** : Dynamique, En ligne
+- **Volume D:** : RAID-5, NTFS, ~2 Go (1/3 perdu pour la parité)
 
-#### Méthode PowerShell
-
-```powershell
-# Créer le disque virtuel avec résilience Parity (RAID-5)
-New-VirtualDisk -StoragePoolFriendlyName "DataPool" `
-    -FriendlyName "DataDisk" `
-    -ResiliencySettingName "Parity" `
-    -UseMaximumSize
-```
-
-#### Méthode GUI
-
-1. Dans Server Manager → Pools de stockage → clic droit sur **DataPool**
-2. **Nouveau disque virtuel...**
-3. Nom : `DataDisk`
-4. **Disposition du stockage** : Sélectionner **Parité** (= RAID-5)
-5. Type d'approvisionnement : **Fixe**
-6. Taille : **Taille maximale**
-7. **Créer**
-
-### 6.4 Initialiser et formater en NTFS
-
-#### Méthode PowerShell
-
-```powershell
-# Récupérer le disque virtuel et l'initialiser
-$vdisk = Get-VirtualDisk -FriendlyName "DataDisk"
-$disk = $vdisk | Get-Disk
-
-# Initialiser le disque
-Initialize-Disk -Number $disk.Number -PartitionStyle GPT
-
-# Créer la partition
-New-Partition -DiskNumber $disk.Number -UseMaximumSize -DriveLetter D
-
-# Formater en NTFS (PAS ReFS - conformément au sujet)
-Format-Volume -DriveLetter D -FileSystem NTFS -NewFileSystemLabel "DATA" -Confirm:$false
-```
-
-#### Méthode GUI
-
-1. Après la création du disque virtuel, l'assistant "Nouveau volume" se lance automatiquement
-2. Sinon : Clic droit sur le disque virtuel → **Nouveau volume...**
-3. Sélectionner le disque **DataDisk**
-4. Taille : **Maximum**
-5. Lettre de lecteur : **D:**
-6. Système de fichiers : **NTFS**
-7. Nom du volume : `DATA`
-8. **Créer**
-
-### 6.5 Activer la déduplication
+### 6.6 Activer la déduplication
 
 #### Méthode PowerShell
 
@@ -794,21 +742,21 @@ Set-DedupVolume -Volume "D:" -MinimumFileAgeDays 0
 4. **Dédupliquer les fichiers datant de plus de (jours)** : `0`
 5. **OK**
 
-#### ✅ Vérification Stockage RAID-5
+#### ✅ Vérification finale RAID-5 et Déduplication
 
 ```powershell
-# Vérifier le pool de stockage
-Get-StoragePool -FriendlyName "DataPool"
-
-# Vérifier le disque virtuel
-Get-VirtualDisk -FriendlyName "DataDisk" | Select-Object FriendlyName, ResiliencySettingName, Size
-
 # Vérifier le volume D:
 Get-Volume -DriveLetter D
 
 # Vérifier la déduplication
 Get-DedupStatus -Volume "D:"
+
+# Vérifier l'espace disponible
+Get-PSDrive D
 ```
+
+Dans **Gestion des disques** (`diskmgmt.msc`) :
+- Volume D: doit apparaître comme **RAID-5**, **Sain**, **NTFS**
 
 ---
 
