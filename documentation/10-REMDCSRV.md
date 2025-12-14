@@ -15,6 +15,9 @@
 - [ ] DCWSL (wsl2025.org) opérationnel
 - [ ] HQDCSRV (hq.wsl2025.org) opérationnel avec PKI/ADCS
 - [ ] Résolution DNS vers wsl2025.org fonctionnelle
+- [ ] **ACL REMFW correctement configurée** (voir section Dépannage)
+
+> ⚠️ **IMPORTANT - ACL REMFW** : Avant de commencer, vérifier que l'ACL `FIREWALL-INBOUND` sur REMFW autorise les **réponses UDP** (source port) pour DNS, Kerberos, LDAP, NTP et SMB. Sans cela, la promotion AD échouera ! Voir la section [Dépannage](#-dépannage) en fin de document.
 
 ---
 
@@ -80,9 +83,19 @@ Install-WindowsFeature -Name `
 
 > **Important** : REMDCSRV est un **child domain de wsl2025.org** (forest root = DCWSL), pas de hq.wsl2025.org
 
+> ⚠️ **PROBLÈME FRÉQUENT - Échec de connexion au domaine parent**
+> 
+> Si vous obtenez l'erreur *"Impossible de se connecter au domaine"* ou *"Échec de la vérification des autorisations"* :
+> 
+> 1. **Vérifier la résolution DNS** : `nslookup wsl2025.org` doit répondre (10.4.10.4)
+> 2. **Utiliser le FQDN complet** pour les credentials : `WSL2025.ORG\Administrateur` (pas juste `WSL2025\Administrateur`)
+> 3. **Vérifier l'ACL REMFW** : Les réponses UDP doivent être autorisées (voir section Dépannage)
+> 4. **Vider le cache DNS** : `Clear-DnsClientCache` puis réessayer
+
 ```powershell
 # Credentials de l'administrateur du domaine wsl2025.org (DCWSL)
-$credential = Get-Credential -Message "Entrez les credentials de WSL2025\Administrator"
+# IMPORTANT: Utiliser le FQDN complet WSL2025.ORG\Administrateur
+$credential = Get-Credential -Message "Entrez les credentials de WSL2025.ORG\Administrateur"
 
 # Promotion en tant que Child Domain
 Install-ADDSDomain `
@@ -853,3 +866,134 @@ Get-GPOReport -All -ReportType HTML -Path "C:\GPOReport.html"
 | HQINFRASRV  | Source NTP                           |
 | REMFW       | Connectivité réseau                  |
 | REMINFRASRV | DFS Replication (à configurer après) |
+
+---
+
+## 🔧 Dépannage
+
+### Problème : La promotion AD échoue avec "Impossible de se connecter au domaine"
+
+**Symptômes :**
+- Erreur : *"Échec de la vérification des autorisations des informations d'identification de l'utilisateur"*
+- Erreur : *"Vous devez fournir un nom du domaine résolvable DNS"*
+- `nslookup wsl2025.org` timeout puis répond
+
+**Cause :** L'ACL `FIREWALL-INBOUND` sur REMFW bloque les **réponses UDP** (paquets avec port source 53, 88, 389, etc.)
+
+**Solution :** Reconfigurer l'ACL sur REMFW pour autoriser les réponses UDP :
+
+```cisco
+enable
+conf t
+
+! Supprimer l'ancienne ACL
+no ip access-list extended FIREWALL-INBOUND
+
+! Recréer avec les règles de réponse UDP
+ip access-list extended FIREWALL-INBOUND
+ remark === Allow established connections ===
+ permit tcp any any established
+ remark === Allow SSH from HQ ===
+ permit tcp 10.4.0.0 0.0.255.255 any eq 22
+ remark === Allow DNS (requests and responses) ===
+ permit udp any any eq domain
+ permit udp any eq domain any
+ permit tcp any any eq domain
+ remark === Allow HTTPS ===
+ permit tcp any any eq 443
+ remark === Allow HTTP ===
+ permit tcp any any eq 80
+ remark === Allow ICMP ===
+ permit icmp any any
+ remark === Allow Microsoft Services (requests and responses) ===
+ permit tcp any any eq 445
+ permit udp any any eq 445
+ permit udp any eq 445 any
+ permit tcp any any range 135 139
+ permit udp any any range 135 139
+ permit udp any range 135 139 any
+ remark === Allow Kerberos (requests and responses) ===
+ permit tcp any any eq 88
+ permit udp any any eq 88
+ permit udp any eq 88 any
+ remark === Allow LDAP (requests and responses) ===
+ permit tcp any any eq 389
+ permit udp any any eq 389
+ permit udp any eq 389 any
+ permit tcp any any eq 636
+ remark === Allow NTP (requests and responses) ===
+ permit udp any any eq ntp
+ permit udp any eq ntp any
+ remark === Allow OSPF ===
+ permit ospf any any
+ remark === Deny all other ===
+ deny ip any any log
+
+end
+write memory
+```
+
+> ⚠️ **IMPORTANT - Ordre des règles ACL Cisco** : Les règles `permit` doivent être **AVANT** le `deny ip any any`. Les ACL Cisco sont traitées séquentiellement, donc toute règle après le `deny` est ignorée !
+
+**Vérification :**
+
+```cisco
+show access-list FIREWALL-INBOUND
+```
+
+Le `deny ip any any log` doit être la **dernière** règle de la liste.
+
+---
+
+### Problème : DNS timeout mais finit par répondre
+
+**Symptômes :**
+- `nslookup wsl2025.org` affiche "DNS request timed out" puis répond après plusieurs secondes
+
+**Cause :** Les premiers paquets UDP sont bloqués, mais les retries passent (comportement instable)
+
+**Solution :** Vérifier que les règles `permit udp any eq domain any` (réponses DNS) sont bien présentes et **avant** le `deny`.
+
+---
+
+### Problème : Credentials refusés lors de la promotion
+
+**Symptômes :**
+- Erreur d'authentification même avec le bon mot de passe
+
+**Solution :**
+1. Utiliser le **FQDN complet** : `WSL2025.ORG\Administrateur` (pas `WSL2025\Administrateur`)
+2. Ou utiliser le format UPN : `administrateur@wsl2025.org`
+
+---
+
+### Commandes de diagnostic utiles
+
+```powershell
+# Test résolution DNS
+Resolve-DnsName wsl2025.org
+Resolve-DnsName dcwsl.wsl2025.org
+Resolve-DnsName _ldap._tcp.dc._msdcs.wsl2025.org -Type SRV
+
+# Vider le cache DNS
+Clear-DnsClientCache
+
+# Test connectivité réseau
+Test-Connection 10.4.10.4
+Test-NetConnection 10.4.10.4 -Port 389
+
+# Vérifier la config DNS client
+Get-DnsClientServerAddress
+
+# Test authentification AD
+$cred = Get-Credential
+Get-ADDomain -Server "wsl2025.org" -Credential $cred
+```
+
+```cisco
+! Sur REMFW - Voir les paquets bloqués
+show access-list FIREWALL-INBOUND
+
+! Voir les logs en temps réel
+terminal monitor
+```
