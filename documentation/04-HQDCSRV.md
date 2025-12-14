@@ -690,13 +690,9 @@ diskmgmt.msc
 3. Clic droit sur chaque disque → **Initialiser le disque**
 4. Sélectionner les 3 disques → **GPT (GUID Partition Table)** → **OK**
 
-### 6.3 Convertir en disques dynamiques
+### 6.3 Créer le volume RAID-5
 
-1. Clic droit sur **Disque 1** (la partie grise à gauche) → **Convertir en disque dynamique...**
-2. Cocher les 3 disques (Disque 1, 2 et 3) → **OK**
-3. **Convertir** → **Oui** pour confirmer
-
-### 6.4 Créer le volume RAID-5
+> 💡 **Note** : Pas besoin de convertir en disques dynamiques manuellement ! L'assistant le fait automatiquement.
 
 1. Clic droit sur l'espace **Non alloué** d'un des disques
 2. Sélectionner **Nouveau volume RAID-5...**
@@ -704,22 +700,28 @@ diskmgmt.msc
 4. Ajouter les 3 disques dans la liste (utiliser le bouton **Ajouter >>**)
 5. Vérifier que l'espace est identique sur les 3 disques
 6. **Suivant**
-7. Lettre de lecteur : **D:**
+7. Lettre de lecteur : **D:** (si le DVD occupe D:, le déplacer d'abord sur Z: via clic droit → Modifier la lettre)
 8. **Suivant**
 9. Système de fichiers : **NTFS**
 10. Nom du volume : `DATA`
 11. ✅ Cocher **Effectuer un formatage rapide**
 12. **Suivant** → **Terminer**
 
-> ⚠️ Le volume mettra quelques minutes à se synchroniser (resync). Tu peux continuer pendant ce temps.
+> ⚠️ **Avertissement "Disques dynamiques"** : Un message apparaît indiquant que les disques seront convertis en disques dynamiques. Cela signifie :
+> - Ces disques ne pourront plus être utilisés pour démarrer un autre OS (dual-boot)
+> - Le disque système (C:) n'est PAS affecté
+> - C'est normal et sans risque pour des disques de données → **Cliquer sur "Oui"**
 
-### 6.5 Vérification RAID-5
+> ⏳ Le volume mettra quelques minutes à se synchroniser (resync). Tu peux continuer pendant ce temps.
+
+### 6.4 Vérification RAID-5
 
 Dans la Gestion des disques, tu dois voir :
+
 - **Disque 1, 2, 3** : Dynamique, En ligne
 - **Volume D:** : RAID-5, NTFS, ~2 Go (1/3 perdu pour la parité)
 
-### 6.6 Activer la déduplication
+### 6.5 Activer la déduplication
 
 #### Méthode PowerShell
 
@@ -756,6 +758,7 @@ Get-PSDrive D
 ```
 
 Dans **Gestion des disques** (`diskmgmt.msc`) :
+
 - Volume D: doit apparaître comme **RAID-5**, **Sain**, **NTFS**
 
 ---
