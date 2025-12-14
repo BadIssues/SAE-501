@@ -607,16 +607,16 @@ foreach ($dept in @("IT", "Direction", "Warehouse")) {
 # Share path: \\rem.wsl2025.org\users
 New-SmbShare -Name "users" `
     -Path "C:\shares\datausers" `
-    -FullAccess "Administrators" `
-    -ChangeAccess "Authenticated Users" `
+    -FullAccess "BUILTIN\Administrateurs" `
+    -ChangeAccess "NT AUTHORITY\Utilisateurs authentifiés" `
     -FolderEnumerationMode AccessBased `
     -Description "Home drives utilisateurs Remote"
 
 # Partage Department
 New-SmbShare -Name "Department" `
     -Path "C:\shares\Department" `
-    -FullAccess "Administrators" `
-    -ChangeAccess "Authenticated Users" `
+    -FullAccess "BUILTIN\Administrateurs" `
+    -ChangeAccess "NT AUTHORITY\Utilisateurs authentifiés" `
     -FolderEnumerationMode AccessBased `
     -Description "Dossiers départements Remote"
 ```
@@ -626,18 +626,23 @@ New-SmbShare -Name "Department" `
 > **Sujet** : "Limit the storage quota to 20Mb"
 
 ```powershell
-# Créer le template de quota
+# Créer le template de quota avec HARD LIMIT (bloque l'écriture au-delà)
 New-FsrmQuotaTemplate -Name "UserQuota20MB" `
     -Size 20MB `
-    -Description "Quota 20 Mo pour les utilisateurs" `
-    -SoftLimit
+    -Description "Quota 20 Mo pour les utilisateurs (limite stricte)"
+
+# Note : Sans -SoftLimit, c'est automatiquement un Hard Limit
 
 # Appliquer le quota automatique sur datausers
 New-FsrmAutoQuota -Path "C:\shares\datausers" -Template "UserQuota20MB"
 
 # Vérifier
 Get-FsrmAutoQuota -Path "C:\shares\datausers"
+Get-FsrmQuotaTemplate -Name "UserQuota20MB"
 ```
+
+> ✅ **Hard Limit** : Les utilisateurs ne pourront pas dépasser 20 Mo (écriture bloquée).
+> ⚠️ **Soft Limit** : Les utilisateurs peuvent dépasser mais reçoivent un avertissement.
 
 ### 7.7 Créer la racine DFS Domaine
 
