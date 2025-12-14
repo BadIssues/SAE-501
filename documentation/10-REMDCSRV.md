@@ -270,6 +270,12 @@ Add-DhcpServerInDC -DnsName "remdcsrv.rem.wsl2025.org" -IPAddress 10.4.100.1
 Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\ServerManager\Roles\12" -Name "ConfigurationState" -Value 2
 ```
 
+> ⚠️ **Si erreur "Les serveurs spécifiés sont déjà présents"** : C'est normal, le serveur est déjà autorisé. Redémarrez simplement le service DHCP :
+> ```powershell
+> Restart-Service DHCPServer
+> ```
+> Puis rafraîchissez la console DHCP (F5) - l'icône IPv4 devrait passer au vert.
+
 ### 5.2 Créer le scope DHCP
 
 > **Sujet** :

@@ -32,6 +32,7 @@ interface GigabitEthernet0/0.15
 description LINK-TO-WANRTR (VRF MAN)
 encapsulation dot1Q 15
 ip address 10.4.254.18 255.255.255.252
+ip nat inside
 ip ospf authentication message-digest
 ip ospf message-digest-key 1 md5 P@ssw0rd
 ip ospf network point-to-point
@@ -100,6 +101,7 @@ network 10.4.254.8 0.0.0.3 area 4
 network 10.4.254.16 0.0.0.3 area 4
 network 31.4.126.12 0.0.0.3 area 4
 redistribute static subnets
+redistribute bgp 65416 subnets route-map BGP-TO-OSPF
 exit
 !
 router bgp 65416
@@ -139,8 +141,14 @@ deny tcp any any eq 22 log
 permit ip any any
 exit
 !
+ip prefix-list INTERNET-PREFIX seq 10 permit 8.8.4.0/29
+!
 route-map PREPEND-OUT permit 10
 set as-path prepend 65416 65416
+exit
+!
+route-map BGP-TO-OSPF permit 10
+match ip address prefix-list INTERNET-PREFIX
 exit
 !
 no ip http server
