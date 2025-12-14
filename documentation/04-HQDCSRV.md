@@ -1115,151 +1115,51 @@ Test-Path "\\hq.wsl2025.org\users$"
 
 ## 8️⃣ GPO (Group Policy Objects)
 
-### 8.1 GPO - Certificats Root CA et Sub CA
+### 8.0 Création de toutes les GPO (Script PowerShell)
+
+> ⚠️ **Ce script crée les GPO et les lie. La configuration se fait ensuite en GUI.**
 
 ```powershell
-# Créer la GPO pour les certificats
+# ============================================
+# CRÉATION DES GPO - À exécuter sur HQDCSRV
+# ============================================
+
+Write-Host "=== CRÉATION DES GPO ===" -ForegroundColor Cyan
+
+# 1. Deploy-Certificates
 $gpo = New-GPO -Name "Deploy-Certificates" -Comment "Déploie les certificats Root CA et Sub CA"
 $gpo | New-GPLink -Target "DC=hq,DC=wsl2025,DC=org"
+Write-Host "OK - Deploy-Certificates" -ForegroundColor Green
 
-Write-Host "Configurer manuellement dans GPMC :"
-Write-Host "Computer Configuration > Policies > Windows Settings > Security Settings > Public Key Policies"
-Write-Host "- Trusted Root CA : Importer WSFR-ROOT-CA.cer"
-Write-Host "- Intermediate CA : Importer WSFR-SUB-CA.cer"
-```
-
-### 8.2 GPO - Autoenrollment des certificats
-
-```powershell
-# Créer la GPO pour l'auto-enrollment
+# 2. Certificate-Autoenrollment
 $gpo = New-GPO -Name "Certificate-Autoenrollment" -Comment "Active l'auto-enrollment des certificats"
 $gpo | New-GPLink -Target "DC=hq,DC=wsl2025,DC=org"
+Write-Host "OK - Certificate-Autoenrollment" -ForegroundColor Green
 
-# Configurer l'auto-enrollment via registre
-Set-GPRegistryValue -Name "Certificate-Autoenrollment" `
-    -Key "HKLM\SOFTWARE\Policies\Microsoft\Cryptography\AutoEnrollment" `
-    -ValueName "AEPolicy" `
-    -Type DWord `
-    -Value 7
-
-Set-GPRegistryValue -Name "Certificate-Autoenrollment" `
-    -Key "HKCU\SOFTWARE\Policies\Microsoft\Cryptography\AutoEnrollment" `
-    -ValueName "AEPolicy" `
-    -Type DWord `
-    -Value 7
-```
-
-### 8.3 GPO - Edge Homepage (Intranet)
-
-```powershell
-# Créer la GPO pour Edge
+# 3. Edge-Homepage-Intranet
 $gpo = New-GPO -Name "Edge-Homepage-Intranet" -Comment "Configure la page d'accueil Edge sur l'intranet"
 $gpo | New-GPLink -Target "DC=hq,DC=wsl2025,DC=org"
+Write-Host "OK - Edge-Homepage-Intranet" -ForegroundColor Green
 
-# Configurer la page d'accueil
-Set-GPRegistryValue -Name "Edge-Homepage-Intranet" `
-    -Key "HKLM\SOFTWARE\Policies\Microsoft\Edge" `
-    -ValueName "HomepageLocation" `
-    -Type String `
-    -Value "https://www.wsl2025.org"
-
-# Activer le bouton Accueil
-Set-GPRegistryValue -Name "Edge-Homepage-Intranet" `
-    -Key "HKLM\SOFTWARE\Policies\Microsoft\Edge" `
-    -ValueName "ShowHomeButton" `
-    -Type DWord `
-    -Value 1
-
-# Empêcher la modification
-Set-GPRegistryValue -Name "Edge-Homepage-Intranet" `
-    -Key "HKLM\SOFTWARE\Policies\Microsoft\Edge" `
-    -ValueName "HomepageIsNewTabPage" `
-    -Type DWord `
-    -Value 0
-
-# Configurer RestoreOnStartup pour ouvrir la homepage
-Set-GPRegistryValue -Name "Edge-Homepage-Intranet" `
-    -Key "HKLM\SOFTWARE\Policies\Microsoft\Edge" `
-    -ValueName "RestoreOnStartup" `
-    -Type DWord `
-    -Value 4
-
-Set-GPRegistryValue -Name "Edge-Homepage-Intranet" `
-    -Key "HKLM\SOFTWARE\Policies\Microsoft\Edge\RestoreOnStartupURLs" `
-    -ValueName "1" `
-    -Type String `
-    -Value "https://www.wsl2025.org"
-```
-
-### 8.4 GPO - Bloquer le Panneau de configuration
-
-```powershell
-# Créer la GPO pour bloquer le panneau de config
-$gpo = New-GPO -Name "Block-ControlPanel" -Comment "Bloque l'accès au panneau de configuration sauf pour les admins"
+# 4. Block-ControlPanel (lié aux Users uniquement)
+$gpo = New-GPO -Name "Block-ControlPanel" -Comment "Bloque l'accès au panneau de configuration sauf IT"
 $gpo | New-GPLink -Target "OU=Users,OU=HQ,DC=hq,DC=wsl2025,DC=org"
+Write-Host "OK - Block-ControlPanel" -ForegroundColor Green
 
-# Bloquer le panneau de configuration
-Set-GPRegistryValue -Name "Block-ControlPanel" `
-    -Key "HKCU\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer" `
-    -ValueName "NoControlPanel" `
-    -Type DWord `
-    -Value 1
-```
-
-#### Exclure le groupe IT (GUI obligatoire)
-
-> ⚠️ **La commande PowerShell `Set-GPPermission` ne supporte pas "Deny"**. Il faut configurer via GUI.
-
-1. Ouvrir **`gpmc.msc`**
-
-2. Aller dans **Objets de stratégie de groupe** → **Block-ControlPanel**
-
-3. Dans le panneau de droite, onglet **Délégation**
-
-4. Cliquer sur **Avancé...** (en bas)
-
-5. Cliquer **Ajouter...** → Taper `IT` → **OK**
-
-6. Sélectionner le groupe **IT** dans la liste
-
-7. Dans les permissions, cocher **Refuser** pour :
-
-   - ✅ **Appliquer la stratégie de groupe** → **REFUSER**
-
-8. Cliquer **OK** → **Oui** pour confirmer le Deny
-
-#### Vérification
-
-```powershell
-# Vérifier les permissions de la GPO
-Get-GPPermission -Name "Block-ControlPanel" -All | Format-Table Trustee, Permission, Denied
-```
-
-**Attendu** : Le groupe `IT` doit avoir `Denied = True` pour `GpoApply`
-
-### 8.5 GPO - Logo entreprise
-
-```powershell
-# Créer la GPO pour le logo
-$gpo = New-GPO -Name "Enterprise-Logo" -Comment "Affiche le logo entreprise"
+# 5. Enterprise-Logo
+$gpo = New-GPO -Name "Enterprise-Logo" -Comment "Affiche le logo entreprise sur l'écran de verrouillage"
 $gpo | New-GPLink -Target "DC=hq,DC=wsl2025,DC=org"
+Write-Host "OK - Enterprise-Logo" -ForegroundColor Green
 
-# Créer le dossier pour le logo sur NETLOGON
-$logoPath = "\\hq.wsl2025.org\NETLOGON\Logo"
-New-Item -Path "C:\Windows\SYSVOL\domain\scripts\Logo" -ItemType Directory -Force
-
-Write-Host "Placer le logo dans : C:\Windows\SYSVOL\domain\scripts\Logo\logo.bmp"
-Write-Host "Configurer dans GPMC > User Configuration > Policies > Administrative Templates > Control Panel > Personalization"
-```
-
-### 8.6 GPO - Mappage des lecteurs réseau
-
-```powershell
-# Créer la GPO pour le mappage des lecteurs
+# 6. Drive-Mappings (lié aux Users uniquement)
 $gpo = New-GPO -Name "Drive-Mappings" -Comment "Configure les lecteurs réseau U:, S:, P:"
 $gpo | New-GPLink -Target "OU=Users,OU=HQ,DC=hq,DC=wsl2025,DC=org"
+Write-Host "OK - Drive-Mappings" -ForegroundColor Green
 
-# Script de mappage (à placer dans NETLOGON)
+# Créer le dossier Logo sur NETLOGON
+New-Item -Path "C:\Windows\SYSVOL\domain\scripts\Logo" -ItemType Directory -Force | Out-Null
+
+# Créer le script de mappage des lecteurs
 $driveScript = @'
 @echo off
 REM Mappage des lecteurs réseau
@@ -1277,15 +1177,207 @@ net use P: /delete /y 2>nul
 net use P: \\HQDCSRV\Public$ /persistent:yes
 '@
 $driveScript | Out-File -FilePath "C:\Windows\SYSVOL\domain\scripts\MapDrives.bat" -Encoding ASCII
+Write-Host "OK - Script MapDrives.bat créé" -ForegroundColor Green
 
-Write-Host "Configurer le script de logon dans GPMC :"
-Write-Host "User Configuration > Policies > Windows Settings > Scripts > Logon"
-Write-Host "Ajouter : MapDrives.bat"
+Write-Host "`n=== GPO CRÉÉES ===" -ForegroundColor Cyan
+Get-GPO -All | Select-Object DisplayName, GpoStatus | Format-Table
+
+Write-Host "`n⚠️  CONFIGURER CHAQUE GPO EN GUI (voir documentation)" -ForegroundColor Yellow
 ```
 
-### 8.7 GPO - Configurer les Home Folders utilisateurs
+---
 
-> ⚠️ **Note** : Ce script utilise les SID pour éviter les erreurs de traduction de noms.
+### 8.1 GPO Deploy-Certificates (GUI)
+
+> Déploie les certificats Root CA et Sub CA sur tous les ordinateurs du domaine.
+
+1. Ouvrir **`gpmc.msc`** (Win+R → gpmc.msc)
+
+2. **Forêt: wsl2025.org** → **Domaines** → **hq.wsl2025.org** → **Objets de stratégie de groupe**
+
+3. Clic droit sur **Deploy-Certificates** → **Modifier**
+
+4. Naviguer vers :
+   ```
+   Configuration ordinateur → Stratégies → Paramètres Windows
+   → Paramètres de sécurité → Stratégies de clé publique
+   ```
+
+5. **Importer le Root CA** :
+   - Clic droit sur **Autorités de certification racines de confiance** → **Importer...**
+   - Parcourir → `C:\WSFR-ROOT-CA.cer` → **Suivant** → **Terminer**
+
+6. **Importer le Sub CA** :
+   - Clic droit sur **Autorités de certification intermédiaires** → **Importer...**
+   - Parcourir → `C:\SubCA.cer` → **Suivant** → **Terminer**
+
+7. Fermer l'éditeur
+
+---
+
+### 8.2 GPO Certificate-Autoenrollment (GUI)
+
+> Active l'inscription automatique des certificats machines et utilisateurs.
+
+1. Dans **gpmc.msc**, clic droit sur **Certificate-Autoenrollment** → **Modifier**
+
+2. **Configuration ORDINATEUR** :
+   ```
+   Configuration ordinateur → Stratégies → Paramètres Windows
+   → Paramètres de sécurité → Stratégies de clé publique
+   ```
+   - Double-clic sur **Client des services de certificats - Inscription automatique**
+   - **Modèle de configuration** : **Activé**
+   - ✅ Cocher **Renouveler les certificats expirés...**
+   - ✅ Cocher **Mettre à jour les certificats qui utilisent des modèles...**
+   - **OK**
+
+3. **Configuration UTILISATEUR** (répéter) :
+   ```
+   Configuration utilisateur → Stratégies → Paramètres Windows
+   → Paramètres de sécurité → Stratégies de clé publique
+   ```
+   - Double-clic sur **Client des services de certificats - Inscription automatique**
+   - Mêmes paramètres que ci-dessus
+   - **OK**
+
+4. Fermer l'éditeur
+
+---
+
+### 8.3 GPO Edge-Homepage-Intranet (GUI)
+
+> Configure la page d'accueil de Microsoft Edge pour tous les utilisateurs.
+
+1. Dans **gpmc.msc**, clic droit sur **Edge-Homepage-Intranet** → **Modifier**
+
+2. Naviguer vers :
+   ```
+   Configuration ordinateur → Stratégies → Modèles d'administration
+   → Microsoft Edge → Démarrage, page d'accueil et page Nouvel onglet
+   ```
+
+3. **Configurer l'URL de la page d'accueil** :
+   - Double-clic sur **Configurer l'URL de la page d'accueil**
+   - **Activé**
+   - URL : `http://hqmailsrv.wsl2025.org` (ou votre URL intranet)
+   - **OK**
+
+4. **Afficher le bouton Accueil** :
+   - Double-clic sur **Afficher le bouton Accueil sur la barre d'outils**
+   - **Activé**
+   - **OK**
+
+5. **Configurer l'action au démarrage** :
+   - Double-clic sur **Action à effectuer au démarrage**
+   - **Activé**
+   - Choisir : **Ouvrir une liste d'URL**
+   - **OK**
+
+6. **Configurer les URL de démarrage** :
+   - Double-clic sur **URL à ouvrir au démarrage**
+   - **Activé**
+   - Cliquer **Afficher...** → Ajouter `http://hqmailsrv.wsl2025.org`
+   - **OK**
+
+7. Fermer l'éditeur
+
+---
+
+### 8.4 GPO Block-ControlPanel (GUI)
+
+> Bloque l'accès au panneau de configuration pour tous les utilisateurs SAUF le groupe IT.
+
+1. Dans **gpmc.msc**, clic droit sur **Block-ControlPanel** → **Modifier**
+
+2. Naviguer vers :
+   ```
+   Configuration utilisateur → Stratégies → Modèles d'administration
+   → Panneau de configuration
+   ```
+
+3. Double-clic sur **Interdire l'accès au Panneau de configuration et à l'application Paramètres du PC**
+   - **Activé**
+   - **OK**
+
+4. Fermer l'éditeur
+
+#### Exclure le groupe IT (IMPORTANT)
+
+5. Dans **gpmc.msc**, clic sur **Block-ControlPanel** (dans Objets de stratégie de groupe)
+
+6. Dans le panneau de droite, onglet **Délégation**
+
+7. Cliquer sur **Avancé...** (en bas)
+
+8. Cliquer **Ajouter...** → Taper `IT` → **OK**
+
+9. Sélectionner le groupe **IT** dans la liste
+
+10. Dans les permissions, cocher **Refuser** pour :
+    - ✅ **Appliquer la stratégie de groupe** → **REFUSER**
+
+11. Cliquer **OK** → **Oui** pour confirmer le Deny
+
+---
+
+### 8.5 GPO Enterprise-Logo (GUI)
+
+> Affiche le logo entreprise sur l'écran de verrouillage.
+
+#### Prérequis : Copier l'image du logo
+
+1. Copier votre image de logo (format `.jpg` ou `.png`, résolution 1920x1080 recommandée) vers :
+   ```
+   C:\Windows\SYSVOL\domain\scripts\Logo\logo.jpg
+   ```
+
+#### Configuration
+
+2. Dans **gpmc.msc**, clic droit sur **Enterprise-Logo** → **Modifier**
+
+3. Naviguer vers :
+   ```
+   Configuration ordinateur → Stratégies → Modèles d'administration
+   → Panneau de configuration → Personnalisation
+   ```
+
+4. Double-clic sur **Forcer une image d'écran de verrouillage par défaut**
+   - **Activé**
+   - Chemin : `\\hq.wsl2025.org\NETLOGON\Logo\logo.jpg`
+   - **OK**
+
+5. Fermer l'éditeur
+
+---
+
+### 8.6 GPO Drive-Mappings (GUI)
+
+> Configure les lecteurs réseau U:, S:, P: via un script de connexion.
+
+1. Dans **gpmc.msc**, clic droit sur **Drive-Mappings** → **Modifier**
+
+2. Naviguer vers :
+   ```
+   Configuration utilisateur → Stratégies → Paramètres Windows
+   → Scripts (ouverture/fermeture de session)
+   ```
+
+3. Double-clic sur **Ouverture de session**
+
+4. Cliquer **Ajouter...**
+
+5. Cliquer **Parcourir...** → Aller dans `\\hq.wsl2025.org\NETLOGON\` → Sélectionner `MapDrives.bat`
+
+6. **OK** → **OK**
+
+7. Fermer l'éditeur
+
+---
+
+### 8.7 Configurer les Home Folders utilisateurs
+
+> Configure le dossier personnel (U:) pour chaque utilisateur dans Active Directory.
 
 ```powershell
 # Récupérer le SID des Domain Admins
@@ -1328,52 +1420,28 @@ foreach ($user in $users) {
 Write-Host "Terminé : $count utilisateurs configurés" -ForegroundColor Green
 ```
 
-### 8.8 Configurer les GPO Deploy-Certificates (GUI obligatoire)
+---
 
-> ⚠️ **Cette étape doit être faite manuellement via GUI !**
+### 8.8 Vérification des GPO
 
-1. Ouvrir **`gpmc.msc`** (Gestion des stratégies de groupe)
+```powershell
+# Lister toutes les GPO
+Get-GPO -All | Select-Object DisplayName, GpoStatus | Format-Table
 
-2. Aller dans **Objets de stratégie de groupe** → Clic droit sur **Deploy-Certificates** → **Modifier**
+# Vérifier les liens
+Get-GPO -Name "Deploy-Certificates" | Get-GPOReport -ReportType HTML -Path "C:\GPO-Report.html"
+```
 
-3. Naviguer vers :
+**Attendu** : 6 GPO avec statut `AllSettingsEnabled`
 
-   ```
-   Configuration ordinateur → Stratégies → Paramètres Windows
-   → Paramètres de sécurité → Stratégies de clé publique
-   ```
-
-4. **Importer le Root CA** :
-
-   - Clic droit sur **Autorités de certification racines de confiance** → **Importer...**
-   - Parcourir → `C:\WSFR-ROOT-CA.cer` → Suivant → Terminer
-
-5. **Importer le Sub CA** :
-   - Clic droit sur **Autorités de certification intermédiaires** → **Importer...**
-   - Parcourir → `C:\SubCA.cer` → Suivant → Terminer
-
-### 8.9 Configurer Auto-Enrollment (GUI)
-
-1. Dans **gpmc.msc**, éditer **Certificate-Autoenrollment**
-
-2. Aller dans :
-
-   ```
-   Configuration ordinateur → Stratégies → Paramètres Windows
-   → Paramètres de sécurité → Stratégies de clé publique
-   ```
-
-3. Double-clic sur **Client des services de certificats - Inscription automatique**
-
-4. Configurer :
-
-   - **Modèle de configuration** : **Activé**
-   - ✅ **Renouveler les certificats expirés...**
-   - ✅ **Mettre à jour les certificats qui utilisent des modèles...**
-
-5. **OK**
-
-6. **Répéter** pour `Configuration utilisateur` → même chemin → même paramètre
+| GPO | Liée à |
+|-----|--------|
+| Deploy-Certificates | DC=hq,DC=wsl2025,DC=org |
+| Certificate-Autoenrollment | DC=hq,DC=wsl2025,DC=org |
+| Edge-Homepage-Intranet | DC=hq,DC=wsl2025,DC=org |
+| Block-ControlPanel | OU=Users,OU=HQ,DC=hq,DC=wsl2025,DC=org |
+| Enterprise-Logo | DC=hq,DC=wsl2025,DC=org |
+| Drive-Mappings | OU=Users,OU=HQ,DC=hq,DC=wsl2025,DC=org |
 
 ---
 

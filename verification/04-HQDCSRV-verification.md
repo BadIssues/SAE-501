@@ -263,24 +263,41 @@ Test-Path "\\HQDCSRV\Public$"
 
 ---
 
-## ✅ 8. GPO
+## ✅ 8. GPO (Vérification GUI)
 
-### Liste des GPO
+### 8.1 Ouvrir gpmc.msc
+
+1. **Win+R** → `gpmc.msc` → Entrée
+2. **Forêt: wsl2025.org** → **Domaines** → **hq.wsl2025.org** → **Objets de stratégie de groupe**
+
+### 8.2 Vérifier chaque GPO
+
+| GPO | Vérification GUI |
+|-----|------------------|
+| **Deploy-Certificates** | Clic droit → Modifier → `Config ordinateur > Stratégies > Paramètres Windows > Paramètres de sécurité > Stratégies de clé publique` → ✅ WSFR-ROOT-CA dans Racines de confiance, ✅ WSFR-SUB-CA dans Intermédiaires |
+| **Certificate-Autoenrollment** | Même chemin → ✅ "Inscription automatique" = Activé (Ordinateur ET Utilisateur) |
+| **Edge-Homepage-Intranet** | `Config ordinateur > Stratégies > Modèles d'administration > Microsoft Edge > Démarrage...` → ✅ URL configurée |
+| **Block-ControlPanel** | `Config utilisateur > Stratégies > Modèles d'administration > Panneau de configuration` → ✅ "Interdire l'accès" = Activé |
+| **Enterprise-Logo** | `Config ordinateur > Stratégies > Modèles d'administration > Panneau de configuration > Personnalisation` → ✅ "Forcer image écran verrouillage" = Activé avec chemin |
+| **Drive-Mappings** | `Config utilisateur > Stratégies > Paramètres Windows > Scripts > Ouverture de session` → ✅ MapDrives.bat présent |
+
+### 8.3 Vérifier l'exclusion IT sur Block-ControlPanel
+
+1. Clic sur **Block-ControlPanel**
+2. Onglet **Délégation** → **Avancé...**
+3. ✅ Groupe **IT** avec **Refuser** sur "Appliquer la stratégie de groupe"
+
+### 8.4 Vérifier les fichiers NETLOGON
 
 ```powershell
-Get-GPO -All | Select-Object DisplayName, GpoStatus
+# Vérifier le script de mappage
+Test-Path "\\hq.wsl2025.org\NETLOGON\MapDrives.bat"
+
+# Vérifier le logo
+Test-Path "\\hq.wsl2025.org\NETLOGON\Logo\logo.jpg"
 ```
 
-**Attendu** :
-
-| GPO                        | Status             |
-| -------------------------- | ------------------ |
-| Deploy-Certificates        | AllSettingsEnabled |
-| Certificate-Autoenrollment | AllSettingsEnabled |
-| Edge-Homepage-Intranet     | AllSettingsEnabled |
-| Block-ControlPanel         | AllSettingsEnabled |
-| Enterprise-Logo            | AllSettingsEnabled |
-| Drive-Mappings             | AllSettingsEnabled |
+**Attendu** : `True` pour les deux
 
 ---
 
@@ -458,6 +475,84 @@ Si "Accès refusé" → Les permissions SMB sont incorrectes sur le serveur.
 
 ---
 
+## ✅ Test 6b : Quota 20 Mo sur Home Drive
+
+### Utilisateur : `hq\wslusr001`
+
+> ⚠️ Le quota est configuré en **SoftLimit** (avertissement, pas blocage strict)
+
+#### Test depuis le client (PowerShell Admin) :
+
+```powershell
+# Créer un fichier de 15 Mo (doit fonctionner)
+fsutil file createnew U:\test15mo.bin 15728640
+
+# Créer un fichier de 25 Mo (dépasse le quota - alerte générée)
+fsutil file createnew U:\test25mo.bin 26214400
+
+# Vérifier l'espace total utilisé
+Get-ChildItem U:\ -Recurse -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum |
+    Select-Object @{N='TotalMo';E={[math]::Round($_.Sum/1MB,2)}}
+
+# Nettoyer les fichiers de test
+Remove-Item U:\test*.bin -Force
+```
+
+#### Vérification sur HQDCSRV :
+
+```powershell
+# Vérifier le quota appliqué à l'utilisateur
+Get-FsrmQuota -Path "D:\shares\datausers\wslusr001"
+
+# Vérifier tous les quotas
+Get-FsrmQuota -Path "D:\shares\datausers\*" | Format-Table Path, @{N='SizeMB';E={$_.Size/1MB}}, @{N='UsedMB';E={$_.Usage/1MB}}
+
+# Vérifier le template
+Get-FsrmQuotaTemplate -Name "UserQuota20MB"
+
+# Vérifier l'auto-quota
+Get-FsrmAutoQuota -Path "D:\shares\datausers"
+```
+
+**Attendu** :
+
+- Template `UserQuota20MB` existe avec Size = 20 Mo
+- Auto-quota appliqué sur `D:\shares\datausers`
+- Chaque sous-dossier utilisateur a un quota de 20 Mo
+
+#### Si le quota doit BLOQUER (pas juste alerter) :
+
+Modifier sur HQDCSRV pour passer en **HardLimit** :
+
+```powershell
+# Supprimer l'ancien template et en créer un strict
+Remove-FsrmQuotaTemplate -Name "UserQuota20MB" -Confirm:$false
+New-FsrmQuotaTemplate -Name "UserQuota20MB" -Size 20MB -Description "Quota utilisateur 20 Mo - STRICT"
+# Note: Sans -SoftLimit, c'est un HardLimit par défaut
+```
+
+---
+
+## ✅ Test 6c : Blocage des exécutables sur Home Drive
+
+### Utilisateur : `hq\wslusr001`
+
+```powershell
+# Essayer de copier un .exe sur U: (doit échouer)
+Copy-Item "C:\Windows\System32\calc.exe" "U:\calc.exe"
+```
+
+**Attendu** : ❌ Accès refusé / Opération bloquée
+
+#### Vérification sur HQDCSRV :
+
+```powershell
+Get-FsrmFileScreen -Path "D:\shares\datausers"
+Get-FsrmFileScreenTemplate -Name "Block-Executables"
+```
+
+---
+
 ## ✅ Test 7 : Logo Entreprise
 
 ### Utilisateur : N'importe lequel
@@ -477,7 +572,9 @@ Si "Accès refusé" → Les permissions SMB sont incorrectes sur le serveur.
 | 4a  | Control Panel **BLOQUÉ** | `hq\wslusr001`      | ⬜       |
 | 4b  | Control Panel **OK**     | `hq\vtim` (IT)      | ⬜       |
 | 5   | Lecteurs U:, S:, P:      | `hq\wslusr001`      | ⬜       |
-| 6   | Home Folder              | `hq\wslusr001`      | ⬜       |
+| 6   | Home Folder écriture     | `hq\wslusr001`      | ⬜       |
+| 6b  | Quota 20 Mo              | `hq\wslusr001`      | ⬜       |
+| 6c  | Blocage .exe             | `hq\wslusr001`      | ⬜       |
 | 7   | Logo                     | N'importe           | ⬜       |
 
 ---
@@ -486,6 +583,6 @@ Si "Accès refusé" → Les permissions SMB sont incorrectes sur le serveur.
 
 1. **Redémarrer HQCLT** après `gpupdate /force`
 2. Connexion **`hq\administrateur`** → Tests 1, 2
-3. Déconnexion → Connexion **`hq\wslusr001`** → Tests 3, 4a, 5, 6
+3. Déconnexion → Connexion **`hq\wslusr001`** → Tests 3, 4a, 5, 6, 6b, 6c
 4. Déconnexion → Connexion **`hq\vtim`** → Test 4b
 5. **Win+L** → Test 7
