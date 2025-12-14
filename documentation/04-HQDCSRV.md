@@ -885,11 +885,11 @@ New-SmbShare -Name "Department$" `
 # Configurer les permissions par département avec SID
 foreach ($dept in $departments) {
     $deptPath = "D:\shares\Department\$dept"
-    
+
     if (Test-Path $deptPath) {
         # Récupérer le SID du groupe de département
         $deptGroupSID = (Get-ADGroup $dept).SID
-        
+
         $acl = Get-Acl $deptPath
         $acl.SetAccessRuleProtection($true, $false)
 
@@ -922,11 +922,11 @@ New-SmbShare -Name "Public$" `
 # Configurer les permissions par département avec SID
 foreach ($dept in $departments) {
     $deptPath = "D:\shares\Public\$dept"
-    
+
     if (Test-Path $deptPath) {
         # Récupérer le SID du groupe de département
         $deptGroupSID = (Get-ADGroup $dept).SID
-        
+
         $acl = Get-Acl $deptPath
         $acl.SetAccessRuleProtection($true, $false)
 
@@ -1121,28 +1121,35 @@ Write-Host "Ajouter : MapDrives.bat"
 
 ### 8.7 GPO - Configurer les Home Folders utilisateurs
 
+> ⚠️ **Note** : Ce script utilise les SID pour éviter les erreurs de traduction de noms.
+
 ```powershell
+# Récupérer le SID des Domain Admins
+$domainAdminsSID = (Get-ADGroup "Admins du domaine").SID
+
 # Configurer le home folder pour chaque utilisateur
 $users = Get-ADUser -Filter * -SearchBase "OU=HQ,DC=hq,DC=wsl2025,DC=org" -SearchScope Subtree
 
+$count = 0
 foreach ($user in $users) {
     $homeFolder = "\\hq.wsl2025.org\users$\$($user.SamAccountName)"
     $localPath = "D:\shares\datausers\$($user.SamAccountName)"
 
     # Créer le dossier local s'il n'existe pas
     if (-not (Test-Path $localPath)) {
-        New-Item -Path $localPath -ItemType Directory -Force
+        New-Item -Path $localPath -ItemType Directory -Force | Out-Null
 
-        # Configurer les permissions
+        # Configurer les permissions avec SID
         $acl = Get-Acl $localPath
         $acl.SetAccessRuleProtection($true, $false)
 
-        # Administrateurs
-        $rule = New-Object System.Security.AccessControl.FileSystemAccessRule("HQ\Domain Admins", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+        # Administrateurs du domaine (via SID)
+        $rule = New-Object System.Security.AccessControl.FileSystemAccessRule($domainAdminsSID, "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
         $acl.AddAccessRule($rule)
 
-        # Utilisateur propriétaire
-        $rule = New-Object System.Security.AccessControl.FileSystemAccessRule($user.SamAccountName, "Modify", "ContainerInherit,ObjectInherit", "None", "Allow")
+        # Utilisateur propriétaire (via SID)
+        $userSID = $user.SID
+        $rule = New-Object System.Security.AccessControl.FileSystemAccessRule($userSID, "Modify", "ContainerInherit,ObjectInherit", "None", "Allow")
         $acl.AddAccessRule($rule)
 
         Set-Acl $localPath $acl
@@ -1150,7 +1157,11 @@ foreach ($user in $users) {
 
     # Configurer le profil AD
     Set-ADUser -Identity $user -HomeDirectory $homeFolder -HomeDrive "U:"
+    
+    $count++
+    if ($count % 100 -eq 0) { Write-Host "Traité $count utilisateurs..." }
 }
+Write-Host "Terminé : $count utilisateurs configurés" -ForegroundColor Green
 ```
 
 ---
