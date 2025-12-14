@@ -388,11 +388,11 @@ New-ADGroup -Name "Warehouse" -GroupScope Global -GroupCategory Security `
 
 > **Sujet** : Utilisateurs du site REM selon l'Appendix
 >
-> | Utilisateur | Login | Département |
-> |-------------|-------|-------------|
-> | Ela STIQUE | estique | Warehouse |
-> | Rachid TAHA | rtaha | Direction |
-> | Denis PELTIER | dpeltier | IT |
+> | Utilisateur   | Login    | Département |
+> | ------------- | -------- | ----------- |
+> | Ela STIQUE    | estique  | Warehouse   |
+> | Rachid TAHA   | rtaha    | Direction   |
+> | Denis PELTIER | dpeltier | IT          |
 
 ```powershell
 # === UTILISATEUR 1 : Ela STIQUE - Warehouse ===
@@ -444,12 +444,21 @@ Write-Host "Utilisateur dpeltier créé et ajouté au groupe IT" -ForegroundColo
 # Lister les utilisateurs
 Get-ADUser -Filter * -SearchBase "OU=Workers,OU=Remote,DC=rem,DC=wsl2025,DC=org" | Select-Object Name, SamAccountName
 
-# Lister les groupes et leurs membres
-Get-ADGroup -Filter * -SearchBase "OU=Groups,OU=Remote,DC=rem,DC=wsl2025,DC=org" | ForEach-Object {
-    Write-Host "`nGroupe: $($_.Name)" -ForegroundColor Cyan
-    Get-ADGroupMember -Identity $_ | Select-Object Name
-}
+# Vérification claire groupe par groupe
+Write-Host "`n=== Groupe IT ===" -ForegroundColor Cyan
+Get-ADGroupMember -Identity "IT" | Select-Object Name
+
+Write-Host "`n=== Groupe Direction ===" -ForegroundColor Cyan
+Get-ADGroupMember -Identity "Direction" | Select-Object Name
+
+Write-Host "`n=== Groupe Warehouse ===" -ForegroundColor Cyan
+Get-ADGroupMember -Identity "Warehouse" | Select-Object Name
 ```
+
+> ✅ **Résultat attendu** :
+> - IT : Denis PELTIER
+> - Direction : Rachid TAHA
+> - Warehouse : Ela STIQUE
 
 ---
 
