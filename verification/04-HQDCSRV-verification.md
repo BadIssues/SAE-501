@@ -272,14 +272,14 @@ Test-Path "\\HQDCSRV\Public$"
 
 ### 8.2 Vérifier chaque GPO
 
-| GPO | Vérification GUI |
-|-----|------------------|
-| **Deploy-Certificates** | Clic droit → Modifier → `Config ordinateur > Stratégies > Paramètres Windows > Paramètres de sécurité > Stratégies de clé publique` → ✅ WSFR-ROOT-CA dans Racines de confiance, ✅ WSFR-SUB-CA dans Intermédiaires |
-| **Certificate-Autoenrollment** | Même chemin → ✅ "Inscription automatique" = Activé (Ordinateur ET Utilisateur) |
-| **Edge-Homepage-Intranet** | `Config ordinateur > Stratégies > Modèles d'administration > Microsoft Edge > Démarrage...` → ✅ URL configurée |
-| **Block-ControlPanel** | `Config utilisateur > Stratégies > Modèles d'administration > Panneau de configuration` → ✅ "Interdire l'accès" = Activé |
-| **Enterprise-Logo** | `Config ordinateur > Stratégies > Modèles d'administration > Panneau de configuration > Personnalisation` → ✅ "Forcer image écran verrouillage" = Activé avec chemin |
-| **Drive-Mappings** | `Config utilisateur > Stratégies > Paramètres Windows > Scripts > Ouverture de session` → ✅ MapDrives.bat présent |
+| GPO                            | Vérification GUI                                                                                                                                                                                                    |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Deploy-Certificates**        | Clic droit → Modifier → `Config ordinateur > Stratégies > Paramètres Windows > Paramètres de sécurité > Stratégies de clé publique` → ✅ WSFR-ROOT-CA dans Racines de confiance, ✅ WSFR-SUB-CA dans Intermédiaires |
+| **Certificate-Autoenrollment** | Même chemin → ✅ "Inscription automatique" = Activé (Ordinateur ET Utilisateur)                                                                                                                                     |
+| **Edge-Homepage-Intranet**     | `Config ordinateur > Stratégies > Modèles d'administration > Microsoft Edge > Démarrage...` → ✅ URL configurée                                                                                                     |
+| **Block-ControlPanel**         | `Config utilisateur > Stratégies > Modèles d'administration > Panneau de configuration` → ✅ "Interdire l'accès" = Activé                                                                                           |
+| **Enterprise-Logo**            | `Config ordinateur > Stratégies > Modèles d'administration > Panneau de configuration > Personnalisation` → ✅ "Forcer image écran verrouillage" = Activé avec chemin                                               |
+| **Drive-Mappings**             | `Config utilisateur > Stratégies > Paramètres Windows > Scripts > Ouverture de session` → ✅ MapDrives.bat présent                                                                                                  |
 
 ### 8.3 Vérifier l'exclusion IT sur Block-ControlPanel
 
@@ -479,7 +479,7 @@ Si "Accès refusé" → Les permissions SMB sont incorrectes sur le serveur.
 
 ### Utilisateur : `hq\wslusr001`
 
-> ⚠️ Le quota est configuré en **SoftLimit** (avertissement, pas blocage strict)
+> ✅ Le quota est configuré en **HardLimit** (blocage strict) - conforme au sujet
 
 #### Test depuis le client (PowerShell Admin) :
 
@@ -487,8 +487,9 @@ Si "Accès refusé" → Les permissions SMB sont incorrectes sur le serveur.
 # Créer un fichier de 15 Mo (doit fonctionner)
 fsutil file createnew U:\test15mo.bin 15728640
 
-# Créer un fichier de 25 Mo (dépasse le quota - alerte générée)
+# Créer un fichier de 25 Mo (doit ÉCHOUER - quota dépassé)
 fsutil file createnew U:\test25mo.bin 26214400
+# Attendu : Erreur "Espace disque insuffisant" ou "Quota dépassé"
 
 # Vérifier l'espace total utilisé
 Get-ChildItem U:\ -Recurse -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum |
@@ -517,18 +518,14 @@ Get-FsrmAutoQuota -Path "D:\shares\datausers"
 **Attendu** :
 
 - Template `UserQuota20MB` existe avec Size = 20 Mo
+- **SoftLimit = False** (HardLimit - blocage strict)
 - Auto-quota appliqué sur `D:\shares\datausers`
 - Chaque sous-dossier utilisateur a un quota de 20 Mo
 
-#### Si le quota doit BLOQUER (pas juste alerter) :
-
-Modifier sur HQDCSRV pour passer en **HardLimit** :
-
 ```powershell
-# Supprimer l'ancien template et en créer un strict
-Remove-FsrmQuotaTemplate -Name "UserQuota20MB" -Confirm:$false
-New-FsrmQuotaTemplate -Name "UserQuota20MB" -Size 20MB -Description "Quota utilisateur 20 Mo - STRICT"
-# Note: Sans -SoftLimit, c'est un HardLimit par défaut
+# Vérifier que c'est bien un HardLimit
+Get-FsrmQuotaTemplate -Name "UserQuota20MB" | Select-Object Name, Size, SoftLimit
+# Attendu : SoftLimit = False
 ```
 
 ---

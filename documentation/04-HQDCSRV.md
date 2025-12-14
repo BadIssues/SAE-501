@@ -927,15 +927,20 @@ Write-Host "OK: Partage users$ configuré" -ForegroundColor Green
 
 ### 7.4 Quota 20 Mo pour les home drives
 
+> ⚠️ **Important** : Le sujet demande de "Limit" (limiter) le quota, donc on utilise un **HardLimit** (blocage strict), pas un SoftLimit (avertissement).
+
 ```powershell
-# Créer le template de quota (20 Mo soft limit)
+# Créer le template de quota (20 Mo - HardLimit par défaut)
 New-FsrmQuotaTemplate -Name "UserQuota20MB" `
     -Size 20MB `
-    -SoftLimit `
-    -Description "Quota utilisateur 20 Mo"
+    -Description "Quota utilisateur 20 Mo - STRICT"
 
 # Appliquer l'auto-quota sur le dossier
 New-FsrmAutoQuota -Path "D:\shares\datausers" -Template "UserQuota20MB"
+
+# Vérifier que c'est bien un HardLimit
+Get-FsrmQuotaTemplate -Name "UserQuota20MB" | Select-Object Name, Size, SoftLimit
+# Attendu : SoftLimit = False
 ```
 
 ### 7.5 Bloquer les fichiers exécutables
@@ -1198,16 +1203,19 @@ Write-Host "`n⚠️  CONFIGURER CHAQUE GPO EN GUI (voir documentation)" -Foregr
 3. Clic droit sur **Deploy-Certificates** → **Modifier**
 
 4. Naviguer vers :
+
    ```
    Configuration ordinateur → Stratégies → Paramètres Windows
    → Paramètres de sécurité → Stratégies de clé publique
    ```
 
 5. **Importer le Root CA** :
+
    - Clic droit sur **Autorités de certification racines de confiance** → **Importer...**
    - Parcourir → `C:\WSFR-ROOT-CA.cer` → **Suivant** → **Terminer**
 
 6. **Importer le Sub CA** :
+
    - Clic droit sur **Autorités de certification intermédiaires** → **Importer...**
    - Parcourir → `C:\SubCA.cer` → **Suivant** → **Terminer**
 
@@ -1222,10 +1230,12 @@ Write-Host "`n⚠️  CONFIGURER CHAQUE GPO EN GUI (voir documentation)" -Foregr
 1. Dans **gpmc.msc**, clic droit sur **Certificate-Autoenrollment** → **Modifier**
 
 2. **Configuration ORDINATEUR** :
+
    ```
    Configuration ordinateur → Stratégies → Paramètres Windows
    → Paramètres de sécurité → Stratégies de clé publique
    ```
+
    - Double-clic sur **Client des services de certificats - Inscription automatique**
    - **Modèle de configuration** : **Activé**
    - ✅ Cocher **Renouveler les certificats expirés...**
@@ -1233,10 +1243,12 @@ Write-Host "`n⚠️  CONFIGURER CHAQUE GPO EN GUI (voir documentation)" -Foregr
    - **OK**
 
 3. **Configuration UTILISATEUR** (répéter) :
+
    ```
    Configuration utilisateur → Stratégies → Paramètres Windows
    → Paramètres de sécurité → Stratégies de clé publique
    ```
+
    - Double-clic sur **Client des services de certificats - Inscription automatique**
    - Mêmes paramètres que ci-dessus
    - **OK**
@@ -1252,29 +1264,34 @@ Write-Host "`n⚠️  CONFIGURER CHAQUE GPO EN GUI (voir documentation)" -Foregr
 1. Dans **gpmc.msc**, clic droit sur **Edge-Homepage-Intranet** → **Modifier**
 
 2. Naviguer vers :
+
    ```
    Configuration ordinateur → Stratégies → Modèles d'administration
    → Microsoft Edge → Démarrage, page d'accueil et page Nouvel onglet
    ```
 
 3. **Configurer l'URL de la page d'accueil** :
+
    - Double-clic sur **Configurer l'URL de la page d'accueil**
    - **Activé**
    - URL : `http://hqmailsrv.wsl2025.org` (ou votre URL intranet)
    - **OK**
 
 4. **Afficher le bouton Accueil** :
+
    - Double-clic sur **Afficher le bouton Accueil sur la barre d'outils**
    - **Activé**
    - **OK**
 
 5. **Configurer l'action au démarrage** :
+
    - Double-clic sur **Action à effectuer au démarrage**
    - **Activé**
    - Choisir : **Ouvrir une liste d'URL**
    - **OK**
 
 6. **Configurer les URL de démarrage** :
+
    - Double-clic sur **URL à ouvrir au démarrage**
    - **Activé**
    - Cliquer **Afficher...** → Ajouter `http://hqmailsrv.wsl2025.org`
@@ -1291,12 +1308,14 @@ Write-Host "`n⚠️  CONFIGURER CHAQUE GPO EN GUI (voir documentation)" -Foregr
 1. Dans **gpmc.msc**, clic droit sur **Block-ControlPanel** → **Modifier**
 
 2. Naviguer vers :
+
    ```
    Configuration utilisateur → Stratégies → Modèles d'administration
    → Panneau de configuration
    ```
 
 3. Double-clic sur **Interdire l'accès au Panneau de configuration et à l'application Paramètres du PC**
+
    - **Activé**
    - **OK**
 
@@ -1315,6 +1334,7 @@ Write-Host "`n⚠️  CONFIGURER CHAQUE GPO EN GUI (voir documentation)" -Foregr
 9. Sélectionner le groupe **IT** dans la liste
 
 10. Dans les permissions, cocher **Refuser** pour :
+
     - ✅ **Appliquer la stratégie de groupe** → **REFUSER**
 
 11. Cliquer **OK** → **Oui** pour confirmer le Deny
@@ -1337,12 +1357,14 @@ Write-Host "`n⚠️  CONFIGURER CHAQUE GPO EN GUI (voir documentation)" -Foregr
 2. Dans **gpmc.msc**, clic droit sur **Enterprise-Logo** → **Modifier**
 
 3. Naviguer vers :
+
    ```
    Configuration ordinateur → Stratégies → Modèles d'administration
    → Panneau de configuration → Personnalisation
    ```
 
 4. Double-clic sur **Forcer une image d'écran de verrouillage par défaut**
+
    - **Activé**
    - Chemin : `\\hq.wsl2025.org\NETLOGON\Logo\logo.jpg`
    - **OK**
@@ -1358,6 +1380,7 @@ Write-Host "`n⚠️  CONFIGURER CHAQUE GPO EN GUI (voir documentation)" -Foregr
 1. Dans **gpmc.msc**, clic droit sur **Drive-Mappings** → **Modifier**
 
 2. Naviguer vers :
+
    ```
    Configuration utilisateur → Stratégies → Paramètres Windows
    → Scripts (ouverture/fermeture de session)
@@ -1434,14 +1457,14 @@ Get-GPO -Name "Deploy-Certificates" | Get-GPOReport -ReportType HTML -Path "C:\G
 
 **Attendu** : 6 GPO avec statut `AllSettingsEnabled`
 
-| GPO | Liée à |
-|-----|--------|
-| Deploy-Certificates | DC=hq,DC=wsl2025,DC=org |
-| Certificate-Autoenrollment | DC=hq,DC=wsl2025,DC=org |
-| Edge-Homepage-Intranet | DC=hq,DC=wsl2025,DC=org |
-| Block-ControlPanel | OU=Users,OU=HQ,DC=hq,DC=wsl2025,DC=org |
-| Enterprise-Logo | DC=hq,DC=wsl2025,DC=org |
-| Drive-Mappings | OU=Users,OU=HQ,DC=hq,DC=wsl2025,DC=org |
+| GPO                        | Liée à                                 |
+| -------------------------- | -------------------------------------- |
+| Deploy-Certificates        | DC=hq,DC=wsl2025,DC=org                |
+| Certificate-Autoenrollment | DC=hq,DC=wsl2025,DC=org                |
+| Edge-Homepage-Intranet     | DC=hq,DC=wsl2025,DC=org                |
+| Block-ControlPanel         | OU=Users,OU=HQ,DC=hq,DC=wsl2025,DC=org |
+| Enterprise-Logo            | DC=hq,DC=wsl2025,DC=org                |
+| Drive-Mappings             | OU=Users,OU=HQ,DC=hq,DC=wsl2025,DC=org |
 
 ---
 
