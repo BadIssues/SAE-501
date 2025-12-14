@@ -1157,7 +1157,7 @@ foreach ($user in $users) {
 
     # Configurer le profil AD
     Set-ADUser -Identity $user -HomeDirectory $homeFolder -HomeDrive "U:"
-    
+
     $count++
     if ($count % 100 -eq 0) { Write-Host "Traité $count utilisateurs..." }
 }
