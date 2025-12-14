@@ -219,14 +219,14 @@ Get-SmbShareAccess -Name "Public$"
 
 **Attendu** :
 
-| Partage | Compte | Droit |
-|---------|--------|-------|
-| users$ | Admins du domaine | Full |
-| users$ | Utilisateurs authentifiés | Change |
-| Department$ | Admins du domaine | Full |
+| Partage     | Compte                      | Droit      |
+| ----------- | --------------------------- | ---------- |
+| users$      | Admins du domaine           | Full       |
+| users$      | Utilisateurs authentifiés   | Change     |
+| Department$ | Admins du domaine           | Full       |
 | Department$ | **Utilisateurs du domaine** | **Change** |
-| Public$ | Admins du domaine | Full |
-| Public$ | **Utilisateurs du domaine** | **Change** |
+| Public$     | Admins du domaine           | Full       |
+| Public$     | **Utilisateurs du domaine** | **Change** |
 
 > ⚠️ Si `Utilisateurs du domaine` n'a pas `Change` sur Department$ et Public$, les lecteurs S: et P: ne se monteront pas !
 
@@ -408,11 +408,11 @@ Le groupe `IT` doit avoir `Denied = True` pour `GpoApply`.
 2. Ouvrir **Explorateur** → **Ce PC**
 3. ✅ Vérifier :
 
-| Lecteur | Pointe vers | Chemin UNC |
-| ------- | ----------- | ---------- |
-| **U:** | Dossier personnel | `\\hq.wsl2025.org\users$\wslusr001` |
-| **S:** | Département | `\\HQDCSRV\Department$` |
-| **P:** | Public | `\\HQDCSRV\Public$` |
+| Lecteur | Pointe vers       | Chemin UNC                          |
+| ------- | ----------------- | ----------------------------------- |
+| **U:**  | Dossier personnel | `\\hq.wsl2025.org\users$\wslusr001` |
+| **S:**  | Département       | `\\HQDCSRV\Department$`             |
+| **P:**  | Public            | `\\HQDCSRV\Public$`                 |
 
 ### PowerShell :
 
@@ -475,4 +475,3 @@ Si "Accès refusé" → Les permissions SMB sont incorrectes sur le serveur.
 3. Déconnexion → Connexion **`hq\wslusr001`** → Tests 3, 4a, 5, 6
 4. Déconnexion → Connexion **`hq\vtim`** → Test 4b
 5. **Win+L** → Test 7
-
