@@ -496,44 +496,50 @@ New-Item -Path "C:\shares\datausers\dpeltier" -ItemType Directory -Force
 > - "Users can only access their personal folder"
 > - "Users can only see their personal folder"
 
-> ⚠️ **Note Windows FR** : Utiliser les noms français des groupes (Administrateurs, Utilisateurs authentifiés)
+> ⚠️ **Note** : Utilisation des SID universels pour compatibilité toutes langues Windows
 
 ```powershell
-# Permissions sur le dossier parent datausers
+# === DÉFINITION DES SID UNIVERSELS ===
+$adminSID = New-Object System.Security.Principal.SecurityIdentifier("S-1-5-32-544")      # Administrators
+$systemSID = New-Object System.Security.Principal.SecurityIdentifier("S-1-5-18")         # SYSTEM
+$authUsersSID = New-Object System.Security.Principal.SecurityIdentifier("S-1-5-11")      # Authenticated Users
+
+# === PERMISSIONS SUR DATAUSERS (parent) ===
 $aclParent = Get-Acl "C:\shares\datausers"
 $aclParent.SetAccessRuleProtection($true, $false)  # Désactiver héritage
 
-# Administrateurs = Full Control (nom français)
+# Administrators = Full Control
 $adminRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
-    "BUILTIN\Administrateurs", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+    $adminSID, "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
 $aclParent.AddAccessRule($adminRule)
 
 # SYSTEM = Full Control
 $systemRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
-    "NT AUTHORITY\SYSTEM", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+    $systemSID, "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
 $aclParent.AddAccessRule($systemRule)
 
-# Utilisateurs authentifiés = List folder (pour accéder à leur sous-dossier)
+# Authenticated Users = List folder (pour accéder à leur sous-dossier)
 $authUsersRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
-    "NT AUTHORITY\Utilisateurs authentifiés", "ReadAndExecute", "None", "None", "Allow")
+    $authUsersSID, "ReadAndExecute", "None", "None", "Allow")
 $aclParent.AddAccessRule($authUsersRule)
 
 Set-Acl "C:\shares\datausers" $aclParent
+Write-Host "Permissions datausers (parent) OK" -ForegroundColor Green
 
-# Permissions sur chaque dossier utilisateur
+# === PERMISSIONS SUR CHAQUE DOSSIER UTILISATEUR ===
 foreach ($login in @("estique", "rtaha", "dpeltier")) {
     $userPath = "C:\shares\datausers\$login"
     $acl = Get-Acl $userPath
     $acl.SetAccessRuleProtection($true, $false)  # Désactiver héritage
 
-    # Administrateurs = Full Control
+    # Administrators = Full Control
     $adminRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
-        "BUILTIN\Administrateurs", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+        $adminSID, "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
     $acl.AddAccessRule($adminRule)
 
     # SYSTEM = Full Control
     $systemRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
-        "NT AUTHORITY\SYSTEM", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+        $systemSID, "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
     $acl.AddAccessRule($systemRule)
 
     # Utilisateur = Modify sur son dossier uniquement
@@ -554,38 +560,44 @@ foreach ($login in @("estique", "rtaha", "dpeltier")) {
 > - "Users can only see their department folder"
 
 ```powershell
-# Permissions sur le dossier parent Department
+# === DÉFINITION DES SID UNIVERSELS (si pas déjà fait) ===
+$adminSID = New-Object System.Security.Principal.SecurityIdentifier("S-1-5-32-544")      # Administrators
+$systemSID = New-Object System.Security.Principal.SecurityIdentifier("S-1-5-18")         # SYSTEM
+$authUsersSID = New-Object System.Security.Principal.SecurityIdentifier("S-1-5-11")      # Authenticated Users
+
+# === PERMISSIONS SUR DEPARTMENT (parent) ===
 $aclDept = Get-Acl "C:\shares\Department"
 $aclDept.SetAccessRuleProtection($true, $false)
 
 $adminRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
-    "BUILTIN\Administrateurs", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+    $adminSID, "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
 $aclDept.AddAccessRule($adminRule)
 
 $systemRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
-    "NT AUTHORITY\SYSTEM", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+    $systemSID, "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
 $aclDept.AddAccessRule($systemRule)
 
 $authUsersRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
-    "NT AUTHORITY\Utilisateurs authentifiés", "ReadAndExecute", "None", "None", "Allow")
+    $authUsersSID, "ReadAndExecute", "None", "None", "Allow")
 $aclDept.AddAccessRule($authUsersRule)
 
 Set-Acl "C:\shares\Department" $aclDept
+Write-Host "Permissions Department (parent) OK" -ForegroundColor Green
 
-# Permissions sur chaque dossier département
+# === PERMISSIONS SUR CHAQUE DOSSIER DÉPARTEMENT ===
 foreach ($dept in @("IT", "Direction", "Warehouse")) {
     $deptPath = "C:\shares\Department\$dept"
     $acl = Get-Acl $deptPath
     $acl.SetAccessRuleProtection($true, $false)
 
-    # Administrateurs = Full Control
+    # Administrators = Full Control
     $adminRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
-        "BUILTIN\Administrateurs", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+        $adminSID, "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
     $acl.AddAccessRule($adminRule)
 
     # SYSTEM = Full Control
     $systemRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
-        "NT AUTHORITY\SYSTEM", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+        $systemSID, "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
     $acl.AddAccessRule($systemRule)
 
     # Groupe département = Modify
@@ -729,6 +741,7 @@ Write-Host "`n⚠️  CONFIGURER CHAQUE GPO EN GUI (voir sections 8.1 à 8.4)" -
 3. Clic droit sur **REM-IT-LocalAdmins** → **Modifier**
 
 4. Naviguer vers :
+
    ```
    Computer Configuration
    └── Policies
@@ -742,6 +755,7 @@ Write-Host "`n⚠️  CONFIGURER CHAQUE GPO EN GUI (voir sections 8.1 à 8.4)" -
 6. Taper `Administrators` → **OK**
 
 7. Dans la fenêtre qui s'ouvre, section **"Members of this group"** :
+
    - Cliquer **Add...**
    - Taper `REM\IT` → **OK**
 
@@ -760,6 +774,7 @@ Write-Host "`n⚠️  CONFIGURER CHAQUE GPO EN GUI (voir sections 8.1 à 8.4)" -
 1. Dans **gpmc.msc**, clic droit sur **REM-Block-ControlPanel** → **Modifier**
 
 2. Naviguer vers :
+
    ```
    User Configuration
    └── Policies
@@ -808,6 +823,7 @@ Write-Host "`n⚠️  CONFIGURER CHAQUE GPO EN GUI (voir sections 8.1 à 8.4)" -
 3. Clic droit sur **Drive Maps** → **New** → **Mapped Drive**
 
 4. Configurer :
+
    - **Action** : Update
    - **Location** : `\\rem.wsl2025.org\users\%USERNAME%`
    - **Reconnect** : ✅ Coché
@@ -821,6 +837,7 @@ Write-Host "`n⚠️  CONFIGURER CHAQUE GPO EN GUI (voir sections 8.1 à 8.4)" -
 6. Clic droit sur **Drive Maps** → **New** → **Mapped Drive**
 
 7. Configurer :
+
    - **Action** : Update
    - **Location** : `\\rem.wsl2025.org\files\Department`
    - **Reconnect** : ✅ Coché
@@ -893,12 +910,12 @@ Get-GPInheritance -Target "OU=Remote,DC=rem,DC=wsl2025,DC=org"
 
 **Attendu** : 4 GPO avec statut `AllSettingsEnabled`
 
-| GPO                     | Liée à                                    |
-| ----------------------- | ----------------------------------------- |
-| REM-IT-LocalAdmins      | OU=Remote,DC=rem,DC=wsl2025,DC=org        |
+| GPO                     | Liée à                                        |
+| ----------------------- | --------------------------------------------- |
+| REM-IT-LocalAdmins      | OU=Remote,DC=rem,DC=wsl2025,DC=org            |
 | REM-Block-ControlPanel  | OU=Workers,OU=Remote,DC=rem,DC=wsl2025,DC=org |
-| REM-DriveMappings       | OU=Remote,DC=rem,DC=wsl2025,DC=org        |
-| REM-Deploy-Certificates | OU=Remote,DC=rem,DC=wsl2025,DC=org        |
+| REM-DriveMappings       | OU=Remote,DC=rem,DC=wsl2025,DC=org            |
+| REM-Deploy-Certificates | OU=Remote,DC=rem,DC=wsl2025,DC=org            |
 
 ---
 
