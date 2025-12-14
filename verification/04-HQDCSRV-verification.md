@@ -499,34 +499,36 @@ Get-ChildItem U:\ -Recurse -ErrorAction SilentlyContinue | Measure-Object -Prope
 Remove-Item U:\test*.bin -Force
 ```
 
-#### Vérification sur HQDCSRV :
+#### Vérification GUI sur HQDCSRV :
+
+1. **Win+R** → `fsrm.msc` → Entrée
+2. **Gestion de quota** → **Modèles de quotas**
+3. ✅ Vérifier que **UserQuota20MB** existe avec :
+   - Limite : 20 Mo
+   - Type : **Limite inconditionnelle** (HardLimit)
+4. **Gestion de quota** → **Quotas automatiques**
+5. ✅ Vérifier que `D:\shares\datausers` a un quota automatique avec le modèle **UserQuota20MB**
+6. **Gestion de quota** → **Quotas**
+7. ✅ Vérifier que chaque dossier utilisateur a un quota de 20 Mo appliqué
+
+#### Vérification PowerShell sur HQDCSRV :
 
 ```powershell
-# Vérifier le quota appliqué à l'utilisateur
-Get-FsrmQuota -Path "D:\shares\datausers\wslusr001"
-
-# Vérifier tous les quotas
-Get-FsrmQuota -Path "D:\shares\datausers\*" | Format-Table Path, @{N='SizeMB';E={$_.Size/1MB}}, @{N='UsedMB';E={$_.Usage/1MB}}
-
-# Vérifier le template
-Get-FsrmQuotaTemplate -Name "UserQuota20MB"
+# Vérifier le template (SoftLimit = False = HardLimit)
+Get-FsrmQuotaTemplate -Name "UserQuota20MB" | Select-Object Name, Size, SoftLimit
 
 # Vérifier l'auto-quota
 Get-FsrmAutoQuota -Path "D:\shares\datausers"
+
+# Vérifier les quotas appliqués aux utilisateurs
+Get-FsrmQuota -Path "D:\shares\datausers\*" | Format-Table Path, @{N='SizeMB';E={$_.Size/1MB}}, @{N='UsedMB';E={$_.Usage/1MB}}
 ```
 
 **Attendu** :
 
-- Template `UserQuota20MB` existe avec Size = 20 Mo
-- **SoftLimit = False** (HardLimit - blocage strict)
-- Auto-quota appliqué sur `D:\shares\datausers`
+- Template `UserQuota20MB` avec **SoftLimit = False** (HardLimit)
+- Auto-quota sur `D:\shares\datausers`
 - Chaque sous-dossier utilisateur a un quota de 20 Mo
-
-```powershell
-# Vérifier que c'est bien un HardLimit
-Get-FsrmQuotaTemplate -Name "UserQuota20MB" | Select-Object Name, Size, SoftLimit
-# Attendu : SoftLimit = False
-```
 
 ---
 
@@ -541,11 +543,19 @@ Copy-Item "C:\Windows\System32\calc.exe" "U:\calc.exe"
 
 **Attendu** : ❌ Accès refusé / Opération bloquée
 
-#### Vérification sur HQDCSRV :
+#### Vérification GUI sur HQDCSRV :
+
+1. **Win+R** → `fsrm.msc` → Entrée
+2. **Gestion du filtrage de fichiers** → **Filtres de fichiers**
+3. ✅ Vérifier qu'un filtre existe sur `D:\shares\datausers` avec :
+   - Type : **Filtrage actif**
+   - Groupe de fichiers : **Fichiers exécutables** (ou Executables)
+
+#### Vérification PowerShell sur HQDCSRV :
 
 ```powershell
 Get-FsrmFileScreen -Path "D:\shares\datausers"
-Get-FsrmFileScreenTemplate -Name "Block-Executables"
+Get-FsrmFileGroup -Name "Fichiers exécutables"
 ```
 
 ---

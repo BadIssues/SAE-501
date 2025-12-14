@@ -925,31 +925,100 @@ Set-Acl "D:\shares\datausers" $acl
 Write-Host "OK: Partage users$ configuré" -ForegroundColor Green
 ```
 
-### 7.4 Quota 20 Mo pour les home drives
+### 7.4 Quota 20 Mo pour les home drives (GUI)
 
 > ⚠️ **Important** : Le sujet demande de "Limit" (limiter) le quota, donc on utilise un **HardLimit** (blocage strict), pas un SoftLimit (avertissement).
 
+#### Étape 1 : Ouvrir le Gestionnaire de ressources du serveur de fichiers
+
+1. **Win+R** → `fsrm.msc` → Entrée
+2. Ou via **Gestionnaire de serveur** → Outils → **Gestionnaire de ressources du serveur de fichiers**
+
+#### Étape 2 : Créer un modèle de quota
+
+1. Dans le panneau gauche : **Gestion de quota** → **Modèles de quotas**
+2. Clic droit → **Créer un modèle de quota...**
+3. Configurer :
+   - **Nom du modèle** : `UserQuota20MB`
+   - **Description** : `Quota utilisateur 20 Mo - STRICT`
+   - **Limite d'espace** : `20` Mo
+   - ✅ **Limite inconditionnelle** (HardLimit - bloque l'écriture)
+   - ❌ Ne PAS cocher "Limite conditionnelle" (SoftLimit)
+4. Optionnel : Configurer des **seuils de notification** (ex: avertissement à 85%, 95%)
+5. Cliquer **OK**
+
+#### Étape 3 : Appliquer un quota automatique sur les home drives
+
+1. Dans le panneau gauche : **Gestion de quota** → **Quotas automatiques**
+2. Clic droit → **Créer un quota automatique...**
+3. Configurer :
+   - **Chemin du quota automatique** : `D:\shares\datausers`
+   - **Dériver les propriétés de ce modèle de quota** : Sélectionner `UserQuota20MB`
+4. Cliquer **Créer**
+
+> ✅ Le quota sera automatiquement appliqué à chaque sous-dossier utilisateur existant et futur !
+
+#### Vérification
+
 ```powershell
-# Créer le template de quota (20 Mo - HardLimit par défaut)
-New-FsrmQuotaTemplate -Name "UserQuota20MB" `
-    -Size 20MB `
-    -Description "Quota utilisateur 20 Mo - STRICT"
-
-# Appliquer l'auto-quota sur le dossier
-New-FsrmAutoQuota -Path "D:\shares\datausers" -Template "UserQuota20MB"
-
-# Vérifier que c'est bien un HardLimit
+# Vérifier le template
 Get-FsrmQuotaTemplate -Name "UserQuota20MB" | Select-Object Name, Size, SoftLimit
-# Attendu : SoftLimit = False
+# Attendu : SoftLimit = False (HardLimit)
+
+# Vérifier l'auto-quota
+Get-FsrmAutoQuota -Path "D:\shares\datausers"
+
+# Vérifier les quotas appliqués
+Get-FsrmQuota -Path "D:\shares\datausers\*" | Format-Table Path, @{N='SizeMB';E={$_.Size/1MB}}, @{N='UsedMB';E={$_.Usage/1MB}}
 ```
 
-### 7.5 Bloquer les fichiers exécutables
+---
+
+### 7.5 Bloquer les fichiers exécutables (GUI)
+
+#### Étape 1 : Créer un groupe de fichiers (si nécessaire)
+
+1. Dans `fsrm.msc` : **Gestion du filtrage de fichiers** → **Groupes de fichiers**
+2. Vérifier si **"Fichiers exécutables"** existe déjà (groupe par défaut Windows)
+3. Si non, clic droit → **Créer un groupe de fichiers...**
+   - **Nom** : `Executables`
+   - **Fichiers à inclure** : `*.exe`, `*.com`, `*.bat`, `*.cmd`, `*.msi`, `*.vbs`, `*.ps1`, `*.scr`
+   - Cliquer **OK**
+
+#### Étape 2 : Créer un filtre de fichiers
+
+1. Dans le panneau gauche : **Gestion du filtrage de fichiers** → **Filtres de fichiers**
+2. Clic droit → **Créer un filtre de fichiers...**
+3. Configurer :
+   - **Chemin du filtre de fichiers** : `D:\shares\datausers`
+   - ✅ **Filtrage actif** (bloque les fichiers)
+   - Sélectionner le groupe : **Fichiers exécutables** (ou `Executables`)
+4. Cliquer **Créer**
+
+#### Vérification
 
 ```powershell
-# Créer le groupe de fichiers pour les exécutables
+Get-FsrmFileScreen -Path "D:\shares\datausers"
+Get-FsrmFileGroup -Name "Fichiers exécutables"
+```
+
+---
+
+### 7.4b / 7.5b Alternative PowerShell (si GUI non disponible)
+
+```powershell
+# === QUOTA 20 Mo ===
+# Créer le template de quota (HardLimit par défaut)
+New-FsrmQuotaTemplate -Name "UserQuota20MB" -Size 20MB -Description "Quota utilisateur 20 Mo - STRICT"
+
+# Appliquer l'auto-quota
+New-FsrmAutoQuota -Path "D:\shares\datausers" -Template "UserQuota20MB"
+
+# === BLOCAGE EXECUTABLES ===
+# Créer le groupe de fichiers
 New-FsrmFileGroup -Name "Executables" -IncludePattern @("*.exe", "*.com", "*.bat", "*.cmd", "*.msi", "*.vbs", "*.ps1", "*.scr")
 
-# Créer le file screen
+# Créer le filtre de fichiers
 New-FsrmFileScreen -Path "D:\shares\datausers" -IncludeGroup "Executables" -Active
 ```
 

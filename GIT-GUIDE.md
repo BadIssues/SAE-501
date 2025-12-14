@@ -110,13 +110,13 @@ git diff
 
 ## 🏷️ Conventions de messages de commit
 
-| Préfixe | Utilisation |
-|---------|-------------|
-| `docs()` | Modification de documentation |
-| `fix()` | Correction d'erreur |
-| `feat()` | Nouvelle fonctionnalité |
+| Préfixe      | Utilisation                                |
+| ------------ | ------------------------------------------ |
+| `docs()`     | Modification de documentation              |
+| `fix()`      | Correction d'erreur                        |
+| `feat()`     | Nouvelle fonctionnalité                    |
 | `refactor()` | Réorganisation sans changement fonctionnel |
-| `test()` | Ajout/modification de tests |
+| `test()`     | Ajout/modification de tests                |
 
 ### Exemples
 
