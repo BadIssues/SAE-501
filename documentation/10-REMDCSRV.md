@@ -387,54 +387,55 @@ New-ADGroup -Name "Warehouse" -GroupScope Global -GroupCategory Security `
 ### 6.3 Créer les utilisateurs Remote
 
 > **Sujet** : Utilisateurs du site REM selon l'Appendix
+>
+> | Utilisateur | Login | Département |
+> |-------------|-------|-------------|
+> | Ela STIQUE | estique | Warehouse |
+> | Rachid TAHA | rtaha | Direction |
+> | Denis PELTIER | dpeltier | IT |
 
 ```powershell
-# Définition des utilisateurs Remote
-$usersRemote = @(
-    @{
-        FirstName = "Ela"
-        LastName = "STIQUE"
-        Login = "estique"
-        Department = "Warehouse"
-        Email = "estique@wsl2025.org"
-    },
-    @{
-        FirstName = "Rachid"
-        LastName = "TAHA"
-        Login = "rtaha"
-        Department = "Direction"
-        Email = "rtaha@wsl2025.org"
-    },
-    @{
-        FirstName = "Denis"
-        LastName = "PELTIER"
-        Login = "dpeltier"
-        Department = "IT"
-        Email = "dpeltier@wsl2025.org"
-    }
-)
+# === UTILISATEUR 1 : Ela STIQUE - Warehouse ===
+New-ADUser -Name "Ela STIQUE" `
+    -GivenName "Ela" -Surname "STIQUE" `
+    -SamAccountName "estique" `
+    -UserPrincipalName "estique@rem.wsl2025.org" `
+    -EmailAddress "estique@wsl2025.org" `
+    -Department "Warehouse" `
+    -Path "OU=Workers,OU=Remote,DC=rem,DC=wsl2025,DC=org" `
+    -AccountPassword (ConvertTo-SecureString "P@ssw0rd" -AsPlainText -Force) `
+    -ChangePasswordAtLogon $false -PasswordNeverExpires $true -Enabled $true
 
-# Création des utilisateurs
-foreach ($user in $usersRemote) {
-    New-ADUser `
-        -Name "$($user.FirstName) $($user.LastName)" `
-        -GivenName $user.FirstName `
-        -Surname $user.LastName `
-        -SamAccountName $user.Login `
-        -UserPrincipalName "$($user.Login)@rem.wsl2025.org" `
-        -EmailAddress $user.Email `
-        -Department $user.Department `
-        -Path "OU=Workers,OU=Remote,DC=rem,DC=wsl2025,DC=org" `
-        -AccountPassword (ConvertTo-SecureString "P@ssw0rd" -AsPlainText -Force) `
-        -ChangePasswordAtLogon $false `
-        -PasswordNeverExpires $true `
-        -Enabled $true
+Add-ADGroupMember -Identity "Warehouse" -Members "estique"
+Write-Host "Utilisateur estique créé et ajouté au groupe Warehouse" -ForegroundColor Green
 
-    # Ajouter au groupe correspondant
-    Add-ADGroupMember -Identity $user.Department -Members $user.Login
+# === UTILISATEUR 2 : Rachid TAHA - Direction ===
+New-ADUser -Name "Rachid TAHA" `
+    -GivenName "Rachid" -Surname "TAHA" `
+    -SamAccountName "rtaha" `
+    -UserPrincipalName "rtaha@rem.wsl2025.org" `
+    -EmailAddress "rtaha@wsl2025.org" `
+    -Department "Direction" `
+    -Path "OU=Workers,OU=Remote,DC=rem,DC=wsl2025,DC=org" `
+    -AccountPassword (ConvertTo-SecureString "P@ssw0rd" -AsPlainText -Force) `
+    -ChangePasswordAtLogon $false -PasswordNeverExpires $true -Enabled $true
 
-    Write-Host "Utilisateur $($user.Login) créé et ajouté au groupe $($user.Department)" -ForegroundColor Green
-}
+Add-ADGroupMember -Identity "Direction" -Members "rtaha"
+Write-Host "Utilisateur rtaha créé et ajouté au groupe Direction" -ForegroundColor Green
+
+# === UTILISATEUR 3 : Denis PELTIER - IT ===
+New-ADUser -Name "Denis PELTIER" `
+    -GivenName "Denis" -Surname "PELTIER" `
+    -SamAccountName "dpeltier" `
+    -UserPrincipalName "dpeltier@rem.wsl2025.org" `
+    -EmailAddress "dpeltier@wsl2025.org" `
+    -Department "IT" `
+    -Path "OU=Workers,OU=Remote,DC=rem,DC=wsl2025,DC=org" `
+    -AccountPassword (ConvertTo-SecureString "P@ssw0rd" -AsPlainText -Force) `
+    -ChangePasswordAtLogon $false -PasswordNeverExpires $true -Enabled $true
+
+Add-ADGroupMember -Identity "IT" -Members "dpeltier"
+Write-Host "Utilisateur dpeltier créé et ajouté au groupe IT" -ForegroundColor Green
 ```
 
 ### 6.4 Vérifier les utilisateurs et groupes
