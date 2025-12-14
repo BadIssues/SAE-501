@@ -128,6 +128,7 @@ Set-DnsServerPrimaryZone -Name "rem.wsl2025.org" -SecureSecondaries TransferToSe
 ```
 
 **Ou en GUI sur REMDCSRV** :
+
 1. Ouvrir **DNS Manager** (`dnsmgmt.msc`)
 2. Clic droit sur la zone `rem.wsl2025.org` → **Propriétés**
 3. Onglet **Transferts de zone** → ✅ Cocher **Autoriser les transferts de zone**
@@ -158,6 +159,7 @@ Add-DnsServerForwarder -IPAddress 10.4.100.1
 6. **Terminer**
 
 **Configurer le redirecteur** :
+
 1. Clic droit sur **REMINFRASRV** (racine) → **Propriétés**
 2. Onglet **Redirecteurs** → **Modifier...**
 3. Ajouter : `10.4.100.1`
@@ -226,109 +228,127 @@ Get-DhcpServerv4Scope
 
 > **Sujet** : "Create a DFS Domain root with REMINFRASRV"
 >
-> C'est REMINFRASRV qui héberge le namespace DFS. Les partages réels sont sur REMDCSRV.
+> - Share path: `\\rem.wsl2025.org\users`
+> - Share path: `\\rem.wsl2025.org\Department`
+>
+> C'est REMINFRASRV qui héberge les namespaces DFS. Les partages réels (données) sont sur REMDCSRV.
 
-### 6.1 Créer le dossier racine DFS
+### 6.1 Créer les dossiers racines DFS
 
 ```powershell
-# Créer le dossier pour la racine DFS
-New-Item -Path "C:\DFSRoots\files" -ItemType Directory -Force
+# Créer les dossiers pour les racines DFS
+New-Item -Path "C:\DFSRoots\users" -ItemType Directory -Force
+New-Item -Path "C:\DFSRoots\Department" -ItemType Directory -Force
 
-# Partager le dossier racine
-New-SmbShare -Name "files" -Path "C:\DFSRoots\files" -FullAccess "Tout le monde"
+# Partager les dossiers racines
+New-SmbShare -Name "users" -Path "C:\DFSRoots\users" -FullAccess "Tout le monde"
+New-SmbShare -Name "Department" -Path "C:\DFSRoots\Department" -FullAccess "Tout le monde"
 ```
 
-### 6.2 Créer le Namespace DFS Domain-based
+### 6.2 Créer les Namespaces DFS Domain-based
+
+> ⚠️ **Important** : On crée un namespace par partage selon le sujet (`\\rem.wsl2025.org\users` et `\\rem.wsl2025.org\Department`)
 
 ```powershell
-# Créer le namespace DFS (Domain-based V2)
-New-DfsnRoot -TargetPath "\\reminfrasrv.rem.wsl2025.org\files" `
-    -Type DomainV2 `
-    -Path "\\rem.wsl2025.org\files"
+# Namespace pour users (Home drives)
+New-DfsnRoot -Path "\\rem.wsl2025.org\users" `
+    -TargetPath "\\reminfrasrv.rem.wsl2025.org\users" `
+    -Type DomainV2
+
+# Namespace pour Department
+New-DfsnRoot -Path "\\rem.wsl2025.org\Department" `
+    -TargetPath "\\reminfrasrv.rem.wsl2025.org\Department" `
+    -Type DomainV2
 
 # Vérifier
-Get-DfsnRoot -Path "\\rem.wsl2025.org\files"
+Get-DfsnRoot
 ```
 
-### 6.3 Ajouter les liens vers les partages REMDCSRV
+### 6.3 Ajouter les cibles vers REMDCSRV
+
+> Le namespace pointe d'abord vers REMINFRASRV (racine), on ajoute REMDCSRV comme cible réelle des données.
 
 ```powershell
-# Lien vers Home Drives (users)
-New-DfsnFolder -Path "\\rem.wsl2025.org\users" `
+# Ajouter REMDCSRV comme cible pour users
+New-DfsnRootTarget -Path "\\rem.wsl2025.org\users" `
     -TargetPath "\\remdcsrv.rem.wsl2025.org\users"
 
-# Lien vers Department
-New-DfsnFolder -Path "\\rem.wsl2025.org\Department" `
+# Ajouter REMDCSRV comme cible pour Department
+New-DfsnRootTarget -Path "\\rem.wsl2025.org\Department" `
     -TargetPath "\\remdcsrv.rem.wsl2025.org\Department"
 
-# Vérifier
-Get-DfsnFolder -Path "\\rem.wsl2025.org\*"
+# Vérifier les cibles
+Get-DfsnRootTarget -Path "\\rem.wsl2025.org\users"
+Get-DfsnRootTarget -Path "\\rem.wsl2025.org\Department"
 ```
 
 ### 6.4 Vérification DFS
 
 ```powershell
-# Lister le namespace
-Get-DfsnRoot -Path "\\rem.wsl2025.org\files"
+# Lister les namespaces
+Get-DfsnRoot
 
-# Lister les dossiers
-Get-DfsnFolder -Path "\\rem.wsl2025.org\*"
+# Vérifier les cibles de chaque namespace
+Get-DfsnRootTarget -Path "\\rem.wsl2025.org\users"
+Get-DfsnRootTarget -Path "\\rem.wsl2025.org\Department"
 
-# Tester l'accès
+# Tester l'accès via DFS
 Test-Path "\\rem.wsl2025.org\users"
 Test-Path "\\rem.wsl2025.org\Department"
 ```
 
-### 6.5 GUI - Créer le Namespace DFS (Alternative)
+### 6.5 GUI - Créer les Namespaces DFS (Alternative)
+
+#### Namespace users :
 
 1. Ouvrir **Server Manager** → **Outils** → **Gestion du système de fichiers distribués DFS**
 2. Clic droit sur **Espaces de noms** → **Nouvel espace de noms...**
 3. **Serveur** : `REMINFRASRV` → **Suivant**
-4. **Nom** : `files` → **Suivant**
+4. **Nom** : `users` → **Suivant**
 5. **Type** : ✅ **Espace de noms de domaine** → **Suivant**
 6. **Créer**
 
-Ensuite, ajouter les dossiers :
+#### Ajouter la cible REMDCSRV :
 
-1. Clic droit sur `\\rem.wsl2025.org\files` → **Nouveau dossier...**
-2. **Nom** : `users`
-3. **Cibles** : Cliquer **Ajouter** → `\\remdcsrv.rem.wsl2025.org\users`
-4. Répéter pour `Department`
+1. Dans **Gestion DFS**, développer `\\rem.wsl2025.org\users`
+2. Clic droit → **Ajouter une cible de dossier racine...**
+3. **Chemin vers la cible de dossier** : `\\remdcsrv.rem.wsl2025.org\users`
+4. **OK**
+
+#### Namespace Department :
+
+Répéter les mêmes étapes avec le nom `Department`
 
 ---
 
 ## 7️⃣ DFS Replication (Optionnel - Tolérance de panne)
 
-> ⚠️ **Note** : La réplication DFS synchronise les données entre REMDCSRV et REMINFRASRV pour la haute disponibilité. C'est optionnel selon le niveau de détail du sujet.
+> ⚠️ **Note** : La réplication DFS synchronise les données entre REMDCSRV et REMINFRASRV pour la haute disponibilité. C'est optionnel selon le niveau de détail du sujet. Le namespace DFS fournit déjà une tolérance de panne au niveau du nom.
 
-### 7.1 Créer les dossiers locaux sur REMINFRASRV
+### 7.1 Créer les dossiers locaux sur REMINFRASRV (pour réplication)
 
 ```powershell
+# Dossiers pour stocker les données répliquées
 New-Item -Path "C:\shares\datausers" -ItemType Directory -Force
 New-Item -Path "C:\shares\Department" -ItemType Directory -Force
+
+# Partager pour la réplication
+New-SmbShare -Name "users-replica" -Path "C:\shares\datausers" -FullAccess "Tout le monde"
+New-SmbShare -Name "Department-replica" -Path "C:\shares\Department" -FullAccess "Tout le monde"
 ```
 
-### 7.2 Créer les partages locaux (pour réplication)
+### 7.2 Configurer la réplication DFS
 
 ```powershell
-New-SmbShare -Name "users-local" -Path "C:\shares\datausers" -FullAccess "Tout le monde"
-New-SmbShare -Name "Department-local" -Path "C:\shares\Department" -FullAccess "Tout le monde"
-```
-
-### 7.3 Configurer la réplication DFS
-
-```powershell
-# Créer le groupe de réplication pour users
+# === Réplication pour users ===
 New-DfsReplicationGroup -GroupName "REM-Users-Replication"
 Add-DfsrMember -GroupName "REM-Users-Replication" -ComputerName "remdcsrv.rem.wsl2025.org", "reminfrasrv.rem.wsl2025.org"
 New-DfsReplicatedFolder -GroupName "REM-Users-Replication" -FolderName "users"
 
-# Configurer la connexion bidirectionnelle
 Add-DfsrConnection -GroupName "REM-Users-Replication" `
     -SourceComputerName "remdcsrv.rem.wsl2025.org" `
     -DestinationComputerName "reminfrasrv.rem.wsl2025.org"
 
-# Définir les chemins et le membre primaire
 Set-DfsrMembership -GroupName "REM-Users-Replication" -FolderName "users" `
     -ComputerName "remdcsrv.rem.wsl2025.org" `
     -ContentPath "C:\shares\datausers" `
@@ -337,17 +357,38 @@ Set-DfsrMembership -GroupName "REM-Users-Replication" -FolderName "users" `
 Set-DfsrMembership -GroupName "REM-Users-Replication" -FolderName "users" `
     -ComputerName "reminfrasrv.rem.wsl2025.org" `
     -ContentPath "C:\shares\datausers"
+
+# === Réplication pour Department ===
+New-DfsReplicationGroup -GroupName "REM-Department-Replication"
+Add-DfsrMember -GroupName "REM-Department-Replication" -ComputerName "remdcsrv.rem.wsl2025.org", "reminfrasrv.rem.wsl2025.org"
+New-DfsReplicatedFolder -GroupName "REM-Department-Replication" -FolderName "Department"
+
+Add-DfsrConnection -GroupName "REM-Department-Replication" `
+    -SourceComputerName "remdcsrv.rem.wsl2025.org" `
+    -DestinationComputerName "reminfrasrv.rem.wsl2025.org"
+
+Set-DfsrMembership -GroupName "REM-Department-Replication" -FolderName "Department" `
+    -ComputerName "remdcsrv.rem.wsl2025.org" `
+    -ContentPath "C:\shares\Department" `
+    -PrimaryMember $true
+
+Set-DfsrMembership -GroupName "REM-Department-Replication" -FolderName "Department" `
+    -ComputerName "reminfrasrv.rem.wsl2025.org" `
+    -ContentPath "C:\shares\Department"
 ```
 
-### 7.4 Ajouter REMINFRASRV comme cible failover
+### 7.3 Ajouter REMINFRASRV comme cible failover (si réplication configurée)
+
+> Une fois la réplication en place, REMINFRASRV peut servir de cible supplémentaire
 
 ```powershell
-# Ajouter une deuxième cible au namespace (failover)
-New-DfsnFolderTarget -Path "\\rem.wsl2025.org\users" `
-    -TargetPath "\\reminfrasrv.rem.wsl2025.org\users-local"
+# Les namespaces ont déjà REMINFRASRV comme cible (section 6.2)
+# Si vous voulez que REMINFRASRV serve les données répliquées localement :
+New-DfsnRootTarget -Path "\\rem.wsl2025.org\users" `
+    -TargetPath "\\reminfrasrv.rem.wsl2025.org\users-replica"
 
-New-DfsnFolderTarget -Path "\\rem.wsl2025.org\Department" `
-    -TargetPath "\\reminfrasrv.rem.wsl2025.org\Department-local"
+New-DfsnRootTarget -Path "\\rem.wsl2025.org\Department" `
+    -TargetPath "\\reminfrasrv.rem.wsl2025.org\Department-replica"
 ```
 
 ---
@@ -362,7 +403,7 @@ New-DfsnFolderTarget -Path "\\rem.wsl2025.org\Department" `
 # === DNS ===
 Resolve-DnsName reminfrasrv.rem.wsl2025.org
 Get-DnsServerZone
-# Attendu : Zones secondaires rem.wsl2025.org
+# Attendu : Zone secondaire rem.wsl2025.org
 
 # === DHCP ===
 Get-DhcpServerInDC
@@ -370,23 +411,28 @@ Get-DhcpServerv4Failover
 # Attendu : Failover avec REMDCSRV
 
 # === DFS NAMESPACE ===
-Get-DfsnRoot -Path "\\rem.wsl2025.org\files"
-Get-DfsnFolder -Path "\\rem.wsl2025.org\*"
-# Attendu : Namespace avec users et Department
+Get-DfsnRoot
+# Attendu : \\rem.wsl2025.org\users et \\rem.wsl2025.org\Department
 
-# === ACCÈS ===
+Get-DfsnRootTarget -Path "\\rem.wsl2025.org\users"
+Get-DfsnRootTarget -Path "\\rem.wsl2025.org\Department"
+# Attendu : Cibles vers REMDCSRV
+
+# === ACCÈS DFS ===
 Test-Path "\\rem.wsl2025.org\users"
 Test-Path "\\rem.wsl2025.org\Department"
 # Attendu : True
 ```
 
-| Élément       | Attendu                 | Commande                                      |
-| ------------- | ----------------------- | --------------------------------------------- |
-| Domaine       | rem.wsl2025.org         | `(Get-WmiObject Win32_ComputerSystem).Domain` |
-| DNS Zones     | Secondaires             | `Get-DnsServerZone`                           |
-| DHCP Failover | Actif                   | `Get-DhcpServerv4Failover`                    |
-| DFS Namespace | \\rem.wsl2025.org\files | `Get-DfsnRoot`                                |
-| DFS Folders   | users, Department       | `Get-DfsnFolder -Path "\\rem.wsl2025.org\*"`  |
+| Élément          | Attendu                        | Commande                                            |
+| ---------------- | ------------------------------ | --------------------------------------------------- |
+| Domaine          | rem.wsl2025.org                | `(Get-WmiObject Win32_ComputerSystem).Domain`       |
+| DNS Zones        | Secondaire rem.wsl2025.org     | `Get-DnsServerZone`                                 |
+| DHCP Failover    | Actif avec REMDCSRV            | `Get-DhcpServerv4Failover`                          |
+| DFS Namespace 1  | `\\rem.wsl2025.org\users`      | `Get-DfsnRoot`                                      |
+| DFS Namespace 2  | `\\rem.wsl2025.org\Department` | `Get-DfsnRoot`                                      |
+| Accès users      | True                           | `Test-Path "\\rem.wsl2025.org\users"`               |
+| Accès Department | True                           | `Test-Path "\\rem.wsl2025.org\Department"`          |
 
 ---
 
@@ -411,7 +457,12 @@ Test-Path "\\rem.wsl2025.org\Department"
 
 ## 🎯 Résumé des chemins DFS
 
-| Chemin DFS (namespace)         | Cible réelle                            |
-| ------------------------------ | --------------------------------------- |
-| `\\rem.wsl2025.org\users`      | `\\remdcsrv.rem.wsl2025.org\users`      |
-| `\\rem.wsl2025.org\Department` | `\\remdcsrv.rem.wsl2025.org\Department` |
+| Chemin DFS (namespace)         | Cible(s) réelle(s)                                                                  |
+| ------------------------------ | ----------------------------------------------------------------------------------- |
+| `\\rem.wsl2025.org\users`      | `\\reminfrasrv.rem.wsl2025.org\users` + `\\remdcsrv.rem.wsl2025.org\users`          |
+| `\\rem.wsl2025.org\Department` | `\\reminfrasrv.rem.wsl2025.org\Department` + `\\remdcsrv.rem.wsl2025.org\Department`|
+
+> 💡 **Architecture DFS** :
+> - REMINFRASRV héberge les **namespaces DFS** (point d'entrée)
+> - REMDCSRV contient les **données réelles** (partages SMB)
+> - Le client accède via `\\rem.wsl2025.org\...` et DFS redirige vers REMDCSRV

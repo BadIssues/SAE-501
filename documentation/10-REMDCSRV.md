@@ -997,12 +997,14 @@ Write-Host "`n⚠️  CONFIGURER CHAQUE GPO EN GUI (voir sections 8.1 à 8.4)" -
 
 #### Lecteur S: (Department)
 
+> 💡 **Note DFS** : On utilise le chemin DFS `\\rem.wsl2025.org\Department` pour bénéficier de la tolérance de panne.
+
 6. Clic droit sur **Mappages de lecteurs** → **Nouveau** → **Lecteur mappé**
 
 7. Configurer :
 
    - **Action** : Mettre à jour
-   - **Emplacement** : `\\remdcsrv.rem.wsl2025.org\Department`
+   - **Emplacement** : `\\rem.wsl2025.org\Department`
    - **Reconnecter** : ✅ Coché
    - **Libellé** : `Department`
    - **Lettre de lecteur** : `Utiliser : S:`
