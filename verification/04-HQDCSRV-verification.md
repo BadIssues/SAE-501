@@ -320,6 +320,7 @@ w32tm /query /status
 ```
 
 **Attendu** :
+
 - Leap Indicator: 0 (pas d'avertissement)
 - Stratum: 2 ou 3
 - Source: hqinfrasrv.wsl2025.org

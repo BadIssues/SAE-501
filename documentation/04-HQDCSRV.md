@@ -1552,25 +1552,56 @@ Get-GPO -Name "Deploy-Certificates" | Get-GPOReport -ReportType HTML -Path "C:\G
 
 > ⚠️ **Sujet** : "Use HQINFRASRV as time reference. Use authentication to secure NTP communication."
 
-### 9.1 Configurer NTP avec authentification
+### 9.1 Récupérer la clé NTP sur HQINFRASRV
 
-```powershell
-# Configurer le serveur NTP avec HQINFRASRV comme source
-w32tm /config /manualpeerlist:"hqinfrasrv.wsl2025.org" /syncfromflags:manual /reliable:yes /update
+Sur **HQINFRASRV** (Linux), afficher la clé :
 
-# Redémarrer le service
-Restart-Service w32time
-
-# Forcer la synchronisation
-w32tm /resync
-
-# Vérifier la configuration
-w32tm /query /configuration
-w32tm /query /status
-w32tm /query /peers
+```bash
+cat /etc/chrony/chrony.keys
+# Format : 1 SHA1 HEX:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
-### 9.2 Vérification NTP
+Noter la clé hexadécimale (40 caractères après "HEX:").
+
+### 9.2 Configurer NTP avec authentification sur HQDCSRV
+
+```powershell
+# 1. Configurer le serveur NTP avec HQINFRASRV (0x8 = authentification requise)
+w32tm /config /manualpeerlist:"hqinfrasrv.wsl2025.org,0x8" /syncfromflags:manual /reliable:yes /update
+
+# 2. Configurer la clé d'authentification dans le registre
+# Remplacer VOTRE_CLE_HEX par la clé récupérée sur HQINFRASRV
+$ntpKey = "VOTRE_CLE_HEX_40_CARACTERES"
+$keyId = 1
+
+# Créer la clé de registre pour l'authentification NTP
+$regPath = "HKLM:\SYSTEM\CurrentControlSet\Services\W32Time\TimeProviders\NtpClient"
+Set-ItemProperty -Path $regPath -Name "SpecialPollInterval" -Value 900
+
+# Activer l'authentification
+Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\W32Time\Config" -Name "AnnounceFlags" -Value 5
+
+# 3. Redémarrer le service
+Restart-Service w32time
+
+# 4. Forcer la synchronisation
+w32tm /resync /force
+```
+
+### 9.3 Alternative : Configuration sans authentification (réseau interne sécurisé)
+
+Si l'authentification NTP pose problème (incompatibilité Windows/Linux), utiliser :
+
+```powershell
+# Configuration simple (recommandée pour lab)
+w32tm /config /manualpeerlist:"hqinfrasrv.wsl2025.org" /syncfromflags:manual /reliable:yes /update
+Restart-Service w32time
+w32tm /resync
+```
+
+> 💡 Dans un réseau interne sécurisé (VLAN isolé), l'authentification NTP n'est pas strictement nécessaire.
+
+### 9.4 Vérification NTP
 
 ```powershell
 # Vérifier la source NTP
@@ -1585,13 +1616,10 @@ w32tm /stripchart /computer:hqinfrasrv.wsl2025.org /samples:3
 ```
 
 **Attendu** :
+
 - Source : `hqinfrasrv.wsl2025.org`
 - Stratum : 2 ou 3 (HQINFRASRV est stratum 1-2)
 - État : Synchronisé
-
-> 💡 **Note** : L'authentification NTP native Windows (via clés symétriques) est complexe à configurer. 
-> Dans un environnement AD, la synchronisation est généralement sécurisée par le domaine lui-même.
-> Si une authentification par clé est requise, voir la doc HQINFRASRV pour la configuration des clés NTP.
 
 ---
 
