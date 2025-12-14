@@ -456,6 +456,7 @@ Get-ADGroupMember -Identity "Warehouse" | Select-Object Name
 ```
 
 > ✅ **Résultat attendu** :
+>
 > - IT : Denis PELTIER
 > - Direction : Rachid TAHA
 > - Warehouse : Ela STIQUE
@@ -481,10 +482,10 @@ foreach ($dept in @("IT", "Direction", "Warehouse")) {
 ### 7.2 Créer les dossiers personnels utilisateurs
 
 ```powershell
-foreach ($user in $usersRemote) {
-    $userPath = "C:\shares\datausers\$($user.Login)"
-    New-Item -Path $userPath -ItemType Directory -Force
-}
+# Créer les dossiers pour chaque utilisateur
+New-Item -Path "C:\shares\datausers\estique" -ItemType Directory -Force
+New-Item -Path "C:\shares\datausers\rtaha" -ItemType Directory -Force
+New-Item -Path "C:\shares\datausers\dpeltier" -ItemType Directory -Force
 ```
 
 ### 7.3 Configurer les permissions NTFS - Home Drives
@@ -495,51 +496,53 @@ foreach ($user in $usersRemote) {
 > - "Users can only access their personal folder"
 > - "Users can only see their personal folder"
 
+> ⚠️ **Note Windows FR** : Utiliser les noms français des groupes (Administrateurs, Utilisateurs authentifiés)
+
 ```powershell
 # Permissions sur le dossier parent datausers
 $aclParent = Get-Acl "C:\shares\datausers"
 $aclParent.SetAccessRuleProtection($true, $false)  # Désactiver héritage
 
-# Administrators = Full Control
+# Administrateurs = Full Control (nom français)
 $adminRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
-    "Administrators", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+    "BUILTIN\Administrateurs", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
 $aclParent.AddAccessRule($adminRule)
 
 # SYSTEM = Full Control
 $systemRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
-    "SYSTEM", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+    "NT AUTHORITY\SYSTEM", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
 $aclParent.AddAccessRule($systemRule)
 
-# Authenticated Users = List folder (pour accéder à leur sous-dossier)
+# Utilisateurs authentifiés = List folder (pour accéder à leur sous-dossier)
 $authUsersRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
-    "Authenticated Users", "ReadAndExecute", "None", "None", "Allow")
+    "NT AUTHORITY\Utilisateurs authentifiés", "ReadAndExecute", "None", "None", "Allow")
 $aclParent.AddAccessRule($authUsersRule)
 
 Set-Acl "C:\shares\datausers" $aclParent
 
 # Permissions sur chaque dossier utilisateur
-foreach ($user in $usersRemote) {
-    $userPath = "C:\shares\datausers\$($user.Login)"
+foreach ($login in @("estique", "rtaha", "dpeltier")) {
+    $userPath = "C:\shares\datausers\$login"
     $acl = Get-Acl $userPath
     $acl.SetAccessRuleProtection($true, $false)  # Désactiver héritage
 
-    # Administrators = Full Control
+    # Administrateurs = Full Control
     $adminRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
-        "Administrators", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+        "BUILTIN\Administrateurs", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
     $acl.AddAccessRule($adminRule)
 
     # SYSTEM = Full Control
     $systemRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
-        "SYSTEM", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+        "NT AUTHORITY\SYSTEM", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
     $acl.AddAccessRule($systemRule)
 
     # Utilisateur = Modify sur son dossier uniquement
     $userRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
-        "REM\$($user.Login)", "Modify", "ContainerInherit,ObjectInherit", "None", "Allow")
+        "REM\$login", "Modify", "ContainerInherit,ObjectInherit", "None", "Allow")
     $acl.AddAccessRule($userRule)
 
     Set-Acl $userPath $acl
-    Write-Host "Permissions configurées pour $($user.Login)" -ForegroundColor Green
+    Write-Host "Permissions configurées pour $login" -ForegroundColor Green
 }
 ```
 
@@ -556,15 +559,15 @@ $aclDept = Get-Acl "C:\shares\Department"
 $aclDept.SetAccessRuleProtection($true, $false)
 
 $adminRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
-    "Administrators", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+    "BUILTIN\Administrateurs", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
 $aclDept.AddAccessRule($adminRule)
 
 $systemRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
-    "SYSTEM", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+    "NT AUTHORITY\SYSTEM", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
 $aclDept.AddAccessRule($systemRule)
 
 $authUsersRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
-    "Authenticated Users", "ReadAndExecute", "None", "None", "Allow")
+    "NT AUTHORITY\Utilisateurs authentifiés", "ReadAndExecute", "None", "None", "Allow")
 $aclDept.AddAccessRule($authUsersRule)
 
 Set-Acl "C:\shares\Department" $aclDept
@@ -575,14 +578,14 @@ foreach ($dept in @("IT", "Direction", "Warehouse")) {
     $acl = Get-Acl $deptPath
     $acl.SetAccessRuleProtection($true, $false)
 
-    # Administrators = Full Control
+    # Administrateurs = Full Control
     $adminRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
-        "Administrators", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+        "BUILTIN\Administrateurs", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
     $acl.AddAccessRule($adminRule)
 
     # SYSTEM = Full Control
     $systemRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
-        "SYSTEM", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+        "NT AUTHORITY\SYSTEM", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
     $acl.AddAccessRule($systemRule)
 
     # Groupe département = Modify
