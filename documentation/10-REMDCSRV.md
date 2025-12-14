@@ -679,131 +679,230 @@ Get-DfsnFolder -Path "\\rem.wsl2025.org\files\*"
 
 ## 8️⃣ Configuration des GPO
 
-### 8.1 GPO - IT sont administrateurs locaux
+### 8.0 Création de toutes les GPO (Script PowerShell)
+
+> ⚠️ **Ce script crée les GPO et les lie. La configuration se fait ensuite en GUI.**
+
+```powershell
+# ============================================
+# CRÉATION DES GPO - À exécuter sur REMDCSRV
+# ============================================
+
+Write-Host "=== CRÉATION DES GPO ===" -ForegroundColor Cyan
+
+# 1. REM-IT-LocalAdmins
+$gpo = New-GPO -Name "REM-IT-LocalAdmins" -Comment "IT sont administrateurs locaux"
+$gpo | New-GPLink -Target "OU=Remote,DC=rem,DC=wsl2025,DC=org"
+Write-Host "OK - REM-IT-LocalAdmins" -ForegroundColor Green
+
+# 2. REM-Block-ControlPanel
+$gpo = New-GPO -Name "REM-Block-ControlPanel" -Comment "Bloque le panneau de configuration sauf IT"
+$gpo | New-GPLink -Target "OU=Workers,OU=Remote,DC=rem,DC=wsl2025,DC=org"
+Write-Host "OK - REM-Block-ControlPanel" -ForegroundColor Green
+
+# 3. REM-DriveMappings
+$gpo = New-GPO -Name "REM-DriveMappings" -Comment "Mappage lecteurs U: et S:"
+$gpo | New-GPLink -Target "OU=Remote,DC=rem,DC=wsl2025,DC=org"
+Write-Host "OK - REM-DriveMappings" -ForegroundColor Green
+
+# 4. REM-Deploy-Certificates
+$gpo = New-GPO -Name "REM-Deploy-Certificates" -Comment "Déploie les certificats Root CA et Sub CA"
+$gpo | New-GPLink -Target "OU=Remote,DC=rem,DC=wsl2025,DC=org"
+Write-Host "OK - REM-Deploy-Certificates" -ForegroundColor Green
+
+Write-Host "`n=== GPO CRÉÉES ===" -ForegroundColor Cyan
+Get-GPO -All | Select-Object DisplayName, GpoStatus | Format-Table
+
+Write-Host "`n⚠️  CONFIGURER CHAQUE GPO EN GUI (voir sections 8.1 à 8.4)" -ForegroundColor Yellow
+```
+
+---
+
+### 8.1 GPO REM-IT-LocalAdmins (GUI)
 
 > **Sujet** : "Members of IT group are local administrators"
 
-```powershell
-# Créer la GPO
-$gpoITAdmin = New-GPO -Name "REM-IT-LocalAdmins"
+1. Ouvrir **`gpmc.msc`** (Win+R → gpmc.msc)
 
-# Lier à l'OU Remote
-New-GPLink -Guid $gpoITAdmin.Id -Target "OU=Remote,DC=rem,DC=wsl2025,DC=org"
+2. Naviguer vers : `Forest: rem.wsl2025.org` → `Domains` → `rem.wsl2025.org` → `Group Policy Objects`
 
-Write-Host @"
-=== Configuration manuelle requise ===
-1. Ouvrir GPMC (gpmc.msc)
-2. Éditer la GPO 'REM-IT-LocalAdmins'
-3. Aller à : Computer Configuration > Policies > Windows Settings > Security Settings > Restricted Groups
-4. Clic droit > Add Group
-5. Ajouter le groupe 'Administrators'
-6. Dans 'Members of this group', ajouter 'REM\IT'
-"@ -ForegroundColor Yellow
-```
+3. Clic droit sur **REM-IT-LocalAdmins** → **Modifier**
 
-**Configuration manuelle GPMC :**
+4. Naviguer vers :
+   ```
+   Computer Configuration
+   └── Policies
+       └── Windows Settings
+           └── Security Settings
+               └── Restricted Groups
+   ```
 
-1. `gpmc.msc` → Éditer `REM-IT-LocalAdmins`
-2. `Computer Configuration` → `Policies` → `Windows Settings` → `Security Settings` → `Restricted Groups`
-3. Clic droit → `Add Group` → `Administrators`
-4. `Members of this group` → Ajouter `REM\IT`
+5. Clic droit sur **Restricted Groups** → **Add Group...**
 
-### 8.2 GPO - Bloquer le Panneau de configuration (sauf IT)
+6. Taper `Administrators` → **OK**
+
+7. Dans la fenêtre qui s'ouvre, section **"Members of this group"** :
+   - Cliquer **Add...**
+   - Taper `REM\IT` → **OK**
+
+8. **OK** pour fermer
+
+> ✅ **Résultat** : Les membres du groupe IT seront automatiquement administrateurs locaux sur les machines du domaine REM.
+
+---
+
+### 8.2 GPO REM-Block-ControlPanel (GUI)
 
 > **Sujet** : "Control Panel is blocked for everyone except for IT group members"
 
-```powershell
-# Créer la GPO
-$gpoBlockCP = New-GPO -Name "REM-Block-ControlPanel"
+#### Étape 1 : Configurer le blocage
 
-# Lier à l'OU Workers (où sont les utilisateurs)
-New-GPLink -Guid $gpoBlockCP.Id -Target "OU=Workers,OU=Remote,DC=rem,DC=wsl2025,DC=org"
+1. Dans **gpmc.msc**, clic droit sur **REM-Block-ControlPanel** → **Modifier**
 
-# Configurer via registre (alternative PowerShell)
-Set-GPRegistryValue -Guid $gpoBlockCP.Id `
-    -Key "HKCU\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer" `
-    -ValueName "NoControlPanel" `
-    -Type DWord `
-    -Value 1
+2. Naviguer vers :
+   ```
+   User Configuration
+   └── Policies
+       └── Administrative Templates
+           └── Control Panel
+   ```
 
-# Retirer le groupe IT du filtrage de sécurité
-Set-GPPermission -Guid $gpoBlockCP.Id -TargetName "IT" -TargetType Group -PermissionLevel GpoApply -Replace
-Set-GPPermission -Guid $gpoBlockCP.Id -TargetName "IT" -TargetType Group -PermissionLevel None
+3. Double-clic sur **"Prohibit access to Control Panel and PC settings"**
 
-Write-Host "GPO Block Control Panel créée - Le groupe IT est exclu" -ForegroundColor Green
-```
+4. Sélectionner **Enabled** → **OK**
 
-**Configuration manuelle alternative :**
+#### Étape 2 : Exclure le groupe IT
 
-1. `gpmc.msc` → Éditer `REM-Block-ControlPanel`
-2. `User Configuration` → `Administrative Templates` → `Control Panel`
-3. Activer `Prohibit access to Control Panel and PC settings`
-4. Dans l'onglet `Delegation` → Retirer `Apply` pour le groupe `REM\IT`
+1. Dans **gpmc.msc**, clic droit sur **REM-Block-ControlPanel** → **Propriétés**
 
-### 8.3 GPO - Mappages lecteurs réseau
+2. Onglet **Delegation** → **Avancé...**
+
+3. Cliquer **Ajouter...** → Taper `REM\IT` → **OK**
+
+4. Sélectionner **REM\IT** dans la liste
+
+5. Dans les permissions, cocher **Refuser** pour **Appliquer la stratégie de groupe**
+
+6. **OK** → **Oui** pour confirmer
+
+> ✅ **Résultat** : Le panneau de configuration est bloqué pour tous sauf IT.
+
+---
+
+### 8.3 GPO REM-DriveMappings (GUI)
 
 > **Sujet** : "Mapping shares Department" + "Home drives mounted with letter U: and S:"
 
-```powershell
-# Créer la GPO
-$gpoDriveMap = New-GPO -Name "REM-DriveMappings"
+1. Dans **gpmc.msc**, clic droit sur **REM-DriveMappings** → **Modifier**
 
-# Lier à l'OU Remote
-New-GPLink -Guid $gpoDriveMap.Id -Target "OU=Remote,DC=rem,DC=wsl2025,DC=org"
+2. Naviguer vers :
+   ```
+   User Configuration
+   └── Preferences
+       └── Windows Settings
+           └── Drive Maps
+   ```
 
-Write-Host @"
-=== Configuration manuelle requise ===
-1. Ouvrir GPMC (gpmc.msc)
-2. Éditer la GPO 'REM-DriveMappings'
-3. User Configuration > Preferences > Windows Settings > Drive Maps
+#### Lecteur U: (Home Drive)
 
-LECTEUR U: (Home Drive)
-- Action: Update
-- Location: \\rem.wsl2025.org\users\%USERNAME%
-- Letter: U
-- Reconnect: Oui
-- Label: Home
+3. Clic droit sur **Drive Maps** → **New** → **Mapped Drive**
 
-LECTEUR S: (Department)
-- Action: Update
-- Location: \\rem.wsl2025.org\files\Department
-- Letter: S
-- Reconnect: Oui
-- Label: Department
-- Item-level targeting: Groupe spécifique pour chaque département
-"@ -ForegroundColor Yellow
-```
+4. Configurer :
+   - **Action** : Update
+   - **Location** : `\\rem.wsl2025.org\users\%USERNAME%`
+   - **Reconnect** : ✅ Coché
+   - **Label as** : `Home`
+   - **Drive Letter** : `Use: U:`
 
-### 8.4 GPO - Déployer les certificats CA
+5. **OK**
+
+#### Lecteur S: (Department)
+
+6. Clic droit sur **Drive Maps** → **New** → **Mapped Drive**
+
+7. Configurer :
+   - **Action** : Update
+   - **Location** : `\\rem.wsl2025.org\files\Department`
+   - **Reconnect** : ✅ Coché
+   - **Label as** : `Department`
+   - **Drive Letter** : `Use: S:`
+
+8. **OK**
+
+> ✅ **Résultat** : Les utilisateurs auront automatiquement les lecteurs U: (home) et S: (department) à la connexion.
+
+---
+
+### 8.4 GPO REM-Deploy-Certificates (GUI)
 
 > **Sujet** : "Configure Root CA certificate on the Root CA magazine and the Sub CA on the Sub CA magazine"
 
+#### Prérequis : Avoir les fichiers certificats
+
+- `WSFR-ROOT-CA.cer` (depuis DNSSRV ou HQDCSRV)
+- `WSFR-SUB-CA.cer` (depuis HQDCSRV)
+
+Copier ces fichiers sur REMDCSRV (ex: `C:\Certs\`)
+
+#### Configuration
+
+1. Dans **gpmc.msc**, clic droit sur **REM-Deploy-Certificates** → **Modifier**
+
+2. Naviguer vers :
+   ```
+   Computer Configuration
+   └── Policies
+       └── Windows Settings
+           └── Security Settings
+               └── Public Key Policies
+   ```
+
+#### Importer le Root CA
+
+3. Clic droit sur **Trusted Root Certification Authorities** → **Import...**
+
+4. **Next** → **Browse** → Sélectionner `C:\Certs\WSFR-ROOT-CA.cer`
+
+5. **Next** → **Place all certificates in the following store: Trusted Root Certification Authorities**
+
+6. **Next** → **Finish**
+
+#### Importer le Sub CA
+
+7. Clic droit sur **Intermediate Certification Authorities** → **Import...**
+
+8. **Next** → **Browse** → Sélectionner `C:\Certs\WSFR-SUB-CA.cer`
+
+9. **Next** → **Place all certificates in the following store: Intermediate Certification Authorities**
+
+10. **Next** → **Finish**
+
+> ✅ **Résultat** : Les certificats CA seront déployés sur tous les ordinateurs du domaine REM.
+
+---
+
+### 8.5 Vérification des GPO
+
 ```powershell
-# Créer la GPO
-$gpoCerts = New-GPO -Name "REM-Deploy-Certificates"
+# Lister toutes les GPO
+Get-GPO -All | Select-Object DisplayName, GpoStatus | Format-Table
 
-# Lier à l'OU Remote
-New-GPLink -Guid $gpoCerts.Id -Target "OU=Remote,DC=rem,DC=wsl2025,DC=org"
-
-Write-Host @"
-=== Configuration manuelle requise ===
-1. Exporter les certificats depuis DNSSRV (Root CA) et HQDCSRV (Sub CA)
-   - WSFR-ROOT-CA.cer
-   - WSFR-SUB-CA.cer
-
-2. Ouvrir GPMC (gpmc.msc)
-3. Éditer la GPO 'REM-Deploy-Certificates'
-4. Computer Configuration > Policies > Windows Settings > Security Settings > Public Key Policies
-
-5. Trusted Root Certification Authorities
-   - Clic droit > Import > WSFR-ROOT-CA.cer
-
-6. Intermediate Certification Authorities
-   - Clic droit > Import > WSFR-SUB-CA.cer
-"@ -ForegroundColor Yellow
+# Vérifier les liens
+Get-GPInheritance -Target "OU=Remote,DC=rem,DC=wsl2025,DC=org"
 ```
 
-### 8.5 Forcer la mise à jour des GPO
+**Attendu** : 4 GPO avec statut `AllSettingsEnabled`
+
+| GPO                     | Liée à                                    |
+| ----------------------- | ----------------------------------------- |
+| REM-IT-LocalAdmins      | OU=Remote,DC=rem,DC=wsl2025,DC=org        |
+| REM-Block-ControlPanel  | OU=Workers,OU=Remote,DC=rem,DC=wsl2025,DC=org |
+| REM-DriveMappings       | OU=Remote,DC=rem,DC=wsl2025,DC=org        |
+| REM-Deploy-Certificates | OU=Remote,DC=rem,DC=wsl2025,DC=org        |
+
+---
+
+### 8.6 Forcer la mise à jour des GPO
 
 ```powershell
 # Sur le serveur
