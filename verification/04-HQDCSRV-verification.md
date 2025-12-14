@@ -530,6 +530,15 @@ Get-FsrmQuota -Path "D:\shares\datausers\*" | Format-Table Path, @{N='SizeMB';E=
 - Auto-quota sur `D:\shares\datausers`
 - Chaque sous-dossier utilisateur a un quota de 20 Mo
 
+> ⚠️ **Si les quotas ne sont pas appliqués aux dossiers existants** :
+> L'auto-quota ne s'applique qu'aux NOUVEAUX sous-dossiers. Pour les dossiers existants :
+>
+> ```powershell
+> Get-ChildItem "D:\shares\datausers" -Directory | ForEach-Object {
+>     New-FsrmQuota -Path $_.FullName -Template "UserQuota20MB" -ErrorAction SilentlyContinue
+> }
+> ```
+
 ---
 
 ## ✅ Test 6c : Blocage des exécutables sur Home Drive
@@ -573,16 +582,18 @@ Get-FsrmFileGroup -Name "Fichiers exécutables"
 
 | #   | Test                     | Utilisateur         | Résultat |
 | --- | ------------------------ | ------------------- | -------- |
-| 1   | Cert Root/Sub            | `hq\administrateur` | ⬜       |
-| 2   | Cert Machine             | `hq\administrateur` | ⬜       |
-| 3   | Edge Homepage            | `hq\wslusr001`      | ⬜       |
-| 4a  | Control Panel **BLOQUÉ** | `hq\wslusr001`      | ⬜       |
-| 4b  | Control Panel **OK**     | `hq\vtim` (IT)      | ⬜       |
-| 5   | Lecteurs U:, S:, P:      | `hq\wslusr001`      | ⬜       |
-| 6   | Home Folder écriture     | `hq\wslusr001`      | ⬜       |
-| 6b  | Quota 20 Mo              | `hq\wslusr001`      | ⬜       |
-| 6c  | Blocage .exe             | `hq\wslusr001`      | ⬜       |
-| 7   | Logo                     | N'importe           | ⬜       |
+| 1   | Cert Root/Sub            | `hq\administrateur` | ✅       |
+| 2   | Cert Machine             | `hq\administrateur` | ✅       |
+| 3   | Edge Homepage            | `hq\wslusr001`      | ✅       |
+| 4a  | Control Panel **BLOQUÉ** | `hq\wslusr001`      | ✅       |
+| 4b  | Control Panel **OK**     | `hq\vtim` (IT)      | ✅       |
+| 5   | Lecteurs U:, S:, P:      | `hq\wslusr001`      | ✅       |
+| 6   | Home Folder écriture     | `hq\wslusr001`      | ✅       |
+| 6b  | Quota 20 Mo              | `hq\wslusr001`      | ✅       |
+| 6c  | Blocage .exe             | `hq\wslusr001`      | ✅       |
+| 7   | Logo                     | N'importe           | ✅       |
+
+> ✅ **Tous les tests HQCLT validés !** (14 décembre 2025)
 
 ---
 

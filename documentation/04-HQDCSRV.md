@@ -972,6 +972,17 @@ Get-FsrmAutoQuota -Path "D:\shares\datausers"
 Get-FsrmQuota -Path "D:\shares\datausers\*" | Format-Table Path, @{N='SizeMB';E={$_.Size/1MB}}, @{N='UsedMB';E={$_.Usage/1MB}}
 ```
 
+> ⚠️ **IMPORTANT** : Le quota automatique ne s'applique qu'aux **nouveaux** sous-dossiers !
+> Pour les dossiers utilisateurs **existants**, exécuter :
+>
+> ```powershell
+> # Appliquer le quota à TOUS les sous-dossiers existants
+> Get-ChildItem "D:\shares\datausers" -Directory | ForEach-Object {
+>     New-FsrmQuota -Path $_.FullName -Template "UserQuota20MB" -ErrorAction SilentlyContinue
+>     Write-Host "Quota créé: $($_.FullName)" -ForegroundColor Green
+> }
+> ```
+
 ---
 
 ### 7.5 Bloquer les fichiers exécutables (GUI)
