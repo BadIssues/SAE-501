@@ -561,6 +561,37 @@ Restart-Service certsvc
 certutil -crl
 ```
 
+### 5.8 Récupérer la CRL du Root CA depuis DNSSRV
+
+> ⚠️ **IMPORTANT** : La CRL du Root CA doit être accessible sur `http://pki.hq.wsl2025.org` pour que la vérification de révocation fonctionne !
+
+```powershell
+# Récupérer la CRL et le certificat du Root CA depuis DNSSRV
+scp root@8.8.4.1:/etc/ssl/CA/crl/ca.crl C:\inetpub\PKI\WSFR-ROOT-CA.crl
+scp root@8.8.4.1:/etc/ssl/CA/certs/ca.crt C:\inetpub\PKI\WSFR-ROOT-CA.crt
+
+# Vérifier que les fichiers sont présents
+Get-ChildItem C:\inetpub\PKI
+
+# Tester l'accès HTTP (depuis un autre poste)
+# http://pki.hq.wsl2025.org/WSFR-ROOT-CA.crl
+# http://pki.hq.wsl2025.org/WSFR-ROOT-CA.crt
+```
+
+> **Note** : Si la CRL du Root CA n'est pas accessible, les clients ne pourront pas vérifier la chaîne de certificats et obtiendront l'erreur `CRYPT_E_NO_REVOCATION_CHECK`.
+
+#### Alternative : Si le Root CA est offline (environnement de lab)
+
+Si le Root CA (DNSSRV) n'est pas toujours accessible, configurer la CA pour ignorer les erreurs de révocation offline :
+
+```powershell
+# Permettre l'émission même si la CRL du Root CA n'est pas vérifiable
+certutil -setreg ca\CRLFlags +CRLF_REVCHECK_IGNORE_OFFLINE
+Restart-Service certsvc
+```
+
+> ⚠️ **Note** : Cette option est acceptable pour un lab mais en production, la CRL du Root CA devrait toujours être accessible.
+
 #### ✅ Vérification ADCS
 
 ```powershell
@@ -578,7 +609,7 @@ Get-IISSite -Name "PKI"
 # Invoke-WebRequest -Uri "http://pki.hq.wsl2025.org" -UseBasicParsing
 ```
 
-### 5.8 Créer les templates de certificats
+### 5.9 Créer les templates de certificats
 
 > ⚠️ **Prérequis** : Si `certtmpl.msc` échoue avec une erreur DNS, configurer d'abord le forwarder DNS :
 >
@@ -610,8 +641,11 @@ certtmpl.msc
 | ----- | --------------------------------------------------------------------------------------------------- |
 | 1     | Clic droit sur **"Ordinateur"** (ou "Computer") → **Dupliquer le modèle**                           |
 | 2     | Onglet **Général** : Nom complet = `WSFR_Machines`                                                  |
-| 3     | Onglet **Sécurité** : **Ordinateurs du domaine** → ✅ **Inscrire** + ✅ **Inscription automatique** |
-| 4     | Cliquer **OK**                                                                                      |
+| 3     | Onglet **Sécurité** : Ajouter **Ordinateurs du domaine** (cliquer Types d'objets → cocher Ordinateurs) |
+| 4     | Pour **Ordinateurs du domaine** : ✅ **Lecture** + ✅ **Inscrire** + ✅ **Inscription automatique** |
+| 5     | Cliquer **OK**                                                                                      |
+
+> ⚠️ **Important** : Si vous avez des domaines enfants (HQ), ajoutez aussi **HQ\Ordinateurs du domaine** avec les mêmes permissions.
 
 #### Template 3 : WSFR_Users (Autoenrollment utilisateurs)
 
@@ -630,7 +664,7 @@ Les 3 templates doivent apparaître dans la liste de `certtmpl.msc` :
 - WSFR_Machines
 - WSFR_Users
 
-### 5.9 Publier les templates sur la CA
+### 5.10 Publier les templates sur la CA
 
 #### Méthode GUI (recommandée)
 
@@ -1164,6 +1198,49 @@ foreach ($user in $users) {
 Write-Host "Terminé : $count utilisateurs configurés" -ForegroundColor Green
 ```
 
+### 8.8 Configurer les GPO Deploy-Certificates (GUI obligatoire)
+
+> ⚠️ **Cette étape doit être faite manuellement via GUI !**
+
+1. Ouvrir **`gpmc.msc`** (Gestion des stratégies de groupe)
+
+2. Aller dans **Objets de stratégie de groupe** → Clic droit sur **Deploy-Certificates** → **Modifier**
+
+3. Naviguer vers :
+   ```
+   Configuration ordinateur → Stratégies → Paramètres Windows 
+   → Paramètres de sécurité → Stratégies de clé publique
+   ```
+
+4. **Importer le Root CA** :
+   - Clic droit sur **Autorités de certification racines de confiance** → **Importer...**
+   - Parcourir → `C:\WSFR-ROOT-CA.cer` → Suivant → Terminer
+
+5. **Importer le Sub CA** :
+   - Clic droit sur **Autorités de certification intermédiaires** → **Importer...**
+   - Parcourir → `C:\SubCA.cer` → Suivant → Terminer
+
+### 8.9 Configurer Auto-Enrollment (GUI)
+
+1. Dans **gpmc.msc**, éditer **Certificate-Autoenrollment**
+
+2. Aller dans :
+   ```
+   Configuration ordinateur → Stratégies → Paramètres Windows 
+   → Paramètres de sécurité → Stratégies de clé publique
+   ```
+
+3. Double-clic sur **Client des services de certificats - Inscription automatique**
+
+4. Configurer :
+   - **Modèle de configuration** : **Activé**
+   - ✅ **Renouveler les certificats expirés...**
+   - ✅ **Mettre à jour les certificats qui utilisent des modèles...**
+
+5. **OK**
+
+6. **Répéter** pour `Configuration utilisateur` → même chemin → même paramètre
+
 ---
 
 ## 9️⃣ Configuration NTP
@@ -1259,6 +1336,39 @@ Get-GPO -All
 gpresult /r
 ```
 
+### Tests sur un client (HQCLT)
+
+> **Prérequis** : HQCLT doit être joint au domaine `hq.wsl2025.org`
+
+```powershell
+# 1. Forcer l'application des GPO
+gpupdate /force
+
+# 2. Vérifier les certificats Root/Sub CA déployés
+Get-ChildItem Cert:\LocalMachine\Root | Where-Object { $_.Subject -like "*WSFR*" }
+Get-ChildItem Cert:\LocalMachine\CA | Where-Object { $_.Subject -like "*WSFR*" }
+
+# 3. Forcer l'inscription des certificats machine
+certutil -pulse
+
+# 4. Vérifier le certificat machine
+Get-ChildItem Cert:\LocalMachine\My | Where-Object { $_.Issuer -like "*WSFR-SUB-CA*" }
+
+# 5. Vérifier les lecteurs réseau (après connexion utilisateur)
+Get-PSDrive | Where-Object { $_.Name -in @("U", "S", "P") }
+```
+
+#### Vérification GUI sur HQCLT
+
+| Test | Action | Résultat attendu |
+|------|--------|------------------|
+| **Certificats Root** | `certlm.msc` → Racines de confiance | WSFR-ROOT-CA visible |
+| **Certificats Sub** | `certlm.msc` → Intermédiaires | WSFR-SUB-CA visible |
+| **Cert Machine** | `certlm.msc` → Personnel | Certificat émis par WSFR-SUB-CA |
+| **Edge Homepage** | Ouvrir Edge | Page = www.wsl2025.org |
+| **Control Panel** | Win+I (utilisateur non-IT) | Accès bloqué |
+| **Lecteurs** | Explorateur → Ce PC | U:, S:, P: visibles |
+
 ---
 
 ## 📝 Récapitulatif des services
@@ -1288,6 +1398,7 @@ gpresult /r
 - [ ] ADCS Enterprise Subordinate CA configurée
 - [ ] Templates de certificats créés (WSFR_Services, WSFR_Machines, WSFR_Users)
 - [ ] Site IIS PKI configuré
+- [ ] CRL du Root CA (WSFR-ROOT-CA.crl) copiée dans C:\inetpub\PKI
 - [ ] RAID-5 avec 3 disques (NTFS, DATA)
 - [ ] Déduplication activée
 - [ ] Partages créés (users$, Department$, Public$)

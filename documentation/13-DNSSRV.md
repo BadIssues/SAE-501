@@ -321,6 +321,9 @@ subjectKeyIdentifier = hash
 authorityKeyIdentifier = keyid:always,issuer
 basicConstraints = critical, CA:true, pathlen:0
 keyUsage = critical, digitalSignature, cRLSign, keyCertSign
+# Extensions CDP/AIA pour que les clients puissent vérifier la révocation
+crlDistributionPoints = URI:http://pki.hq.wsl2025.org/WSFR-ROOT-CA.crl
+authorityInfoAccess = caIssuers;URI:http://pki.hq.wsl2025.org/WSFR-ROOT-CA.crt
 
 [ server_cert ]
 basicConstraints = CA:FALSE
@@ -411,9 +414,44 @@ ls -la certs/
 
 ---
 
-## 6️⃣ Serveur Web pour CRL/AIA (optionnel)
+## 6️⃣ Publication de la CRL du Root CA
 
-> **Note** : Cette étape est nécessaire pour publier la liste de révocation (CRL) accessible via HTTP.
+> **IMPORTANT** : La CRL du Root CA doit être accessible depuis les clients pour que la vérification de révocation fonctionne !
+
+### Option A : Copier la CRL vers HQDCSRV (recommandé)
+
+La CRL du Root CA doit être publiée sur `http://pki.hq.wsl2025.org/WSFR-ROOT-CA.crl` car c'est l'URL dans le certificat Sub CA.
+
+```bash
+# 1. Générer la CRL du Root CA
+cd /etc/ssl/CA
+openssl ca -config openssl.cnf -gencrl -out crl/ca.crl
+
+# 2. Copier la CRL et le certificat vers HQDCSRV
+scp crl/ca.crl administrateur@10.4.10.1:/c$/inetpub/PKI/WSFR-ROOT-CA.crl
+scp certs/ca.crt administrateur@10.4.10.1:/c$/inetpub/PKI/WSFR-ROOT-CA.crt
+```
+
+### Script d'automatisation (sur DNSSRV)
+
+```bash
+# Créer un script de mise à jour de la CRL
+cat > /etc/ssl/CA/update-crl.sh << 'EOF'
+#!/bin/bash
+cd /etc/ssl/CA
+openssl ca -config openssl.cnf -gencrl -out crl/ca.crl
+scp crl/ca.crl administrateur@10.4.10.1:/c$/inetpub/PKI/WSFR-ROOT-CA.crl
+EOF
+
+chmod +x /etc/ssl/CA/update-crl.sh
+
+# Automatisation (toutes les heures)
+(crontab -l 2>/dev/null; echo "0 * * * * /etc/ssl/CA/update-crl.sh") | crontab -
+```
+
+### Option B : Serveur Web local sur DNSSRV
+
+Si DNSSRV doit aussi servir les CRL localement :
 
 ```bash
 apt update && apt install -y apache2
