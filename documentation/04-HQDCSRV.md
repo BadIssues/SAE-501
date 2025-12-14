@@ -708,6 +708,7 @@ diskmgmt.msc
 12. **Suivant** → **Terminer**
 
 > ⚠️ **Avertissement "Disques dynamiques"** : Un message apparaît indiquant que les disques seront convertis en disques dynamiques. Cela signifie :
+>
 > - Ces disques ne pourront plus être utilisés pour démarrer un autre OS (dual-boot)
 > - Le disque système (C:) n'est PAS affecté
 > - C'est normal et sans risque pour des disques de données → **Cliquer sur "Oui"**
@@ -723,20 +724,27 @@ Dans la Gestion des disques, tu dois voir :
 
 ### 6.5 Activer la déduplication
 
-#### Méthode PowerShell
+#### Étape 1 : Installer la fonctionnalité (obligatoire)
 
 ```powershell
-# Installer la fonctionnalité de déduplication
-Install-WindowsFeature -Name FS-Data-Deduplication
+Install-WindowsFeature -Name FS-Data-Deduplication -IncludeManagementTools
+```
 
+> ⚠️ **Sans cette étape**, l'option "Configurer la déduplication" sera **grisée** dans Server Manager !
+
+#### Étape 2 : Activer la déduplication
+
+**Méthode PowerShell :**
+
+```powershell
 # Activer la déduplication sur le volume D:
 Enable-DedupVolume -Volume "D:" -UsageType Default
 
-# Configurer les paramètres de déduplication
+# Configurer les paramètres de déduplication (0 jours = immédiat)
 Set-DedupVolume -Volume "D:" -MinimumFileAgeDays 0
 ```
 
-#### Méthode GUI
+**Méthode GUI :**
 
 1. Dans **Server Manager** → **Services de fichiers et de stockage** → **Volumes**
 2. Clic droit sur le volume **D:** → **Configurer la déduplication des données...**
