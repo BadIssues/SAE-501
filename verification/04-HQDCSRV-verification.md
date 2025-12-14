@@ -233,8 +233,22 @@ Get-SmbShareAccess -Name "Public$"
 ### Correction si nécessaire
 
 ```powershell
+# 1. Permissions SMB
 Grant-SmbShareAccess -Name "Department$" -AccountName "HQ\Utilisateurs du domaine" -AccessRight Change -Force
 Grant-SmbShareAccess -Name "Public$" -AccountName "HQ\Utilisateurs du domaine" -AccessRight Change -Force
+
+# 2. Permissions NTFS sur dossiers racines (OBLIGATOIRE)
+$domainUsers = New-Object System.Security.Principal.NTAccount("HQ", "Utilisateurs du domaine")
+
+$acl = Get-Acl "D:\shares\Department"
+$rule = New-Object System.Security.AccessControl.FileSystemAccessRule($domainUsers, "ReadAndExecute,ListDirectory", "ContainerInherit,ObjectInherit", "None", "Allow")
+$acl.AddAccessRule($rule)
+Set-Acl "D:\shares\Department" $acl
+
+$acl = Get-Acl "D:\shares\Public"
+$rule = New-Object System.Security.AccessControl.FileSystemAccessRule($domainUsers, "ReadAndExecute,ListDirectory", "ContainerInherit,ObjectInherit", "None", "Allow")
+$acl.AddAccessRule($rule)
+Set-Acl "D:\shares\Public" $acl
 ```
 
 ### Accès

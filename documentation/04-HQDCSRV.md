@@ -1032,16 +1032,47 @@ foreach ($dept in $departments) {
 }
 ```
 
+### 7.8 Permissions NTFS sur les dossiers racines
+
+> ⚠️ **IMPORTANT** : Sans ces permissions, les utilisateurs ne pourront pas naviguer dans les dossiers racines !
+
+```powershell
+# Permissions NTFS sur le dossier racine Department
+$deptPath = "D:\shares\Department"
+$acl = Get-Acl $deptPath
+
+# Ajouter Utilisateurs du domaine avec Read + ListDirectory sur le dossier racine
+$domainUsers = New-Object System.Security.Principal.NTAccount("HQ", "Utilisateurs du domaine")
+$rule = New-Object System.Security.AccessControl.FileSystemAccessRule($domainUsers, "ReadAndExecute,ListDirectory", "ContainerInherit,ObjectInherit", "None", "Allow")
+$acl.AddAccessRule($rule)
+Set-Acl $deptPath $acl
+Write-Host "OK - $deptPath" -ForegroundColor Green
+
+# Permissions NTFS sur le dossier racine Public
+$publicPath = "D:\shares\Public"
+$acl = Get-Acl $publicPath
+
+# Ajouter Utilisateurs du domaine avec Read + ListDirectory sur le dossier racine
+$rule = New-Object System.Security.AccessControl.FileSystemAccessRule($domainUsers, "ReadAndExecute,ListDirectory", "ContainerInherit,ObjectInherit", "None", "Allow")
+$acl.AddAccessRule($rule)
+Set-Acl $publicPath $acl
+Write-Host "OK - $publicPath" -ForegroundColor Green
+```
+
 #### ✅ Vérification Partages
 
 ```powershell
 # Lister tous les partages SMB
 Get-SmbShare | Format-Table Name, Path, Description
 
-# Vérifier les permissions sur les partages
+# Vérifier les permissions SMB sur les partages
 Get-SmbShareAccess -Name "users$"
 Get-SmbShareAccess -Name "Department$"
 Get-SmbShareAccess -Name "Public$"
+
+# Vérifier les permissions NTFS sur les dossiers racines
+(Get-Acl "D:\shares\Department").Access | Format-Table IdentityReference, FileSystemRights
+(Get-Acl "D:\shares\Public").Access | Format-Table IdentityReference, FileSystemRights
 ```
 
 #### 🔧 Correction si les lecteurs S: et P: ne se montent pas
@@ -1049,11 +1080,24 @@ Get-SmbShareAccess -Name "Public$"
 Si les utilisateurs ont l'erreur "Accès refusé" sur les partages :
 
 ```powershell
-# Ajouter les permissions SMB manquantes
+# 1. Ajouter les permissions SMB manquantes
 Grant-SmbShareAccess -Name "Department$" -AccountName "HQ\Utilisateurs du domaine" -AccessRight Change -Force
 Grant-SmbShareAccess -Name "Public$" -AccountName "HQ\Utilisateurs du domaine" -AccessRight Change -Force
 
-# Vérifier
+# 2. Ajouter les permissions NTFS sur les dossiers racines
+$domainUsers = New-Object System.Security.Principal.NTAccount("HQ", "Utilisateurs du domaine")
+
+$acl = Get-Acl "D:\shares\Department"
+$rule = New-Object System.Security.AccessControl.FileSystemAccessRule($domainUsers, "ReadAndExecute,ListDirectory", "ContainerInherit,ObjectInherit", "None", "Allow")
+$acl.AddAccessRule($rule)
+Set-Acl "D:\shares\Department" $acl
+
+$acl = Get-Acl "D:\shares\Public"
+$rule = New-Object System.Security.AccessControl.FileSystemAccessRule($domainUsers, "ReadAndExecute,ListDirectory", "ContainerInherit,ObjectInherit", "None", "Allow")
+$acl.AddAccessRule($rule)
+Set-Acl "D:\shares\Public" $acl
+
+# 3. Vérifier
 Get-SmbShareAccess -Name "Department$"
 Get-SmbShareAccess -Name "Public$"
 
