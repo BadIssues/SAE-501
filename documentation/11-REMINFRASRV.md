@@ -18,6 +18,7 @@
 > ⚠️ **IMPORTANT - Carte Portail Captif** : Si une carte réseau "Portail Captif" est activée sur le serveur, **la désactiver** avant de commencer la configuration.
 
 > **Sujet** :
+>
 > ```
 > REMINFRASRV is a Active Directory Domain Member
 > This server provide fault tolerance in the Remote Site for different services: DNS, DHCP, DFS
@@ -28,63 +29,195 @@
 
 ## 1️⃣ Configuration de base
 
-### Hostname et IP
+### 1.1 Renommer le serveur
+
+#### PowerShell
+
 ```powershell
 Rename-Computer -NewName "REMINFRASRV" -Restart
-
-# Configuration IP
-New-NetIPAddress -InterfaceAlias "Ethernet" -IPAddress 10.4.100.2 -PrefixLength 25 -DefaultGateway 10.4.100.126
-Set-DnsClientServerAddress -InterfaceAlias "Ethernet" -ServerAddresses 10.4.100.1, 10.4.10.1
 ```
+
+#### GUI
+
+1. **Win+R** → `sysdm.cpl` → Entrée
+2. Onglet **Nom de l'ordinateur** → **Modifier...**
+3. **Nom de l'ordinateur** : `REMINFRASRV`
+4. **OK** → Redémarrer
+
+---
+
+### 1.2 Configuration IP
+
+#### PowerShell
+
+```powershell
+New-NetIPAddress -InterfaceAlias "Ethernet0" -IPAddress 10.4.100.2 -PrefixLength 25 -DefaultGateway 10.4.100.126
+Set-DnsClientServerAddress -InterfaceAlias "Ethernet0" -ServerAddresses 10.4.100.1
+```
+
+#### GUI
+
+1. **Panneau de configuration** → **Centre Réseau et partage** → **Modifier les paramètres de la carte**
+2. Clic droit sur **Ethernet0** → **Propriétés**
+3. Double-clic sur **Protocole Internet version 4 (TCP/IPv4)**
+4. Configurer :
+   - ✅ **Utiliser l'adresse IP suivante**
+   - **Adresse IP** : `10.4.100.2`
+   - **Masque** : `255.255.255.128`
+   - **Passerelle** : `10.4.100.126`
+   - ✅ **Utiliser l'adresse de serveur DNS suivante**
+   - **DNS préféré** : `10.4.100.1`
+5. **OK** → **Fermer**
 
 ---
 
 ## 2️⃣ Joindre le domaine
 
+#### PowerShell
+
 ```powershell
 Add-Computer -DomainName "rem.wsl2025.org" -Credential (Get-Credential) -Restart
 ```
+
+#### GUI
+
+1. **Win+R** → `sysdm.cpl` → Entrée
+2. Onglet **Nom de l'ordinateur** → **Modifier...**
+3. ✅ **Membre d'un : Domaine** → `rem.wsl2025.org`
+4. **OK** → Entrer les credentials `REM\Administrateur` ou `WSL2025\Administrateur`
+5. **OK** → Redémarrer
 
 ---
 
 ## 3️⃣ Installation des rôles
 
+#### PowerShell
+
 ```powershell
 Install-WindowsFeature -Name DNS, DHCP, FS-DFS-Namespace, FS-DFS-Replication -IncludeManagementTools
 ```
+
+#### GUI (Server Manager)
+
+1. Ouvrir **Server Manager**
+2. **Gérer** → **Ajouter des rôles et fonctionnalités**
+3. **Suivant** jusqu'à **Rôles de serveurs**
+4. Cocher :
+   - ✅ **Serveur DHCP**
+   - ✅ **Serveur DNS**
+5. **Suivant** jusqu'à **Fonctionnalités**
+6. Développer **Services de fichiers et de stockage** → **Services de fichiers et iSCSI** :
+   - ✅ **Espaces de noms DFS**
+   - ✅ **Réplication DFS**
+7. **Suivant** → **Installer**
+8. Redémarrer si demandé
 
 ---
 
 ## 4️⃣ DNS Secondary
 
-### Configurer comme serveur DNS secondaire
-```powershell
-# Ajouter les zones secondaires
-Add-DnsServerSecondaryZone -Name "rem.wsl2025.org" -ZoneFile "rem.wsl2025.org.dns" -MasterServers 10.4.100.1
-Add-DnsServerSecondaryZone -Name "hq.wsl2025.org" -ZoneFile "hq.wsl2025.org.dns" -MasterServers 10.4.10.1
+> **Sujet** : "Fault tolerance for DNS" - REMINFRASRV héberge des zones secondaires.
 
-# Forwarder
+### 4.1 Autoriser les transferts sur REMDCSRV (Prérequis)
+
+> ⚠️ **Sur REMDCSRV**, autoriser les transferts de zone vers REMINFRASRV :
+
+```powershell
+# Sur REMDCSRV
+Set-DnsServerPrimaryZone -Name "rem.wsl2025.org" -SecureSecondaries TransferToSecureServers -SecondaryServers 10.4.100.2
+```
+
+**Ou en GUI sur REMDCSRV** :
+1. Ouvrir **DNS Manager** (`dnsmgmt.msc`)
+2. Clic droit sur la zone `rem.wsl2025.org` → **Propriétés**
+3. Onglet **Transferts de zone** → ✅ Cocher **Autoriser les transferts de zone**
+4. Sélectionner **Uniquement vers les serveurs suivants** → Ajouter `10.4.100.2`
+5. **OK**
+
+---
+
+### 4.2 Créer les zones secondaires sur REMINFRASRV
+
+#### PowerShell
+
+```powershell
+# Ajouter la zone secondaire rem.wsl2025.org
+Add-DnsServerSecondaryZone -Name "rem.wsl2025.org" -ZoneFile "rem.wsl2025.org.dns" -MasterServers 10.4.100.1
+
+# Forwarder vers REMDCSRV
 Add-DnsServerForwarder -IPAddress 10.4.100.1
 ```
+
+#### GUI (DNS Manager)
+
+1. Ouvrir **DNS Manager** (`dnsmgmt.msc`)
+2. Clic droit sur **Zones de recherche directe** → **Nouvelle zone...**
+3. **Type de zone** : ✅ **Zone secondaire** → **Suivant**
+4. **Nom de la zone** : `rem.wsl2025.org` → **Suivant**
+5. **Serveurs maîtres** : Ajouter `10.4.100.1` → **Suivant**
+6. **Terminer**
+
+**Configurer le redirecteur** :
+1. Clic droit sur **REMINFRASRV** (racine) → **Propriétés**
+2. Onglet **Redirecteurs** → **Modifier...**
+3. Ajouter : `10.4.100.1`
+4. **OK**
 
 ---
 
 ## 5️⃣ DHCP Failover
 
-### Autoriser le serveur DHCP
+> **Sujet** : "Fault tolerance for DHCP" - Failover avec REMDCSRV.
+
+### 5.1 Autoriser le serveur DHCP dans AD
+
+#### PowerShell
+
 ```powershell
 Add-DhcpServerInDC -DnsName "reminfrasrv.rem.wsl2025.org" -IPAddress 10.4.100.2
 ```
 
-### Configurer le failover avec REMDCSRV
+#### GUI
+
+1. Ouvrir **DHCP** (`dhcpmgmt.msc`)
+2. Clic droit sur **DHCP** → **Gérer les serveurs autorisés...**
+3. Cliquer **Autoriser**
+4. Entrer : `reminfrasrv.rem.wsl2025.org`
+5. **OK**
+
+---
+
+### 5.2 Configurer le Failover (Sur REMDCSRV !)
+
+> ⚠️ **Exécuter cette commande sur REMDCSRV**, pas sur REMINFRASRV !
+
+#### PowerShell (sur REMDCSRV)
+
 ```powershell
-# Sur REMDCSRV, configurer le failover
 Add-DhcpServerv4Failover -Name "REM-Failover" `
     -PartnerServer "reminfrasrv.rem.wsl2025.org" `
     -ScopeId 10.4.100.0 `
     -LoadBalancePercent 50 `
     -SharedSecret "P@ssw0rd" `
     -Force
+```
+
+#### GUI (sur REMDCSRV)
+
+1. Ouvrir **DHCP** (`dhcpmgmt.msc`) sur **REMDCSRV**
+2. Développer **IPv4** → Clic droit sur le scope **Remote-Clients** → **Configurer le basculement...**
+3. **Suivant**
+4. **Ajouter un serveur** → Entrer `reminfrasrv.rem.wsl2025.org` → **OK**
+5. **Mode** : ✅ **Équilibrage de charge** (50%)
+6. **Secret partagé** : `P@ssw0rd`
+7. **Suivant** → **Terminer**
+
+### 5.3 Vérification DHCP Failover
+
+```powershell
+# Sur REMDCSRV ou REMINFRASRV
+Get-DhcpServerv4Failover
+Get-DhcpServerv4Scope
 ```
 
 ---
@@ -156,6 +289,7 @@ Test-Path "\\rem.wsl2025.org\Department"
 6. **Créer**
 
 Ensuite, ajouter les dossiers :
+
 1. Clic droit sur `\\rem.wsl2025.org\files` → **Nouveau dossier...**
 2. **Nom** : `users`
 3. **Cibles** : Cliquer **Ajouter** → `\\remdcsrv.rem.wsl2025.org\users`
@@ -246,13 +380,13 @@ Test-Path "\\rem.wsl2025.org\Department"
 # Attendu : True
 ```
 
-| Élément | Attendu | Commande |
-|---------|---------|----------|
-| Domaine | rem.wsl2025.org | `(Get-WmiObject Win32_ComputerSystem).Domain` |
-| DNS Zones | Secondaires | `Get-DnsServerZone` |
-| DHCP Failover | Actif | `Get-DhcpServerv4Failover` |
-| DFS Namespace | \\rem.wsl2025.org\files | `Get-DfsnRoot` |
-| DFS Folders | users, Department | `Get-DfsnFolder -Path "\\rem.wsl2025.org\*"` |
+| Élément       | Attendu                 | Commande                                      |
+| ------------- | ----------------------- | --------------------------------------------- |
+| Domaine       | rem.wsl2025.org         | `(Get-WmiObject Win32_ComputerSystem).Domain` |
+| DNS Zones     | Secondaires             | `Get-DnsServerZone`                           |
+| DHCP Failover | Actif                   | `Get-DhcpServerv4Failover`                    |
+| DFS Namespace | \\rem.wsl2025.org\files | `Get-DfsnRoot`                                |
+| DFS Folders   | users, Department       | `Get-DfsnFolder -Path "\\rem.wsl2025.org\*"`  |
 
 ---
 
@@ -268,17 +402,16 @@ Test-Path "\\rem.wsl2025.org\Department"
 
 ## 🔗 Dépendances
 
-| Machine | Requis pour |
-|---------|-------------|
+| Machine  | Requis pour                  |
+| -------- | ---------------------------- |
 | REMDCSRV | Partages users et Department |
-| REMFW | Connectivité réseau |
+| REMFW    | Connectivité réseau          |
 
 ---
 
 ## 🎯 Résumé des chemins DFS
 
-| Chemin DFS (namespace) | Cible réelle |
-|------------------------|--------------|
-| `\\rem.wsl2025.org\users` | `\\remdcsrv.rem.wsl2025.org\users` |
+| Chemin DFS (namespace)         | Cible réelle                            |
+| ------------------------------ | --------------------------------------- |
+| `\\rem.wsl2025.org\users`      | `\\remdcsrv.rem.wsl2025.org\users`      |
 | `\\rem.wsl2025.org\Department` | `\\remdcsrv.rem.wsl2025.org\Department` |
-
