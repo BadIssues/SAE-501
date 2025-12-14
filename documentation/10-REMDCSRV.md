@@ -18,6 +18,8 @@
 - [ ] **ACL REMFW correctement configurée** (voir section Dépannage)
 
 > ⚠️ **IMPORTANT - ACL REMFW** : Avant de commencer, vérifier que l'ACL `FIREWALL-INBOUND` sur REMFW autorise les **réponses UDP** (source port) pour DNS, Kerberos, LDAP, NTP et SMB. Sans cela, la promotion AD échouera ! Voir la section [Dépannage](#-dépannage) en fin de document.
+>
+> ⚠️ **IMPORTANT - Carte Portail Captif** : Si une carte réseau "Portail Captif" est activée sur le serveur, **la désactiver** avant de commencer la configuration. Cette carte peut causer des problèmes de routage et bloquer les communications (NTP, DNS, AD, etc.).
 
 ---
 
@@ -466,6 +468,7 @@ Get-ADGroupMember -Identity "Warehouse" | Select-Object Name
 ## 7️⃣ Configuration des Partages (File Services)
 
 > **Sujet - DFS Remote** :
+>
 > ```
 > Create a DFS Domain root with REMINFRASRV
 > There are two shared folders:
@@ -962,8 +965,8 @@ Write-Host "`n⚠️  CONFIGURER CHAQUE GPO EN GUI (voir sections 8.1 à 8.4)" -
 
 > **Sujet** : "Mapping shares Department and Public" + "Home drives"
 >
-> ⚠️ **Note DFS** : Le sujet demande des chemins via le namespace DFS (`\\rem.wsl2025.org\users`). 
-> Actuellement on utilise le chemin direct vers REMDCSRV. Une fois REMINFRASRV configuré avec DFS, 
+> ⚠️ **Note DFS** : Le sujet demande des chemins via le namespace DFS (`\\rem.wsl2025.org\users`).
+> Actuellement on utilise le chemin direct vers REMDCSRV. Une fois REMINFRASRV configuré avec DFS,
 > remplacer les chemins par le namespace DFS.
 
 1. Dans **gpmc.msc**, clic droit sur **REM-DriveMappings** → **Modifier**
@@ -1008,7 +1011,7 @@ Write-Host "`n⚠️  CONFIGURER CHAQUE GPO EN GUI (voir sections 8.1 à 8.4)" -
 
 #### Lecteur P: (Public - partage HQ)
 
-> ⚠️ **Note** : Le partage Public n'existe que sur HQ. Le sujet demande "Mapping Department and Public" 
+> ⚠️ **Note** : Le partage Public n'existe que sur HQ. Le sujet demande "Mapping Department and Public"
 > mais ne définit pas de Public pour Remote. On mappe donc vers le Public de HQ.
 
 9. Clic droit sur **Mappages de lecteurs** → **Nouveau** → **Lecteur mappé**

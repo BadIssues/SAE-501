@@ -11,6 +11,9 @@
 
 - [ ] Windows Server 2022 installé
 - [ ] 3 disques supplémentaires de 1 Go (pour RAID-5)
+- [ ] **Carte réseau "Portail Captif" désactivée** (si présente)
+
+> ⚠️ **IMPORTANT - Carte Portail Captif** : Si une carte réseau "Portail Captif" est activée sur le serveur, **la désactiver** avant de commencer la configuration. Cette carte peut causer des problèmes de routage et bloquer les communications (NTP, DNS, AD, etc.).
 - [ ] DCWSL opérationnel (10.4.10.4) - Forêt wsl2025.org créée
 - [ ] DNSSRV opérationnel (8.8.4.1) - Root CA configurée
 - [ ] Connectivité réseau vers DCWSL et DNSSRV
