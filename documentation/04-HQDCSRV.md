@@ -372,42 +372,64 @@ Start-ScheduledTask -TaskName "ShadowGroupSync"
 
 ## 5️⃣ ADCS - Autorité de Certification Subordonnée
 
+> ⚠️ **IMPORTANT** : Pour configurer une Enterprise CA, vous DEVEZ être connecté avec le compte **`WSL2025\Administrateur`** (Enterprise Admin du domaine racine), pas `HQ\Administrateur` !
+
 ### 5.1 Installer ADCS et IIS
 
 ```powershell
 Install-WindowsFeature -Name ADCS-Cert-Authority, ADCS-Web-Enrollment, Web-Server, Web-Mgmt-Tools -IncludeManagementTools
 ```
 
-### 5.2 Configurer ADCS (génère automatiquement une demande)
+### 5.2 Configurer ADCS via l'assistant graphique (recommandé)
 
-```powershell
-# Configurer ADCS comme Enterprise Subordinate CA
-# Cela génère automatiquement une demande de certificat (.req)
-Install-AdcsCertificationAuthority `
-    -CAType EnterpriseSubordinateCA `
-    -CACommonName "WSFR-SUB-CA" `
-    -Force
-```
+> La configuration via GUI est plus stable que PowerShell pour ADCS.
 
-> ⚠️ **Note** : Cette commande génère un fichier `.req` dans `C:\` (ex: `C:\HQDCSRV.hq.wsl2025.org_WSFR-SUB-CA.req`).  
-> Le service certsvc ne démarrera pas tant que le certificat n'est pas installé.
+1. Ouvrir **Server Manager**
+2. Cliquer sur le **drapeau jaune ⚠️** en haut à droite
+3. Cliquer sur **"Configurer les services de certificats Active Directory"**
+4. **Informations d'identification** : Utiliser `WSL2025\Administrateur`
+5. **Services de rôle** : Cocher ✅ Autorité de certification + ✅ Inscription via le Web
+6. **Type d'installation** : **Autorité de certification d'entreprise** (pas autonome !)
+7. **Type d'AC** : **AC secondaire** (Subordinate CA)
+8. **Clé privée** : Créer une nouvelle clé privée
+9. **Chiffrement** : RSA 2048 + SHA256
+10. **Nom de l'AC** : `WSFR-SUB-CA`
+11. **Demande de certificat** : **Enregistrer dans un fichier** (génère le `.req`)
+12. Terminer l'assistant
 
-```powershell
-# Trouver le fichier .req généré
-dir C:\*.req
-```
+Le fichier généré sera : `C:\HQDCSRV.hq.wsl2025.org_WSFR-SUB-CA.req`
 
 ### 5.3 Signer le certificat sur DNSSRV (Root CA)
 
 #### Étape 1 : Transférer le .req vers DNSSRV
 
 Depuis **HQDCSRV** (PowerShell) :
+
 ```powershell
-# Adapter le nom du fichier .req selon ce qui a été généré
-scp C:\*.req root@8.8.4.1:/etc/ssl/CA/requests/SubCA.req
+# Envoyer le fichier .req généré par l'assistant
+scp "C:\HQDCSRV.hq.wsl2025.org_WSFR-SUB-CA.req" root@8.8.4.1:/etc/ssl/CA/requests/SubCA.req
 ```
 
-#### Étape 2 : Sur DNSSRV, signer le certificat
+#### Étape 2 : Sur DNSSRV, modifier la politique OpenSSL (si erreur "countryName missing")
+
+```bash
+nano /etc/ssl/CA/openssl.cnf
+
+# Modifier la ligne "policy = policy_strict" en :
+# policy = policy_anything
+
+# Ajouter cette section si elle n'existe pas :
+# [ policy_anything ]
+# countryName             = optional
+# stateOrProvinceName     = optional
+# localityName            = optional
+# organizationName        = optional
+# organizationalUnitName  = optional
+# commonName              = supplied
+# emailAddress            = optional
+```
+
+#### Étape 3 : Sur DNSSRV, signer le certificat
 
 ```bash
 cd /etc/ssl/CA
@@ -422,9 +444,10 @@ openssl ca -config openssl.cnf \
 # Confirmer avec 'y' deux fois
 ```
 
-#### Étape 3 : Récupérer les certificats sur HQDCSRV
+#### Étape 4 : Récupérer les certificats sur HQDCSRV
 
 Depuis **HQDCSRV** (PowerShell) :
+
 ```powershell
 scp root@8.8.4.1:/etc/ssl/CA/certs/SubCA.crt C:\SubCA.cer
 scp root@8.8.4.1:/etc/ssl/CA/certs/ca.crt C:\WSFR-ROOT-CA.cer
@@ -432,23 +455,33 @@ scp root@8.8.4.1:/etc/ssl/CA/certs/ca.crt C:\WSFR-ROOT-CA.cer
 
 ### 5.4 Installer les certificats
 
+> ⚠️ Toujours utiliser le compte **`WSL2025\Administrateur`** !
+
 ```powershell
 # 1. Installer le certificat Root CA dans le magasin racine
 Import-Certificate -FilePath "C:\WSFR-ROOT-CA.cer" -CertStoreLocation Cert:\LocalMachine\Root
+```
 
-# 2. Installer le certificat SubCA signé
+#### Installation via GUI (recommandé)
+
+1. Ouvrir **certsrv.msc** (Autorité de certification)
+2. Il va demander si on veut installer le certificat → Cliquer **Oui**
+3. Sélectionner le fichier `C:\SubCA.cer`
+4. Le service devrait démarrer automatiquement
+
+#### Ou via PowerShell
+
+```powershell
 certutil -installcert C:\SubCA.cer
-
-# 3. Démarrer le service de la CA
 Start-Service certsvc
-
-# 4. Vérifier que le service est démarré
-Get-Service certsvc
 ```
 
 #### ✅ Vérification
 
 ```powershell
+# Vérifier que le service est démarré
+Get-Service certsvc
+
 # Vérifier que la CA répond
 certutil -ping
 
