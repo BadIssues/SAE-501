@@ -271,9 +271,11 @@ Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\ServerManager\Roles\12" -Name "
 ```
 
 > ⚠️ **Si erreur "Les serveurs spécifiés sont déjà présents"** : C'est normal, le serveur est déjà autorisé. Redémarrez simplement le service DHCP :
+>
 > ```powershell
 > Restart-Service DHCPServer
 > ```
+>
 > Puis rafraîchissez la console DHCP (F5) - l'icône IPv4 devrait passer au vert.
 
 ### 5.2 Créer le scope DHCP
@@ -324,17 +326,20 @@ Set-DhcpServerv4OptionValue -ScopeId 10.4.100.0 -OptionId 42 -Value 10.4.10.2
 > **Sujet** : "Configure Dynamic DNS to create the associated record corresponding to the distributed IP address"
 
 ```powershell
-# Activer la mise à jour DNS dynamique
+# Étape 1 : Activer la mise à jour DNS dynamique
 Set-DhcpServerv4DnsSetting -ScopeId 10.4.100.0 `
     -DynamicUpdates Always `
-    -DeleteDnsRROnLeaseExpiry $true `
-    -UpdateDnsRRForOlderClients $true `
-    -NameProtection $true
+    -DeleteDnsRROnLeaseExpiry $true
+
+# Étape 2 : Activer la protection des noms (optionnel mais recommandé)
+Set-DhcpServerv4DnsSetting -ScopeId 10.4.100.0 -NameProtection $true
 
 # Configurer les credentials pour la mise à jour DNS
 $dnsCredential = Get-Credential -Message "Credentials pour mise à jour DNS (REM\Administrator)"
 Set-DhcpServerDnsCredential -Credential $dnsCredential
 ```
+
+> ⚠️ **Note** : `-UpdateDnsRRForOlderClients` et `-NameProtection` sont mutuellement exclusifs. La protection des noms est recommandée pour éviter les conflits DNS.
 
 ### 5.5 Vérifier la configuration DHCP
 
