@@ -1,237 +1,855 @@
 # REMDCSRV - Contrôleur de Domaine Remote
 
 > **OS** : Windows Server 2022  
-> **IP** : 10.4.100.1 (VLAN Remote)  
-> **Rôles** : AD DS (Child Domain), DNS, DHCP, DFS
+> **IP** : 10.4.100.1/25  
+> **Gateway** : 10.4.100.126 (REMFW)  
+> **Rôles** : AD DS (Child Domain rem.wsl2025.org), DNS, DHCP, DFS  
+> **Parent Domain** : wsl2025.org (DCWSL)
 
 ---
 
 ## 📋 Prérequis
 
 - [ ] Windows Server 2022 installé
-- [ ] Connectivité avec HQDCSRV (via REMFW/WANRTR)
-- [ ] Résolution DNS vers hq.wsl2025.org fonctionnelle
+- [ ] Connectivité réseau avec DCWSL (10.4.10.4) via REMFW/WANRTR
+- [ ] DCWSL (wsl2025.org) opérationnel
+- [ ] HQDCSRV (hq.wsl2025.org) opérationnel avec PKI/ADCS
+- [ ] Résolution DNS vers wsl2025.org fonctionnelle
 
 ---
 
 ## 1️⃣ Configuration de base
 
-### Hostname et IP
+### 1.1 Renommer le serveur
+
 ```powershell
 Rename-Computer -NewName "REMDCSRV" -Restart
+```
 
-# Configuration IP
-New-NetIPAddress -InterfaceAlias "Ethernet" -IPAddress 10.4.100.1 -PrefixLength 25 -DefaultGateway 10.4.100.126
-Set-DnsClientServerAddress -InterfaceAlias "Ethernet" -ServerAddresses 10.4.10.1, 127.0.0.1  # HQDCSRV puis local
+### 1.2 Configuration IP statique
+
+```powershell
+# Désactiver DHCP et configurer IP statique
+New-NetIPAddress -InterfaceAlias "Ethernet0" `
+    -IPAddress 10.4.100.1 `
+    -PrefixLength 25 `
+    -DefaultGateway 10.4.100.126
+
+# DNS pointe vers DCWSL (wsl2025.org) pour joindre le domaine
+Set-DnsClientServerAddress -InterfaceAlias "Ethernet0" `
+    -ServerAddresses 10.4.10.4
+```
+
+### 1.3 Vérifier la connectivité
+
+```powershell
+# Test ping vers DCWSL
+Test-Connection -ComputerName 10.4.10.4
+
+# Test résolution DNS
+Resolve-DnsName wsl2025.org
+Resolve-DnsName dcwsl.wsl2025.org
 ```
 
 ---
 
-## 2️⃣ Installation Active Directory
+## 2️⃣ Installation des rôles
 
-### Installer les rôles
+### 2.1 Installer tous les rôles nécessaires
+
 ```powershell
-Install-WindowsFeature -Name AD-Domain-Services, DNS, DHCP, FS-DFS-Namespace, FS-DFS-Replication, RSAT-AD-Tools, RSAT-DNS-Server, RSAT-DHCP -IncludeManagementTools
+Install-WindowsFeature -Name `
+    AD-Domain-Services, `
+    DNS, `
+    DHCP, `
+    FS-DFS-Namespace, `
+    FS-DFS-Replication, `
+    FS-Resource-Manager, `
+    RSAT-AD-Tools, `
+    RSAT-DNS-Server, `
+    RSAT-DHCP, `
+    RSAT-DFS-Mgmt-Con `
+    -IncludeManagementTools
 ```
 
-### Joindre comme Child Domain
+---
+
+## 3️⃣ Promotion Active Directory
+
+### 3.1 Créer le Child Domain rem.wsl2025.org
+
+> **Important** : REMDCSRV est un **child domain de wsl2025.org** (forest root = DCWSL), pas de hq.wsl2025.org
+
 ```powershell
-# Option : Child de wsl2025.org (Forest Root)
+# Credentials de l'administrateur du domaine wsl2025.org (DCWSL)
+$credential = Get-Credential -Message "Entrez les credentials de WSL2025\Administrator"
+
+# Promotion en tant que Child Domain
 Install-ADDSDomain `
     -NewDomainName "rem" `
     -ParentDomainName "wsl2025.org" `
-    -DomainType "ChildDomain" `
+    -DomainType ChildDomain `
     -InstallDns:$true `
-    -Credential (Get-Credential) `
+    -CreateDnsDelegation:$true `
+    -DnsDelegationCredential $credential `
+    -DatabasePath "C:\Windows\NTDS" `
+    -LogPath "C:\Windows\NTDS" `
+    -SysvolPath "C:\Windows\SYSVOL" `
+    -Credential $credential `
     -SafeModeAdministratorPassword (ConvertTo-SecureString "P@ssw0rd" -AsPlainText -Force) `
     -Force
+
+# Le serveur redémarre automatiquement
+```
+
+### 3.2 Vérifier la promotion (après redémarrage)
+
+```powershell
+# Vérifier le domaine
+Get-ADDomain
+
+# Vérifier que c'est un Global Catalog
+Get-ADDomainController -Identity "REMDCSRV" | Select-Object Name, IsGlobalCatalog
+
+# Si pas Global Catalog, l'activer
+Set-ADDomainController -Identity "REMDCSRV" -IsGlobalCatalog $true
+```
+
+### 3.3 Mettre à jour le DNS client local
+
+```powershell
+# Après promotion, pointer vers soi-même en premier, puis DCWSL
+Set-DnsClientServerAddress -InterfaceAlias "Ethernet0" `
+    -ServerAddresses 127.0.0.1, 10.4.10.4
 ```
 
 ---
 
-## 3️⃣ Configuration DNS
+## 4️⃣ Configuration DNS
 
-### Zone rem.wsl2025.org
+### 4.1 Configurer le Forwarder
+
+> **Sujet** : "All others DNS requests are forwarded to wsl2025.org"
+
 ```powershell
-# La zone est créée automatiquement avec AD DS
+# Supprimer les forwarders existants
+Get-DnsServerForwarder | Remove-DnsServerForwarder -Force
 
-# Ajouter un forwarder vers wsl2025.org / HQDCSRV
-Add-DnsServerForwarder -IPAddress 10.4.10.1
+# Ajouter le forwarder vers DCWSL (wsl2025.org)
+Add-DnsServerForwarder -IPAddress 10.4.10.4
 
-# Vérifier la réplication de zone si configurée
+# Vérifier
+Get-DnsServerForwarder
+```
+
+### 4.2 Vérifier les zones DNS
+
+```powershell
+# La zone rem.wsl2025.org est créée automatiquement avec AD DS
 Get-DnsServerZone
+
+# Vérifier les enregistrements
+Get-DnsServerResourceRecord -ZoneName "rem.wsl2025.org"
 ```
 
-### DNSSEC
+### 4.3 Configurer DNSSEC
+
+> **Sujet** : "DNSSec should be configured on this server with a certificate issued by HQDCSRV"
+
 ```powershell
-# Signer la zone avec certificat de HQDCSRV
+# Signer la zone rem.wsl2025.org
+# Note : Le certificat doit être obtenu depuis HQDCSRV (PKI)
 Invoke-DnsServerZoneSign -ZoneName "rem.wsl2025.org" -SignWithDefault
+
+# Vérifier la signature
+Get-DnsServerDnsSecZoneSetting -ZoneName "rem.wsl2025.org"
 ```
 
 ---
 
-## 4️⃣ Configuration DHCP
+## 5️⃣ Configuration DHCP
 
-### Autoriser le serveur DHCP
+### 5.1 Autoriser le serveur DHCP dans AD
+
 ```powershell
 Add-DhcpServerInDC -DnsName "remdcsrv.rem.wsl2025.org" -IPAddress 10.4.100.1
+
+# Supprimer le warning de configuration
+Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\ServerManager\Roles\12" -Name "ConfigurationState" -Value 2
 ```
 
-### Créer le scope
+### 5.2 Créer le scope DHCP
+
+> **Sujet** :
+>
+> - Subnet : 10.4.100.0
+> - Gateway : à définir (10.4.100.126 = REMFW)
+> - Name server : remdcsrv.rem.wsl2025.org
+> - Domain : rem.wsl2025.org
+> - NTP server : hqinfrasrv.hq.wsl2025.org (10.4.10.2)
+> - Lease : 2 heures
+
 ```powershell
-# Scope pour le site Remote
+# Créer le scope pour les clients Remote
+# Réseau 10.4.100.0/25 = 10.4.100.0 - 10.4.100.127
+# Serveurs : .1 à .9 | Clients DHCP : .10 à .120 | Gateway : .126
+
 Add-DhcpServerv4Scope -Name "Remote-Clients" `
     -StartRange 10.4.100.10 `
     -EndRange 10.4.100.120 `
     -SubnetMask 255.255.255.128 `
-    -LeaseDuration 02:00:00  # 2 heures
+    -LeaseDuration 02:00:00 `
+    -State Active
 
-# Options du scope
-Set-DhcpServerv4OptionValue -ScopeId 10.4.100.0 -Router 10.4.100.126
-Set-DhcpServerv4OptionValue -ScopeId 10.4.100.0 -DnsServer 10.4.100.1
-Set-DhcpServerv4OptionValue -ScopeId 10.4.100.0 -DnsDomain "rem.wsl2025.org"
-
-# Option NTP
-Set-DhcpServerv4OptionValue -ScopeId 10.4.100.0 -OptionId 42 -Value 10.4.10.2  # hqinfrasrv
+# Exclure les adresses réservées (serveurs)
+Add-DhcpServerv4ExclusionRange -ScopeId 10.4.100.0 -StartRange 10.4.100.1 -EndRange 10.4.100.9
 ```
 
-### Dynamic DNS
+### 5.3 Configurer les options DHCP
+
+```powershell
+# Option 003 - Gateway/Router
+Set-DhcpServerv4OptionValue -ScopeId 10.4.100.0 -OptionId 3 -Value 10.4.100.126
+
+# Option 006 - DNS Server (remdcsrv.rem.wsl2025.org)
+Set-DhcpServerv4OptionValue -ScopeId 10.4.100.0 -OptionId 6 -Value 10.4.100.1
+
+# Option 015 - DNS Domain Name
+Set-DhcpServerv4OptionValue -ScopeId 10.4.100.0 -OptionId 15 -Value "rem.wsl2025.org"
+
+# Option 042 - NTP Server (hqinfrasrv.hq.wsl2025.org)
+Set-DhcpServerv4OptionValue -ScopeId 10.4.100.0 -OptionId 42 -Value 10.4.10.2
+```
+
+### 5.4 Configurer Dynamic DNS
+
+> **Sujet** : "Configure Dynamic DNS to create the associated record corresponding to the distributed IP address"
+
 ```powershell
 # Activer la mise à jour DNS dynamique
-Set-DhcpServerv4DnsSetting -ScopeId 10.4.100.0 -DynamicUpdates "Always" -DeleteDnsRROnLeaseExpiry $true
+Set-DhcpServerv4DnsSetting -ScopeId 10.4.100.0 `
+    -DynamicUpdates Always `
+    -DeleteDnsRROnLeaseExpiry $true `
+    -UpdateDnsRRForOlderClients $true `
+    -NameProtection $true
+
+# Configurer les credentials pour la mise à jour DNS
+$dnsCredential = Get-Credential -Message "Credentials pour mise à jour DNS (REM\Administrator)"
+Set-DhcpServerDnsCredential -Credential $dnsCredential
+```
+
+### 5.5 Vérifier la configuration DHCP
+
+```powershell
+Get-DhcpServerv4Scope
+Get-DhcpServerv4OptionValue -ScopeId 10.4.100.0
+Get-DhcpServerv4DnsSetting -ScopeId 10.4.100.0
 ```
 
 ---
 
-## 5️⃣ Structure Organisationnelle AD
+## 6️⃣ Structure Organisationnelle Active Directory
 
-### Créer les OUs
+### 6.1 Créer les OUs
+
+> **Sujet** : "The remote site is represented by one OU that contains: Workers, Computers, Groups"
+
 ```powershell
-# OU Remote
-New-ADOrganizationalUnit -Name "Remote" -Path "DC=rem,DC=wsl2025,DC=org"
-New-ADOrganizationalUnit -Name "Workers" -Path "OU=Remote,DC=rem,DC=wsl2025,DC=org"
-New-ADOrganizationalUnit -Name "Computers" -Path "OU=Remote,DC=rem,DC=wsl2025,DC=org"
-New-ADOrganizationalUnit -Name "Groups" -Path "OU=Remote,DC=rem,DC=wsl2025,DC=org"
+# OU principale Remote
+New-ADOrganizationalUnit -Name "Remote" -Path "DC=rem,DC=wsl2025,DC=org" -ProtectedFromAccidentalDeletion $true
+
+# Sous-OUs
+New-ADOrganizationalUnit -Name "Workers" -Path "OU=Remote,DC=rem,DC=wsl2025,DC=org" -ProtectedFromAccidentalDeletion $true
+New-ADOrganizationalUnit -Name "Computers" -Path "OU=Remote,DC=rem,DC=wsl2025,DC=org" -ProtectedFromAccidentalDeletion $true
+New-ADOrganizationalUnit -Name "Groups" -Path "OU=Remote,DC=rem,DC=wsl2025,DC=org" -ProtectedFromAccidentalDeletion $true
 ```
 
-### Créer les utilisateurs Remote
+### 6.2 Créer les groupes
+
 ```powershell
+# Groupes de département (Global Security Groups)
+New-ADGroup -Name "IT" -GroupScope Global -GroupCategory Security `
+    -Path "OU=Groups,OU=Remote,DC=rem,DC=wsl2025,DC=org" `
+    -Description "Groupe IT Remote"
+
+New-ADGroup -Name "Direction" -GroupScope Global -GroupCategory Security `
+    -Path "OU=Groups,OU=Remote,DC=rem,DC=wsl2025,DC=org" `
+    -Description "Groupe Direction Remote"
+
+New-ADGroup -Name "Warehouse" -GroupScope Global -GroupCategory Security `
+    -Path "OU=Groups,OU=Remote,DC=rem,DC=wsl2025,DC=org" `
+    -Description "Groupe Warehouse Remote"
+```
+
+### 6.3 Créer les utilisateurs Remote
+
+> **Sujet** : Utilisateurs du site REM selon l'Appendix
+
+```powershell
+# Définition des utilisateurs Remote
 $usersRemote = @(
-    @{Name="Ela STIQUE"; Login="estique"; Dept="Warehouse"; Email="estique@wsl2025.org"},
-    @{Name="Rachid TAHA"; Login="rtaha"; Dept="Direction"; Email="rtaha@wsl2025.org"},
-    @{Name="Denis PELTIER"; Login="dpeltier"; Dept="IT"; Email="dpeltier@wsl2025.org"}
+    @{
+        FirstName = "Ela"
+        LastName = "STIQUE"
+        Login = "estique"
+        Department = "Warehouse"
+        Email = "estique@wsl2025.org"
+    },
+    @{
+        FirstName = "Rachid"
+        LastName = "TAHA"
+        Login = "rtaha"
+        Department = "Direction"
+        Email = "rtaha@wsl2025.org"
+    },
+    @{
+        FirstName = "Denis"
+        LastName = "PELTIER"
+        Login = "dpeltier"
+        Department = "IT"
+        Email = "dpeltier@wsl2025.org"
+    }
 )
 
+# Création des utilisateurs
 foreach ($user in $usersRemote) {
-    New-ADUser -Name $user.Name `
+    New-ADUser `
+        -Name "$($user.FirstName) $($user.LastName)" `
+        -GivenName $user.FirstName `
+        -Surname $user.LastName `
         -SamAccountName $user.Login `
         -UserPrincipalName "$($user.Login)@rem.wsl2025.org" `
         -EmailAddress $user.Email `
+        -Department $user.Department `
         -Path "OU=Workers,OU=Remote,DC=rem,DC=wsl2025,DC=org" `
         -AccountPassword (ConvertTo-SecureString "P@ssw0rd" -AsPlainText -Force) `
+        -ChangePasswordAtLogon $false `
+        -PasswordNeverExpires $true `
         -Enabled $true
+
+    # Ajouter au groupe correspondant
+    Add-ADGroupMember -Identity $user.Department -Members $user.Login
+
+    Write-Host "Utilisateur $($user.Login) créé et ajouté au groupe $($user.Department)" -ForegroundColor Green
 }
+```
 
-# Créer les groupes
-New-ADGroup -Name "IT" -GroupScope Global -Path "OU=Groups,OU=Remote,DC=rem,DC=wsl2025,DC=org"
-New-ADGroup -Name "Direction" -GroupScope Global -Path "OU=Groups,OU=Remote,DC=rem,DC=wsl2025,DC=org"
-New-ADGroup -Name "Warehouse" -GroupScope Global -Path "OU=Groups,OU=Remote,DC=rem,DC=wsl2025,DC=org"
+### 6.4 Vérifier les utilisateurs et groupes
 
-# Ajouter aux groupes
-Add-ADGroupMember -Identity "IT" -Members "dpeltier"
-Add-ADGroupMember -Identity "Direction" -Members "rtaha"
-Add-ADGroupMember -Identity "Warehouse" -Members "estique"
+```powershell
+# Lister les utilisateurs
+Get-ADUser -Filter * -SearchBase "OU=Workers,OU=Remote,DC=rem,DC=wsl2025,DC=org" | Select-Object Name, SamAccountName
+
+# Lister les groupes et leurs membres
+Get-ADGroup -Filter * -SearchBase "OU=Groups,OU=Remote,DC=rem,DC=wsl2025,DC=org" | ForEach-Object {
+    Write-Host "`nGroupe: $($_.Name)" -ForegroundColor Cyan
+    Get-ADGroupMember -Identity $_ | Select-Object Name
+}
 ```
 
 ---
 
-## 6️⃣ Configuration DFS
+## 7️⃣ Configuration DFS
 
-### Créer la racine DFS
+### 7.1 Créer les répertoires de partage
+
 ```powershell
-# Créer le namespace
-New-DfsnRoot -TargetPath "\\remdcsrv.rem.wsl2025.org\DFSRoot" -Type DomainV2 -Path "\\rem.wsl2025.org\files"
+# Créer la structure de dossiers
+New-Item -Path "C:\shares" -ItemType Directory -Force
+New-Item -Path "C:\shares\datausers" -ItemType Directory -Force
+New-Item -Path "C:\shares\Department" -ItemType Directory -Force
 
-# Créer les dossiers
-New-Item -Path "C:\shares\datausers" -ItemType Directory
-New-Item -Path "C:\shares\Department" -ItemType Directory
-```
-
-### Partage users
-```powershell
-New-SmbShare -Name "users$" -Path "C:\shares\datausers" -FullAccess "Administrators" -ChangeAccess "Authenticated Users"
-
-# Quota 20 Mo
-Install-WindowsFeature -Name FS-Resource-Manager
-New-FsrmQuotaTemplate -Name "UserQuota" -Size 20MB
-New-FsrmAutoQuota -Path "C:\shares\datausers" -Template "UserQuota"
-
-# Ajouter au DFS
-New-DfsnFolder -Path "\\rem.wsl2025.org\files\users" -TargetPath "\\remdcsrv.rem.wsl2025.org\users$"
-```
-
-### Partage Department
-```powershell
 # Créer les dossiers département
 foreach ($dept in @("IT", "Direction", "Warehouse")) {
-    New-Item -Path "C:\shares\Department\$dept" -ItemType Directory
+    New-Item -Path "C:\shares\Department\$dept" -ItemType Directory -Force
 }
+```
 
-New-SmbShare -Name "Department$" -Path "C:\shares\Department" -FullAccess "Administrators"
-New-DfsnFolder -Path "\\rem.wsl2025.org\files\Department" -TargetPath "\\remdcsrv.rem.wsl2025.org\Department$"
+### 7.2 Créer les dossiers personnels utilisateurs
+
+```powershell
+foreach ($user in $usersRemote) {
+    $userPath = "C:\shares\datausers\$($user.Login)"
+    New-Item -Path $userPath -ItemType Directory -Force
+}
+```
+
+### 7.3 Configurer les permissions NTFS - Home Drives
+
+> **Sujet** :
+>
+> - "Administrators must have Full control access on all folders"
+> - "Users can only access their personal folder"
+> - "Users can only see their personal folder"
+
+```powershell
+# Permissions sur le dossier parent datausers
+$aclParent = Get-Acl "C:\shares\datausers"
+$aclParent.SetAccessRuleProtection($true, $false)  # Désactiver héritage
+
+# Administrators = Full Control
+$adminRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
+    "Administrators", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+$aclParent.AddAccessRule($adminRule)
+
+# SYSTEM = Full Control
+$systemRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
+    "SYSTEM", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+$aclParent.AddAccessRule($systemRule)
+
+# Authenticated Users = List folder (pour accéder à leur sous-dossier)
+$authUsersRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
+    "Authenticated Users", "ReadAndExecute", "None", "None", "Allow")
+$aclParent.AddAccessRule($authUsersRule)
+
+Set-Acl "C:\shares\datausers" $aclParent
+
+# Permissions sur chaque dossier utilisateur
+foreach ($user in $usersRemote) {
+    $userPath = "C:\shares\datausers\$($user.Login)"
+    $acl = Get-Acl $userPath
+    $acl.SetAccessRuleProtection($true, $false)  # Désactiver héritage
+
+    # Administrators = Full Control
+    $adminRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
+        "Administrators", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+    $acl.AddAccessRule($adminRule)
+
+    # SYSTEM = Full Control
+    $systemRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
+        "SYSTEM", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+    $acl.AddAccessRule($systemRule)
+
+    # Utilisateur = Modify sur son dossier uniquement
+    $userRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
+        "REM\$($user.Login)", "Modify", "ContainerInherit,ObjectInherit", "None", "Allow")
+    $acl.AddAccessRule($userRule)
+
+    Set-Acl $userPath $acl
+    Write-Host "Permissions configurées pour $($user.Login)" -ForegroundColor Green
+}
+```
+
+### 7.4 Configurer les permissions NTFS - Department
+
+> **Sujet** :
+>
+> - "Users can only access their department folder"
+> - "Users can only see their department folder"
+
+```powershell
+# Permissions sur le dossier parent Department
+$aclDept = Get-Acl "C:\shares\Department"
+$aclDept.SetAccessRuleProtection($true, $false)
+
+$adminRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
+    "Administrators", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+$aclDept.AddAccessRule($adminRule)
+
+$systemRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
+    "SYSTEM", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+$aclDept.AddAccessRule($systemRule)
+
+$authUsersRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
+    "Authenticated Users", "ReadAndExecute", "None", "None", "Allow")
+$aclDept.AddAccessRule($authUsersRule)
+
+Set-Acl "C:\shares\Department" $aclDept
+
+# Permissions sur chaque dossier département
+foreach ($dept in @("IT", "Direction", "Warehouse")) {
+    $deptPath = "C:\shares\Department\$dept"
+    $acl = Get-Acl $deptPath
+    $acl.SetAccessRuleProtection($true, $false)
+
+    # Administrators = Full Control
+    $adminRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
+        "Administrators", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+    $acl.AddAccessRule($adminRule)
+
+    # SYSTEM = Full Control
+    $systemRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
+        "SYSTEM", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+    $acl.AddAccessRule($systemRule)
+
+    # Groupe département = Modify
+    $groupRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
+        "REM\$dept", "Modify", "ContainerInherit,ObjectInherit", "None", "Allow")
+    $acl.AddAccessRule($groupRule)
+
+    Set-Acl $deptPath $acl
+    Write-Host "Permissions configurées pour département $dept" -ForegroundColor Green
+}
+```
+
+### 7.5 Créer les partages SMB avec ABE
+
+> **Sujet** : "Users can only see their personal folder" → Access-Based Enumeration
+
+```powershell
+# Partage users (Home drives)
+# Share path: \\rem.wsl2025.org\users
+New-SmbShare -Name "users" `
+    -Path "C:\shares\datausers" `
+    -FullAccess "Administrators" `
+    -ChangeAccess "Authenticated Users" `
+    -FolderEnumerationMode AccessBased `
+    -Description "Home drives utilisateurs Remote"
+
+# Partage Department
+New-SmbShare -Name "Department" `
+    -Path "C:\shares\Department" `
+    -FullAccess "Administrators" `
+    -ChangeAccess "Authenticated Users" `
+    -FolderEnumerationMode AccessBased `
+    -Description "Dossiers départements Remote"
+```
+
+### 7.6 Configurer les quotas (20 Mo)
+
+> **Sujet** : "Limit the storage quota to 20Mb"
+
+```powershell
+# Créer le template de quota
+New-FsrmQuotaTemplate -Name "UserQuota20MB" `
+    -Size 20MB `
+    -Description "Quota 20 Mo pour les utilisateurs" `
+    -SoftLimit
+
+# Appliquer le quota automatique sur datausers
+New-FsrmAutoQuota -Path "C:\shares\datausers" -Template "UserQuota20MB"
+
+# Vérifier
+Get-FsrmAutoQuota -Path "C:\shares\datausers"
+```
+
+### 7.7 Créer la racine DFS Domaine
+
+> **Sujet** : "Create a DFS Domain root with REMINFRASRV"
+
+```powershell
+# Créer le dossier racine DFS
+New-Item -Path "C:\DFSRoots\files" -ItemType Directory -Force
+
+# Partager le dossier racine
+New-SmbShare -Name "files" -Path "C:\DFSRoots\files" -FullAccess "Everyone"
+
+# Créer le namespace DFS (Domain-based)
+New-DfsnRoot -TargetPath "\\REMDCSRV.rem.wsl2025.org\files" `
+    -Type DomainV2 `
+    -Path "\\rem.wsl2025.org\files"
+
+# Ajouter les dossiers au namespace
+New-DfsnFolder -Path "\\rem.wsl2025.org\files\users" `
+    -TargetPath "\\REMDCSRV.rem.wsl2025.org\users"
+
+New-DfsnFolder -Path "\\rem.wsl2025.org\files\Department" `
+    -TargetPath "\\REMDCSRV.rem.wsl2025.org\Department"
+```
+
+### 7.8 Vérifier DFS
+
+```powershell
+Get-DfsnRoot -Path "\\rem.wsl2025.org\files"
+Get-DfsnFolder -Path "\\rem.wsl2025.org\files\*"
 ```
 
 ---
 
-## 7️⃣ GPO Site Remote
+## 8️⃣ Configuration des GPO
 
-### IT sont admins locaux
+### 8.1 GPO - IT sont administrateurs locaux
+
+> **Sujet** : "Members of IT group are local administrators"
+
 ```powershell
-New-GPO -Name "REM-IT-LocalAdmins" | New-GPLink -Target "OU=Remote,DC=rem,DC=wsl2025,DC=org"
-# Via GPMC : Computer Configuration > Policies > Windows Settings > Security Settings > Restricted Groups
-# Ajouter "REM\IT" au groupe "Administrators"
+# Créer la GPO
+$gpoITAdmin = New-GPO -Name "REM-IT-LocalAdmins"
+
+# Lier à l'OU Remote
+New-GPLink -Guid $gpoITAdmin.Id -Target "OU=Remote,DC=rem,DC=wsl2025,DC=org"
+
+Write-Host @"
+=== Configuration manuelle requise ===
+1. Ouvrir GPMC (gpmc.msc)
+2. Éditer la GPO 'REM-IT-LocalAdmins'
+3. Aller à : Computer Configuration > Policies > Windows Settings > Security Settings > Restricted Groups
+4. Clic droit > Add Group
+5. Ajouter le groupe 'Administrators'
+6. Dans 'Members of this group', ajouter 'REM\IT'
+"@ -ForegroundColor Yellow
 ```
 
-### Bloquer panneau de configuration
+**Configuration manuelle GPMC :**
+
+1. `gpmc.msc` → Éditer `REM-IT-LocalAdmins`
+2. `Computer Configuration` → `Policies` → `Windows Settings` → `Security Settings` → `Restricted Groups`
+3. Clic droit → `Add Group` → `Administrators`
+4. `Members of this group` → Ajouter `REM\IT`
+
+### 8.2 GPO - Bloquer le Panneau de configuration (sauf IT)
+
+> **Sujet** : "Control Panel is blocked for everyone except for IT group members"
+
 ```powershell
-New-GPO -Name "REM-Block-ControlPanel" | New-GPLink -Target "OU=Workers,OU=Remote,DC=rem,DC=wsl2025,DC=org"
-# User Configuration > Administrative Templates > Control Panel > Prohibit access
-# Utiliser le filtrage de sécurité pour exclure le groupe IT
+# Créer la GPO
+$gpoBlockCP = New-GPO -Name "REM-Block-ControlPanel"
+
+# Lier à l'OU Workers (où sont les utilisateurs)
+New-GPLink -Guid $gpoBlockCP.Id -Target "OU=Workers,OU=Remote,DC=rem,DC=wsl2025,DC=org"
+
+# Configurer via registre (alternative PowerShell)
+Set-GPRegistryValue -Guid $gpoBlockCP.Id `
+    -Key "HKCU\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer" `
+    -ValueName "NoControlPanel" `
+    -Type DWord `
+    -Value 1
+
+# Retirer le groupe IT du filtrage de sécurité
+Set-GPPermission -Guid $gpoBlockCP.Id -TargetName "IT" -TargetType Group -PermissionLevel GpoApply -Replace
+Set-GPPermission -Guid $gpoBlockCP.Id -TargetName "IT" -TargetType Group -PermissionLevel None
+
+Write-Host "GPO Block Control Panel créée - Le groupe IT est exclu" -ForegroundColor Green
 ```
 
-### Mappages réseau
+**Configuration manuelle alternative :**
+
+1. `gpmc.msc` → Éditer `REM-Block-ControlPanel`
+2. `User Configuration` → `Administrative Templates` → `Control Panel`
+3. Activer `Prohibit access to Control Panel and PC settings`
+4. Dans l'onglet `Delegation` → Retirer `Apply` pour le groupe `REM\IT`
+
+### 8.3 GPO - Mappages lecteurs réseau
+
+> **Sujet** : "Mapping shares Department" + "Home drives mounted with letter U: and S:"
+
 ```powershell
-New-GPO -Name "REM-DriveMappings" | New-GPLink -Target "OU=Remote,DC=rem,DC=wsl2025,DC=org"
-# User Configuration > Preferences > Windows Settings > Drive Maps
-# S: -> \\rem.wsl2025.org\files\Department\%DEPARTMENT%
-# U: -> \\rem.wsl2025.org\files\users\%USERNAME%
+# Créer la GPO
+$gpoDriveMap = New-GPO -Name "REM-DriveMappings"
+
+# Lier à l'OU Remote
+New-GPLink -Guid $gpoDriveMap.Id -Target "OU=Remote,DC=rem,DC=wsl2025,DC=org"
+
+Write-Host @"
+=== Configuration manuelle requise ===
+1. Ouvrir GPMC (gpmc.msc)
+2. Éditer la GPO 'REM-DriveMappings'
+3. User Configuration > Preferences > Windows Settings > Drive Maps
+
+LECTEUR U: (Home Drive)
+- Action: Update
+- Location: \\rem.wsl2025.org\users\%USERNAME%
+- Letter: U
+- Reconnect: Oui
+- Label: Home
+
+LECTEUR S: (Department)
+- Action: Update
+- Location: \\rem.wsl2025.org\files\Department
+- Letter: S
+- Reconnect: Oui
+- Label: Department
+- Item-level targeting: Groupe spécifique pour chaque département
+"@ -ForegroundColor Yellow
 ```
 
-### Certificats CA
+### 8.4 GPO - Déployer les certificats CA
+
+> **Sujet** : "Configure Root CA certificate on the Root CA magazine and the Sub CA on the Sub CA magazine"
+
 ```powershell
-New-GPO -Name "REM-Certificates" | New-GPLink -Target "OU=Remote,DC=rem,DC=wsl2025,DC=org"
-# Computer Configuration > Policies > Windows Settings > Security Settings > Public Key Policies
-# Importer WSFR-ROOT-CA et WSFR-SUB-CA
+# Créer la GPO
+$gpoCerts = New-GPO -Name "REM-Deploy-Certificates"
+
+# Lier à l'OU Remote
+New-GPLink -Guid $gpoCerts.Id -Target "OU=Remote,DC=rem,DC=wsl2025,DC=org"
+
+Write-Host @"
+=== Configuration manuelle requise ===
+1. Exporter les certificats depuis DNSSRV (Root CA) et HQDCSRV (Sub CA)
+   - WSFR-ROOT-CA.cer
+   - WSFR-SUB-CA.cer
+
+2. Ouvrir GPMC (gpmc.msc)
+3. Éditer la GPO 'REM-Deploy-Certificates'
+4. Computer Configuration > Policies > Windows Settings > Security Settings > Public Key Policies
+
+5. Trusted Root Certification Authorities
+   - Clic droit > Import > WSFR-ROOT-CA.cer
+
+6. Intermediate Certification Authorities
+   - Clic droit > Import > WSFR-SUB-CA.cer
+"@ -ForegroundColor Yellow
+```
+
+### 8.5 Forcer la mise à jour des GPO
+
+```powershell
+# Sur le serveur
+gpupdate /force
+
+# Pour forcer sur tous les clients du domaine (optionnel)
+Invoke-GPUpdate -Computer "REMCLT" -Force
 ```
 
 ---
 
-## ✅ Vérifications
+## 9️⃣ Configuration NTP
 
-| Test | Commande |
-|------|----------|
-| AD DS | `Get-ADDomain` |
-| DNS | `Resolve-DnsName remdcsrv.rem.wsl2025.org` |
-| DHCP | `Get-DhcpServerv4Scope` |
-| DFS | `Get-DfsnRoot` |
-| Réplication AD | `repadmin /replsummary` |
-| Trust | `Get-ADTrust -Filter *` |
+### 9.1 Configurer le client NTP
+
+> **Sujet** : "Use HQINFRASRV as time reference"
+
+```powershell
+# Configurer la source NTP (HQINFRASRV)
+w32tm /config /manualpeerlist:"10.4.10.2" /syncfromflags:manual /reliable:no /update
+
+# Redémarrer le service
+Restart-Service w32time
+
+# Forcer la synchronisation
+w32tm /resync /force
+
+# Vérifier
+w32tm /query /status
+w32tm /query /source
+```
 
 ---
 
-## 📝 Notes
+## 🔟 Vérifications finales
 
-- La réplication AD avec HQDCSRV doit fonctionner via REMFW
-- Le Dynamic DNS crée automatiquement les enregistrements pour les clients DHCP
-- Les utilisateurs Remote peuvent s'authentifier sur les deux sites
-- Le DFS sera répliqué avec REMINFRASRV pour la tolérance de panne
+### 10.1 Tests Active Directory
+
+```powershell
+# Domaine
+Get-ADDomain
+Get-ADForest
+
+# Global Catalog
+Get-ADDomainController -Identity "REMDCSRV" | Select-Object Name, IsGlobalCatalog, IPv4Address
+
+# Trust avec le parent
+Get-ADTrust -Filter *
+
+# Réplication
+repadmin /replsummary
+repadmin /showrepl
+```
+
+### 10.2 Tests DNS
+
+```powershell
+# Zone locale
+Get-DnsServerZone
+Resolve-DnsName remdcsrv.rem.wsl2025.org
+
+# Résolution vers parent
+Resolve-DnsName dcwsl.wsl2025.org
+Resolve-DnsName hqdcsrv.hq.wsl2025.org
+
+# DNSSEC
+Get-DnsServerDnsSecZoneSetting -ZoneName "rem.wsl2025.org"
+```
+
+### 10.3 Tests DHCP
+
+```powershell
+# Scopes
+Get-DhcpServerv4Scope
+
+# Options
+Get-DhcpServerv4OptionValue -ScopeId 10.4.100.0
+
+# Dynamic DNS
+Get-DhcpServerv4DnsSetting -ScopeId 10.4.100.0
+
+# Autorisation AD
+Get-DhcpServerInDC
+```
+
+### 10.4 Tests DFS
+
+```powershell
+# Namespace
+Get-DfsnRoot -Path "\\rem.wsl2025.org\files"
+Get-DfsnFolder -Path "\\rem.wsl2025.org\files\*"
+
+# Accès
+Test-Path "\\rem.wsl2025.org\users"
+Test-Path "\\rem.wsl2025.org\files\Department"
+```
+
+### 10.5 Tests Partages
+
+```powershell
+# Lister les partages
+Get-SmbShare
+
+# Vérifier ABE
+Get-SmbShare -Name "users" | Select-Object Name, FolderEnumerationMode
+Get-SmbShare -Name "Department" | Select-Object Name, FolderEnumerationMode
+
+# Quotas
+Get-FsrmAutoQuota
+```
+
+### 10.6 Tests GPO
+
+```powershell
+# Lister les GPO
+Get-GPO -All | Select-Object DisplayName, GpoStatus
+
+# Vérifier les liens
+Get-GPInheritance -Target "OU=Remote,DC=rem,DC=wsl2025,DC=org"
+
+# Rapport GPO
+Get-GPOReport -All -ReportType HTML -Path "C:\GPOReport.html"
+```
+
+---
+
+## 📋 Checklist de validation
+
+| Composant | Test                         | Commande                                           |
+| --------- | ---------------------------- | -------------------------------------------------- |
+| AD DS     | Child domain rem.wsl2025.org | `Get-ADDomain`                                     |
+| AD DS     | Global Catalog activé        | `Get-ADDomainController -Identity REMDCSRV`        |
+| AD DS     | Trust avec wsl2025.org       | `Get-ADTrust -Filter *`                            |
+| DNS       | Zone rem.wsl2025.org         | `Get-DnsServerZone`                                |
+| DNS       | Forwarder vers DCWSL         | `Get-DnsServerForwarder`                           |
+| DNS       | DNSSEC activé                | `Get-DnsServerDnsSecZoneSetting`                   |
+| DHCP      | Scope actif                  | `Get-DhcpServerv4Scope`                            |
+| DHCP      | Options configurées          | `Get-DhcpServerv4OptionValue -ScopeId 10.4.100.0`  |
+| DHCP      | Dynamic DNS                  | `Get-DhcpServerv4DnsSetting`                       |
+| OUs       | Structure créée              | `Get-ADOrganizationalUnit -Filter *`               |
+| Users     | 3 utilisateurs Remote        | `Get-ADUser -Filter * -SearchBase "OU=Workers..."` |
+| Groups    | IT, Direction, Warehouse     | `Get-ADGroup -Filter * -SearchBase "OU=Groups..."` |
+| DFS       | Namespace créé               | `Get-DfsnRoot`                                     |
+| Shares    | ABE activé                   | `Get-SmbShare -Name users`                         |
+| Quotas    | 20 Mo configuré              | `Get-FsrmAutoQuota`                                |
+| GPO       | 4 GPO créées                 | `Get-GPO -All`                                     |
+| NTP       | Sync avec HQINFRASRV         | `w32tm /query /source`                             |
+
+---
+
+## 📝 Notes importantes
+
+1. **Ordre d'exécution** : Suivre les sections dans l'ordre (1 à 10)
+2. **Redémarrage** : Le serveur redémarre après la promotion AD
+3. **Credentials** : Utiliser les credentials de `WSL2025\Administrator` pour joindre le domaine
+4. **DFS Replication** : Sera configuré après l'installation de REMINFRASRV
+5. **Certificats** : Exporter depuis DNSSRV (Root CA) et HQDCSRV (Sub CA) avant de configurer la GPO
+6. **GPO manuelles** : Certaines GPO nécessitent une configuration via GPMC (interface graphique)
+
+---
+
+## 🔗 Dépendances
+
+| Machine     | Requis pour                          |
+| ----------- | ------------------------------------ |
+| DCWSL       | Joindre le domaine wsl2025.org       |
+| HQDCSRV     | Certificats PKI, DNSSEC              |
+| HQINFRASRV  | Source NTP                           |
+| REMFW       | Connectivité réseau                  |
+| REMINFRASRV | DFS Replication (à configurer après) |

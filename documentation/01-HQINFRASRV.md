@@ -125,6 +125,7 @@ ss -ulnp | grep 123
 ```
 
 > 💡 **Note** : L'authentification NTP est sécurisée par :
+>
 > - Restriction réseau (`restrict 10.4.0.0 mask 255.255.0.0`) : seuls les clients du LAN peuvent se synchroniser
 > - Clés d'authentification dans `/etc/ntpsec/ntp.keys`
 
