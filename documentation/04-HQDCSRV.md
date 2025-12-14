@@ -1298,3 +1298,108 @@ gpresult /r
 - [ ] GPO Block Control Panel active
 - [ ] GPO mappage lecteurs (U:, S:, P:)
 - [ ] NTP synchronisé avec HQINFRASRV
+
+---
+
+## 🔍 Script de Vérification Complète
+
+> Copier-coller ce script dans PowerShell pour générer un rapport complet de vérification.
+
+```powershell
+# ============================================
+# SCRIPT DE VERIFICATION HQDCSRV - COMPLET
+# Copier-coller tout ce bloc dans PowerShell
+# ============================================
+
+$outputFile = "C:\HQDCSRV_Verification.txt"
+
+# Fonction pour écrire dans le fichier
+function Write-Check {
+    param([string]$Section, [string]$Content)
+    $header = "`n" + "="*60 + "`n$Section`n" + "="*60
+    Add-Content -Path $outputFile -Value $header
+    Add-Content -Path $outputFile -Value $Content
+}
+
+# Initialiser le fichier
+"VERIFICATION HQDCSRV - $(Get-Date)" | Out-File -FilePath $outputFile -Force
+Add-Content -Path $outputFile -Value "Serveur: $env:COMPUTERNAME"
+
+# 1. ROLES ET FONCTIONNALITES
+Write-Check "1. ROLES INSTALLES" (Get-WindowsFeature | Where-Object Installed | Select-Object Name, InstallState | Format-Table -AutoSize | Out-String)
+
+# 2. ADCS - Autorité de Certification
+Write-Check "2. ADCS - CA Info" (certutil -ca | Out-String)
+Write-Check "2. ADCS - Templates publiés" (certutil -CATemplates | Out-String)
+
+# 3. DNS
+Write-Check "3. DNS - Zones" (Get-DnsServerZone | Format-Table -AutoSize | Out-String)
+Write-Check "3. DNS - Forwarders" (Get-DnsServerForwarder | Out-String)
+
+# 4. IIS - Site PKI
+Write-Check "4. IIS - Sites" (Get-Website | Format-Table Name, State, PhysicalPath | Out-String)
+Write-Check "4. IIS - PKI Bindings" (Get-WebBinding -Name "PKI" -ErrorAction SilentlyContinue | Out-String)
+Write-Check "4. IIS - Contenu PKI" (Get-ChildItem "C:\inetpub\PKI" -ErrorAction SilentlyContinue | Format-Table Name, Length, LastWriteTime | Out-String)
+
+# 5. STOCKAGE - RAID et Volumes
+Write-Check "5. DISQUES" (Get-Disk | Format-Table Number, FriendlyName, OperationalStatus, Size, PartitionStyle | Out-String)
+Write-Check "5. VOLUMES" (Get-Volume | Format-Table DriveLetter, FileSystemLabel, FileSystem, Size, SizeRemaining | Out-String)
+
+# 6. FSRM - Quotas et Filtres
+Write-Check "6. FSRM - Quota Templates" (Get-FsrmQuotaTemplate | Format-Table Name, Size | Out-String)
+Write-Check "6. FSRM - Quotas" (Get-FsrmQuota | Format-Table Path, Size | Out-String)
+Write-Check "6. FSRM - Auto Quotas" (Get-FsrmAutoQuota | Format-Table Path, Template | Out-String)
+Write-Check "6. FSRM - File Screen Templates" (Get-FsrmFileScreenTemplate | Format-Table Name | Out-String)
+Write-Check "6. FSRM - File Screens" (Get-FsrmFileScreen | Format-Table Path, Template | Out-String)
+
+# 7. PARTAGES SMB
+Write-Check "7. PARTAGES SMB" (Get-SmbShare | Where-Object { $_.Name -notlike "*$" -or $_.Name -in @("users$","Department$","Public$") } | Format-Table Name, Path, Description | Out-String)
+Write-Check "7. PARTAGES - Permissions SMB" (
+    @("users$", "Department$", "Public$") | ForEach-Object {
+        "`n--- $_ ---"
+        Get-SmbShareAccess -Name $_ -ErrorAction SilentlyContinue | Format-Table AccountName, AccessControlType, AccessRight | Out-String
+    } | Out-String
+)
+
+# 8. STRUCTURE DOSSIERS
+Write-Check "8. STRUCTURE D:\shares" (Get-ChildItem "D:\shares" -Recurse -Depth 2 -Directory -ErrorAction SilentlyContinue | Select-Object FullName | Out-String)
+
+# 9. GPO
+Write-Check "9. GPO - Liste" (Get-GPO -All | Format-Table DisplayName, GpoStatus, CreationTime | Out-String)
+Write-Check "9. GPO - Links" (
+    Get-GPO -All | ForEach-Object {
+        $gpo = $_
+        $links = (Get-GPOReport -Guid $gpo.Id -ReportType Xml | Select-Xml -XPath "//gp:LinksTo/gp:SOMPath" -Namespace @{gp="http://www.microsoft.com/GroupPolicy/Settings"}).Node.'#text'
+        if ($links) { "$($gpo.DisplayName) -> $($links -join ', ')" }
+    } | Out-String
+)
+
+# 10. HOME FOLDERS - Echantillon
+Write-Check "10. HOME FOLDERS - Echantillon (5 premiers)" (
+    Get-ADUser -Filter * -SearchBase "OU=HQ,DC=hq,DC=wsl2025,DC=org" -Properties HomeDirectory, HomeDrive -ResultSetSize 5 | 
+    Format-Table SamAccountName, HomeDirectory, HomeDrive | Out-String
+)
+Write-Check "10. DOSSIERS UTILISATEURS - Count" ("Nombre de dossiers dans D:\shares\datausers: " + (Get-ChildItem "D:\shares\datausers" -Directory -ErrorAction SilentlyContinue).Count)
+
+# 11. CERTIFICATS
+Write-Check "11. CERTIFICATS - Demandes en attente" (certutil -view -out "RequestID,CommonName,Disposition" | Select-Object -First 20 | Out-String)
+
+# 12. NTP
+Write-Check "12. NTP - Config" (w32tm /query /configuration | Out-String)
+Write-Check "12. NTP - Status" (w32tm /query /status | Out-String)
+
+# 13. SERVICES
+Write-Check "13. SERVICES CRITIQUES" (
+    Get-Service -Name CertSvc, W3SVC, DNS, SrmSvc, LanmanServer -ErrorAction SilentlyContinue | 
+    Format-Table Name, DisplayName, Status | Out-String
+)
+
+# Fin
+Add-Content -Path $outputFile -Value "`n`n========== FIN DE LA VERIFICATION =========="
+Write-Host "`n`nVérification terminée !" -ForegroundColor Green
+Write-Host "Fichier créé : $outputFile" -ForegroundColor Cyan
+Write-Host "Taille : $((Get-Item $outputFile).Length / 1KB) KB" -ForegroundColor Cyan
+Get-Item $outputFile
+```
+
+Le fichier de sortie sera créé à : `C:\HQDCSRV_Verification.txt`
