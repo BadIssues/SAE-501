@@ -429,7 +429,28 @@ nano /etc/ssl/CA/openssl.cnf
 # emailAddress            = optional
 ```
 
-#### Étape 3 : Sur DNSSRV, signer le certificat
+#### Étape 3 : Sur DNSSRV, vérifier les extensions CDP/AIA dans openssl.cnf
+
+> ⚠️ **IMPORTANT** : Le certificat Sub CA doit contenir les URLs de CRL pour que la vérification de révocation fonctionne !
+
+```bash
+# Vérifier que la section [v3_intermediate_ca] contient les extensions CDP/AIA
+grep -A10 "v3_intermediate_ca" /etc/ssl/CA/openssl.cnf
+```
+
+Tu dois voir ces lignes dans `[ v3_intermediate_ca ]` :
+```ini
+crlDistributionPoints = URI:http://pki.hq.wsl2025.org/WSFR-ROOT-CA.crl
+authorityInfoAccess = caIssuers;URI:http://pki.hq.wsl2025.org/WSFR-ROOT-CA.crt
+```
+
+Si elles n'y sont pas, les ajouter :
+```bash
+nano /etc/ssl/CA/openssl.cnf
+# Ajouter les 2 lignes dans la section [ v3_intermediate_ca ]
+```
+
+#### Étape 4 : Sur DNSSRV, signer le certificat
 
 ```bash
 cd /etc/ssl/CA
@@ -442,16 +463,37 @@ openssl ca -config openssl.cnf \
     -out certs/SubCA.crt
 
 # Confirmer avec 'y' deux fois
+
+# Vérifier que les extensions CDP/AIA sont présentes dans le certificat signé
+openssl x509 -in certs/SubCA.crt -text -noout | grep -A2 "CRL Distribution"
+openssl x509 -in certs/SubCA.crt -text -noout | grep -A2 "Authority Information"
 ```
 
-#### Étape 4 : Récupérer les certificats sur HQDCSRV
+> ✅ Tu dois voir les URLs `http://pki.hq.wsl2025.org/...` dans la sortie.
+
+#### Étape 5 : Générer la CRL du Root CA
+
+```bash
+# Générer la CRL (nécessaire pour la vérification de révocation)
+openssl ca -config openssl.cnf -gencrl -out crl/ca.crl
+```
+
+#### Étape 6 : Récupérer les certificats et CRL sur HQDCSRV
 
 Depuis **HQDCSRV** (PowerShell) :
 
 ```powershell
+# Certificat Sub CA signé
 scp root@8.8.4.1:/etc/ssl/CA/certs/SubCA.crt C:\SubCA.cer
+
+# Certificat Root CA
 scp root@8.8.4.1:/etc/ssl/CA/certs/ca.crt C:\WSFR-ROOT-CA.cer
+
+# CRL du Root CA (OBLIGATOIRE pour la vérification de révocation)
+scp root@8.8.4.1:/etc/ssl/CA/crl/ca.crl C:\inetpub\PKI\WSFR-ROOT-CA.crl
 ```
+
+> ⚠️ La CRL du Root CA doit être accessible sur `http://pki.hq.wsl2025.org/WSFR-ROOT-CA.crl` sinon les clients auront l'erreur `CRYPT_E_NO_REVOCATION_CHECK`.
 
 ### 5.4 Installer les certificats
 
@@ -487,7 +529,13 @@ certutil -ping
 
 # Vérifier le certificat installé
 certutil -ca.cert
+
+# IMPORTANT : Vérifier que les extensions CDP/AIA sont présentes
+certutil -ca.cert | Select-String "pki.hq.wsl2025.org"
 ```
+
+> ✅ Tu dois voir les URLs `http://pki.hq.wsl2025.org/WSFR-ROOT-CA.crl` et `.crt` dans la sortie.
+> Si rien ne s'affiche, le certificat Sub CA n'a pas les bonnes extensions → refaire la signature sur DNSSRV.
 
 ### 5.5 Configurer les paramètres CRL
 
@@ -561,36 +609,29 @@ Restart-Service certsvc
 certutil -crl
 ```
 
-### 5.8 Récupérer la CRL du Root CA depuis DNSSRV
-
-> ⚠️ **IMPORTANT** : La CRL du Root CA doit être accessible sur `http://pki.hq.wsl2025.org` pour que la vérification de révocation fonctionne !
+### 5.8 Vérifier l'accès aux CRL
 
 ```powershell
-# Récupérer la CRL et le certificat du Root CA depuis DNSSRV
-scp root@8.8.4.1:/etc/ssl/CA/crl/ca.crl C:\inetpub\PKI\WSFR-ROOT-CA.crl
-scp root@8.8.4.1:/etc/ssl/CA/certs/ca.crt C:\inetpub\PKI\WSFR-ROOT-CA.crt
-
 # Vérifier que les fichiers sont présents
 Get-ChildItem C:\inetpub\PKI
 
-# Tester l'accès HTTP (depuis un autre poste)
-# http://pki.hq.wsl2025.org/WSFR-ROOT-CA.crl
-# http://pki.hq.wsl2025.org/WSFR-ROOT-CA.crt
+# Tester l'accès HTTP (depuis HQDCSRV ou HQCLT)
+Invoke-WebRequest -Uri "http://pki.hq.wsl2025.org/WSFR-ROOT-CA.crl" -UseBasicParsing
+Invoke-WebRequest -Uri "http://pki.hq.wsl2025.org/WSFR-SUB-CA.crl" -UseBasicParsing
 ```
 
-> **Note** : Si la CRL du Root CA n'est pas accessible, les clients ne pourront pas vérifier la chaîne de certificats et obtiendront l'erreur `CRYPT_E_NO_REVOCATION_CHECK`.
+> ✅ Les deux requêtes doivent retourner un StatusCode 200.
 
-#### Alternative : Si le Root CA est offline (environnement de lab)
+#### Troubleshooting : Erreur CRYPT_E_NO_REVOCATION_CHECK
 
-Si le Root CA (DNSSRV) n'est pas toujours accessible, configurer la CA pour ignorer les erreurs de révocation offline :
+Si les clients ont cette erreur lors de l'émission de certificats :
 
-```powershell
-# Permettre l'émission même si la CRL du Root CA n'est pas vérifiable
-certutil -setreg ca\CRLFlags +CRLF_REVCHECK_IGNORE_OFFLINE
-Restart-Service certsvc
-```
-
-> ⚠️ **Note** : Cette option est acceptable pour un lab mais en production, la CRL du Root CA devrait toujours être accessible.
+1. **Vérifier que la CRL du Root CA est dans `C:\inetpub\PKI\WSFR-ROOT-CA.crl`**
+2. **Vérifier que le certificat Sub CA contient les extensions CDP/AIA** :
+   ```powershell
+   certutil -ca.cert | Select-String "pki.hq.wsl2025.org"
+   ```
+3. **Si les extensions sont absentes** → Refaire la signature sur DNSSRV (voir section 5.3)
 
 #### ✅ Vérification ADCS
 
@@ -637,13 +678,13 @@ certtmpl.msc
 
 #### Template 2 : WSFR_Machines (Autoenrollment ordinateurs)
 
-| Étape | Action                                                                                              |
-| ----- | --------------------------------------------------------------------------------------------------- |
-| 1     | Clic droit sur **"Ordinateur"** (ou "Computer") → **Dupliquer le modèle**                           |
-| 2     | Onglet **Général** : Nom complet = `WSFR_Machines`                                                  |
+| Étape | Action                                                                                                 |
+| ----- | ------------------------------------------------------------------------------------------------------ |
+| 1     | Clic droit sur **"Ordinateur"** (ou "Computer") → **Dupliquer le modèle**                              |
+| 2     | Onglet **Général** : Nom complet = `WSFR_Machines`                                                     |
 | 3     | Onglet **Sécurité** : Ajouter **Ordinateurs du domaine** (cliquer Types d'objets → cocher Ordinateurs) |
-| 4     | Pour **Ordinateurs du domaine** : ✅ **Lecture** + ✅ **Inscrire** + ✅ **Inscription automatique** |
-| 5     | Cliquer **OK**                                                                                      |
+| 4     | Pour **Ordinateurs du domaine** : ✅ **Lecture** + ✅ **Inscrire** + ✅ **Inscription automatique**    |
+| 5     | Cliquer **OK**                                                                                         |
 
 > ⚠️ **Important** : Si vous avez des domaines enfants (HQ), ajoutez aussi **HQ\Ordinateurs du domaine** avec les mêmes permissions.
 
@@ -1207,12 +1248,14 @@ Write-Host "Terminé : $count utilisateurs configurés" -ForegroundColor Green
 2. Aller dans **Objets de stratégie de groupe** → Clic droit sur **Deploy-Certificates** → **Modifier**
 
 3. Naviguer vers :
+
    ```
-   Configuration ordinateur → Stratégies → Paramètres Windows 
+   Configuration ordinateur → Stratégies → Paramètres Windows
    → Paramètres de sécurité → Stratégies de clé publique
    ```
 
 4. **Importer le Root CA** :
+
    - Clic droit sur **Autorités de certification racines de confiance** → **Importer...**
    - Parcourir → `C:\WSFR-ROOT-CA.cer` → Suivant → Terminer
 
@@ -1225,14 +1268,16 @@ Write-Host "Terminé : $count utilisateurs configurés" -ForegroundColor Green
 1. Dans **gpmc.msc**, éditer **Certificate-Autoenrollment**
 
 2. Aller dans :
+
    ```
-   Configuration ordinateur → Stratégies → Paramètres Windows 
+   Configuration ordinateur → Stratégies → Paramètres Windows
    → Paramètres de sécurité → Stratégies de clé publique
    ```
 
 3. Double-clic sur **Client des services de certificats - Inscription automatique**
 
 4. Configurer :
+
    - **Modèle de configuration** : **Activé**
    - ✅ **Renouveler les certificats expirés...**
    - ✅ **Mettre à jour les certificats qui utilisent des modèles...**
@@ -1360,14 +1405,14 @@ Get-PSDrive | Where-Object { $_.Name -in @("U", "S", "P") }
 
 #### Vérification GUI sur HQCLT
 
-| Test | Action | Résultat attendu |
-|------|--------|------------------|
-| **Certificats Root** | `certlm.msc` → Racines de confiance | WSFR-ROOT-CA visible |
-| **Certificats Sub** | `certlm.msc` → Intermédiaires | WSFR-SUB-CA visible |
-| **Cert Machine** | `certlm.msc` → Personnel | Certificat émis par WSFR-SUB-CA |
-| **Edge Homepage** | Ouvrir Edge | Page = www.wsl2025.org |
-| **Control Panel** | Win+I (utilisateur non-IT) | Accès bloqué |
-| **Lecteurs** | Explorateur → Ce PC | U:, S:, P: visibles |
+| Test                 | Action                              | Résultat attendu                |
+| -------------------- | ----------------------------------- | ------------------------------- |
+| **Certificats Root** | `certlm.msc` → Racines de confiance | WSFR-ROOT-CA visible            |
+| **Certificats Sub**  | `certlm.msc` → Intermédiaires       | WSFR-SUB-CA visible             |
+| **Cert Machine**     | `certlm.msc` → Personnel            | Certificat émis par WSFR-SUB-CA |
+| **Edge Homepage**    | Ouvrir Edge                         | Page = www.wsl2025.org          |
+| **Control Panel**    | Win+I (utilisateur non-IT)          | Accès bloqué                    |
+| **Lecteurs**         | Explorateur → Ce PC                 | U:, S:, P: visibles             |
 
 ---
 
