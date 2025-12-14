@@ -84,9 +84,9 @@ Install-WindowsFeature -Name `
 > **Important** : REMDCSRV est un **child domain de wsl2025.org** (forest root = DCWSL), pas de hq.wsl2025.org
 
 > ⚠️ **PROBLÈME FRÉQUENT - Échec de connexion au domaine parent**
-> 
-> Si vous obtenez l'erreur *"Impossible de se connecter au domaine"* ou *"Échec de la vérification des autorisations"* :
-> 
+>
+> Si vous obtenez l'erreur _"Impossible de se connecter au domaine"_ ou _"Échec de la vérification des autorisations"_ :
+>
 > 1. **Vérifier la résolution DNS** : `nslookup wsl2025.org` doit répondre (10.4.10.4)
 > 2. **Utiliser le FQDN complet** pour les credentials : `WSL2025.ORG\Administrateur` (pas juste `WSL2025\Administrateur`)
 > 3. **Vérifier l'ACL REMFW** : Les réponses UDP doivent être autorisées (voir section Dépannage)
@@ -165,18 +165,97 @@ Get-DnsServerZone
 Get-DnsServerResourceRecord -ZoneName "rem.wsl2025.org"
 ```
 
-### 4.3 Configurer DNSSEC
+### 4.3 Configurer DNSSEC avec certificat PKI
 
 > **Sujet** : "DNSSec should be configured on this server with a certificate issued by HQDCSRV"
 
-```powershell
-# Signer la zone rem.wsl2025.org
-# Note : Le certificat doit être obtenu depuis HQDCSRV (PKI)
-Invoke-DnsServerZoneSign -ZoneName "rem.wsl2025.org" -SignWithDefault
+#### Étape 1 : Vérifier les certificats CA dans le magasin
 
-# Vérifier la signature
-Get-DnsServerDnsSecZoneSetting -ZoneName "rem.wsl2025.org"
+```powershell
+# Vérifier que les certificats Root CA et Sub CA sont présents
+Get-ChildItem Cert:\LocalMachine\Root | Where-Object { $_.Subject -like "*WSFR*" }
+Get-ChildItem Cert:\LocalMachine\CA | Where-Object { $_.Subject -like "*WSFR*" }
 ```
+
+Si les certificats ne sont pas présents, les importer depuis HQDCSRV :
+
+```powershell
+# Copier les certificats depuis un partage ou les exporter depuis HQDCSRV
+# Import Root CA
+Import-Certificate -FilePath "\\hqdcsrv.hq.wsl2025.org\CertEnroll\WSFR-ROOT-CA.crt" -CertStoreLocation Cert:\LocalMachine\Root
+
+# Import Sub CA
+Import-Certificate -FilePath "\\hqdcsrv.hq.wsl2025.org\CertEnroll\WSFR-SUB-CA.crt" -CertStoreLocation Cert:\LocalMachine\CA
+```
+
+#### Étape 2 : Demander un certificat DNSSEC depuis la PKI
+
+```powershell
+# Demander un certificat pour la signature DNSSEC
+# Le template "DnsServerDnsSecZoneSigningKey" doit exister sur HQDCSRV
+$template = "DnsServerDnsSecZoneSigningKey"
+$enrollment = Get-Certificate -Template $template -CertStoreLocation Cert:\LocalMachine\My -DnsName "remdcsrv.rem.wsl2025.org"
+$cert = $enrollment.Certificate
+Write-Host "Certificat obtenu: $($cert.Thumbprint)"
+```
+
+> ⚠️ **Si le template n'existe pas** : Il faut d'abord créer un template DNSSEC sur HQDCSRV (voir documentation HQDCSRV section PKI).
+
+#### Étape 3 : Signer la zone avec l'assistant graphique (recommandé)
+
+L'assistant graphique permet de sélectionner le certificat PKI :
+
+1. Ouvrir **DNS Manager** (`dnsmgmt.msc`)
+2. Clic droit sur la zone `rem.wsl2025.org` → **DNSSEC** → **Sign the Zone...**
+3. Choisir **"Customize zone signing parameters"**
+4. **Key Signing Key (KSK)** :
+   - Cliquer sur **Add**
+   - Sélectionner **"Use an existing key"** ou générer une nouvelle clé
+   - Cocher **"Enable automatic rollover"**
+   - Pour utiliser le certificat PKI : sélectionner le certificat dans la liste
+5. **Zone Signing Key (ZSK)** :
+   - Configurer de la même manière
+6. **Next Step Protocol (NSEC3)** : Garder les paramètres par défaut
+7. **Trust Anchors** : Cocher "Enable the distribution of trust anchors"
+8. Terminer l'assistant
+
+#### Étape 4 : Signer via PowerShell (alternative)
+
+```powershell
+# Créer les paramètres KSK avec le certificat
+$kskParams = New-DnsServerSigningKey -ZoneName "rem.wsl2025.org" `
+    -KeyType KeySigningKey `
+    -CryptoAlgorithm RsaSha256 `
+    -KeyLength 2048 `
+    -StoreKeysInAD $true `
+    -KeyStorageProvider "Microsoft Software Key Storage Provider"
+
+# Créer les paramètres ZSK
+$zskParams = New-DnsServerSigningKey -ZoneName "rem.wsl2025.org" `
+    -KeyType ZoneSigningKey `
+    -CryptoAlgorithm RsaSha256 `
+    -KeyLength 1024 `
+    -StoreKeysInAD $true `
+    -KeyStorageProvider "Microsoft Software Key Storage Provider"
+
+# Signer la zone
+Invoke-DnsServerZoneSign -ZoneName "rem.wsl2025.org" -Force
+```
+
+#### Étape 5 : Vérifier la signature DNSSEC
+
+```powershell
+# Vérifier que DNSSEC est activé
+Get-DnsServerDnsSecZoneSetting -ZoneName "rem.wsl2025.org"
+
+# Vérifier les clés
+Get-DnsServerSigningKey -ZoneName "rem.wsl2025.org"
+
+# Tester la résolution avec DNSSEC
+Resolve-DnsName remdcsrv.rem.wsl2025.org -DnssecOk
+```
+
+> ✅ **Validation** : La commande `Get-DnsServerDnsSecZoneSetting` doit montrer `IsSigned: True`
 
 ---
 
@@ -874,8 +953,9 @@ Get-GPOReport -All -ReportType HTML -Path "C:\GPOReport.html"
 ### Problème : La promotion AD échoue avec "Impossible de se connecter au domaine"
 
 **Symptômes :**
-- Erreur : *"Échec de la vérification des autorisations des informations d'identification de l'utilisateur"*
-- Erreur : *"Vous devez fournir un nom du domaine résolvable DNS"*
+
+- Erreur : _"Échec de la vérification des autorisations des informations d'identification de l'utilisateur"_
+- Erreur : _"Vous devez fournir un nom du domaine résolvable DNS"_
 - `nslookup wsl2025.org` timeout puis répond
 
 **Cause :** L'ACL `FIREWALL-INBOUND` sur REMFW bloque les **réponses UDP** (paquets avec port source 53, 88, 389, etc.)
@@ -948,6 +1028,7 @@ Le `deny ip any any log` doit être la **dernière** règle de la liste.
 ### Problème : DNS timeout mais finit par répondre
 
 **Symptômes :**
+
 - `nslookup wsl2025.org` affiche "DNS request timed out" puis répond après plusieurs secondes
 
 **Cause :** Les premiers paquets UDP sont bloqués, mais les retries passent (comportement instable)
@@ -959,9 +1040,11 @@ Le `deny ip any any log` doit être la **dernière** règle de la liste.
 ### Problème : Credentials refusés lors de la promotion
 
 **Symptômes :**
+
 - Erreur d'authentification même avec le bon mot de passe
 
 **Solution :**
+
 1. Utiliser le **FQDN complet** : `WSL2025.ORG\Administrateur` (pas `WSL2025\Administrateur`)
 2. Ou utiliser le format UPN : `administrateur@wsl2025.org`
 
