@@ -35,6 +35,7 @@ Get-ADDomain | Select-Object Name, DNSRoot, ParentDomain
 ```
 
 **Attendu** :
+
 - Name : `hq`
 - DNSRoot : `hq.wsl2025.org`
 - ParentDomain : `wsl2025.org`
@@ -59,14 +60,15 @@ Get-ADOrganizationalUnit -Filter * | Select-Object Name
 
 ```powershell
 # Utilisateurs HQ (hors wslusr)
-Get-ADUser -Filter * -SearchBase "OU=Users,OU=HQ,DC=hq,DC=wsl2025,DC=org" | 
-    Where-Object { $_.SamAccountName -notlike "wslusr*" } | 
+Get-ADUser -Filter * -SearchBase "OU=Users,OU=HQ,DC=hq,DC=wsl2025,DC=org" |
+    Where-Object { $_.SamAccountName -notlike "wslusr*" } |
     Select-Object SamAccountName, Name
 ```
 
-**Attendu** : 
+**Attendu** :
+
 - Ness PRESSO (Direction)
-- Jean TICIPE (Factory)  
+- Jean TICIPE (Factory)
 - Vincent TIM (IT)
 - Rick OLA (Sales)
 
@@ -131,6 +133,7 @@ certutil -ca.cert | Select-String "pki.hq.wsl2025.org"
 ```
 
 **Attendu** : URLs visibles :
+
 - `http://pki.hq.wsl2025.org/WSFR-ROOT-CA.crl`
 - `http://pki.hq.wsl2025.org/WSFR-ROOT-CA.crt`
 
@@ -161,6 +164,7 @@ Get-ChildItem C:\inetpub\PKI
 ```
 
 **Attendu** :
+
 - `WSFR-SUB-CA.crl`
 - `WSFR-ROOT-CA.crl`
 
@@ -227,35 +231,35 @@ Get-GPO -All | Select-Object DisplayName, GpoStatus
 
 **Attendu** :
 
-| GPO | Status |
-|-----|--------|
-| Deploy-Certificates | AllSettingsEnabled |
+| GPO                        | Status             |
+| -------------------------- | ------------------ |
+| Deploy-Certificates        | AllSettingsEnabled |
 | Certificate-Autoenrollment | AllSettingsEnabled |
-| Edge-Homepage-Intranet | AllSettingsEnabled |
-| Block-ControlPanel | AllSettingsEnabled |
-| Enterprise-Logo | AllSettingsEnabled |
-| Drive-Mappings | AllSettingsEnabled |
+| Edge-Homepage-Intranet     | AllSettingsEnabled |
+| Block-ControlPanel         | AllSettingsEnabled |
+| Enterprise-Logo            | AllSettingsEnabled |
+| Drive-Mappings             | AllSettingsEnabled |
 
 ---
 
 ## 📋 Checklist finale HQDCSRV
 
-| # | Test | Résultat |
-|---|------|----------|
-| 1 | Hostname = HQDCSRV | ⬜ |
-| 2 | Domaine hq.wsl2025.org | ⬜ |
-| 3 | Trust avec wsl2025.org | ⬜ |
-| 4 | OUs créées | ⬜ |
-| 5 | 4 utilisateurs HQ | ⬜ |
-| 6 | 1000 wslusr provisionnés | ⬜ |
-| 7 | Zone DNS hq.wsl2025.org | ⬜ |
-| 8 | Service ADCS running | ⬜ |
-| 9 | Extensions CDP/AIA dans SubCA | ⬜ |
-| 10 | Templates publiés | ⬜ |
-| 11 | CRL accessible HTTP | ⬜ |
-| 12 | Volume D: RAID-5 | ⬜ |
-| 13 | Partages SMB | ⬜ |
-| 14 | 6 GPO créées | ⬜ |
+| #   | Test                          | Résultat |
+| --- | ----------------------------- | -------- |
+| 1   | Hostname = HQDCSRV            | ⬜       |
+| 2   | Domaine hq.wsl2025.org        | ⬜       |
+| 3   | Trust avec wsl2025.org        | ⬜       |
+| 4   | OUs créées                    | ⬜       |
+| 5   | 4 utilisateurs HQ             | ⬜       |
+| 6   | 1000 wslusr provisionnés      | ⬜       |
+| 7   | Zone DNS hq.wsl2025.org       | ⬜       |
+| 8   | Service ADCS running          | ⬜       |
+| 9   | Extensions CDP/AIA dans SubCA | ⬜       |
+| 10  | Templates publiés             | ⬜       |
+| 11  | CRL accessible HTTP           | ⬜       |
+| 12  | Volume D: RAID-5              | ⬜       |
+| 13  | Partages SMB                  | ⬜       |
+| 14  | 6 GPO créées                  | ⬜       |
 
 ---
 
@@ -263,15 +267,16 @@ Get-GPO -All | Select-Object DisplayName, GpoStatus
 
 ## Utilisateurs disponibles
 
-| Utilisateur | Département | Type | Mot de passe |
-|-------------|-------------|------|--------------|
-| `hq\npresso` | Direction | Normal | `P@ssw0rd` |
-| `hq\jticipe` | Factory | Normal | `P@ssw0rd` |
-| `hq\vtim` | **IT** | **IT/Admin** | `P@ssw0rd` |
-| `hq\rola` | Sales | Normal | `P@ssw0rd` |
-| `hq\wslusr001` | AUTO | Normal | `P@ssw0rd` |
+| Utilisateur    | Département | Type         | Mot de passe |
+| -------------- | ----------- | ------------ | ------------ |
+| `hq\npresso`   | Direction   | Normal       | `P@ssw0rd`   |
+| `hq\jticipe`   | Factory     | Normal       | `P@ssw0rd`   |
+| `hq\vtim`      | **IT**      | **IT/Admin** | `P@ssw0rd`   |
+| `hq\rola`      | Sales       | Normal       | `P@ssw0rd`   |
+| `hq\wslusr001` | AUTO        | Normal       | `P@ssw0rd`   |
 
 > ⚠️ Adapter les noms selon tes utilisateurs réels :
+>
 > ```powershell
 > Get-ADUser -Filter * -SearchBase "OU=Users,OU=HQ,DC=hq,DC=wsl2025,DC=org" | Select SamAccountName, Name
 > ```
@@ -298,6 +303,7 @@ Restart-Computer
 5. ✅ **WSFR-SUB-CA** visible
 
 ### PowerShell :
+
 ```powershell
 Get-ChildItem Cert:\LocalMachine\Root | Where-Object { $_.Subject -like "*WSFR*" }
 Get-ChildItem Cert:\LocalMachine\CA | Where-Object { $_.Subject -like "*WSFR*" }
@@ -314,6 +320,7 @@ Get-ChildItem Cert:\LocalMachine\CA | Where-Object { $_.Subject -like "*WSFR*" }
 3. ✅ Certificat `HQCLT.hq.wsl2025.org` émis par **WSFR-SUB-CA**
 
 ### PowerShell :
+
 ```powershell
 Get-ChildItem Cert:\LocalMachine\My | Where-Object { $_.Issuer -like "*WSFR-SUB-CA*" }
 ```
@@ -346,10 +353,21 @@ Get-ChildItem Cert:\LocalMachine\My | Where-Object { $_.Issuer -like "*WSFR-SUB-
 
 ### Utilisateur : `hq\vtim` (Vincent TIM - département IT)
 
+> ⚠️ **Prérequis** : Le groupe IT doit avoir "Deny Apply Group Policy" sur la GPO Block-ControlPanel (voir doc section 8.4)
+
 1. Se déconnecter
 2. Se connecter avec `hq\vtim` / `P@ssw0rd`
 3. Appuyer **Win + I**
 4. ✅ Paramètres **S'OUVRE normalement**
+
+### Si ça ne fonctionne pas :
+
+Vérifier sur HQDCSRV :
+```powershell
+Get-GPPermission -Name "Block-ControlPanel" -All | Format-Table Trustee, Permission, Denied
+```
+
+Le groupe `IT` doit avoir `Denied = True` pour `GpoApply`.
 
 ---
 
@@ -361,13 +379,14 @@ Get-ChildItem Cert:\LocalMachine\My | Where-Object { $_.Issuer -like "*WSFR-SUB-
 2. Ouvrir **Explorateur** → **Ce PC**
 3. ✅ Vérifier :
 
-| Lecteur | Pointe vers | Attendu |
-|---------|-------------|---------|
-| **U:** | Dossier personnel | ✅ |
-| **S:** | Partage services | ✅ |
-| **P:** | Partage public | ✅ |
+| Lecteur | Pointe vers       | Attendu |
+| ------- | ----------------- | ------- |
+| **U:**  | Dossier personnel | ✅      |
+| **S:**  | Partage services  | ✅      |
+| **P:**  | Partage public    | ✅      |
 
 ### PowerShell :
+
 ```powershell
 Get-PSDrive -PSProvider FileSystem | Where-Object { $_.Name -in @("U", "S", "P") }
 ```
@@ -395,16 +414,16 @@ Get-PSDrive -PSProvider FileSystem | Where-Object { $_.Name -in @("U", "S", "P")
 
 ## 📊 Tableau récapitulatif HQCLT
 
-| # | Test | Utilisateur | Résultat |
-|---|------|-------------|----------|
-| 1 | Cert Root/Sub | `hq\administrateur` | ⬜ |
-| 2 | Cert Machine | `hq\administrateur` | ⬜ |
-| 3 | Edge Homepage | `hq\wslusr001` | ⬜ |
-| 4a | Control Panel **BLOQUÉ** | `hq\wslusr001` | ⬜ |
-| 4b | Control Panel **OK** | `hq\vtim` (IT) | ⬜ |
-| 5 | Lecteurs U:, S:, P: | `hq\wslusr001` | ⬜ |
-| 6 | Home Folder | `hq\wslusr001` | ⬜ |
-| 7 | Logo | N'importe | ⬜ |
+| #   | Test                     | Utilisateur         | Résultat |
+| --- | ------------------------ | ------------------- | -------- |
+| 1   | Cert Root/Sub            | `hq\administrateur` | ⬜       |
+| 2   | Cert Machine             | `hq\administrateur` | ⬜       |
+| 3   | Edge Homepage            | `hq\wslusr001`      | ⬜       |
+| 4a  | Control Panel **BLOQUÉ** | `hq\wslusr001`      | ⬜       |
+| 4b  | Control Panel **OK**     | `hq\vtim` (IT)      | ⬜       |
+| 5   | Lecteurs U:, S:, P:      | `hq\wslusr001`      | ⬜       |
+| 6   | Home Folder              | `hq\wslusr001`      | ⬜       |
+| 7   | Logo                     | N'importe           | ⬜       |
 
 ---
 

@@ -439,12 +439,14 @@ grep -A10 "v3_intermediate_ca" /etc/ssl/CA/openssl.cnf
 ```
 
 Tu dois voir ces lignes dans `[ v3_intermediate_ca ]` :
+
 ```ini
 crlDistributionPoints = URI:http://pki.hq.wsl2025.org/WSFR-ROOT-CA.crl
 authorityInfoAccess = caIssuers;URI:http://pki.hq.wsl2025.org/WSFR-ROOT-CA.crt
 ```
 
 Si elles n'y sont pas, les ajouter :
+
 ```bash
 nano /etc/ssl/CA/openssl.cnf
 # Ajouter les 2 lignes dans la section [ v3_intermediate_ca ]
@@ -1137,16 +1139,37 @@ Set-GPRegistryValue -Name "Block-ControlPanel" `
     -ValueName "NoControlPanel" `
     -Type DWord `
     -Value 1
-
-# Filtrer la GPO pour exclure le groupe IT (admins)
-$gpo = Get-GPO -Name "Block-ControlPanel"
-Set-GPPermission -Name "Block-ControlPanel" -TargetName "IT" -TargetType Group -PermissionLevel GpoApply -Replace
-Set-GPPermission -Name "Block-ControlPanel" -TargetName "IT" -TargetType Group -PermissionLevel None
-
-# Alternative : Deny Apply pour le groupe IT
-$gpo = Get-GPO -Name "Block-ControlPanel"
-# Dans GPMC, ajouter "IT" avec "Deny Apply Group Policy"
 ```
+
+#### Exclure le groupe IT (GUI obligatoire)
+
+> ⚠️ **La commande PowerShell `Set-GPPermission` ne supporte pas "Deny"**. Il faut configurer via GUI.
+
+1. Ouvrir **`gpmc.msc`**
+
+2. Aller dans **Objets de stratégie de groupe** → **Block-ControlPanel**
+
+3. Dans le panneau de droite, onglet **Délégation**
+
+4. Cliquer sur **Avancé...** (en bas)
+
+5. Cliquer **Ajouter...** → Taper `IT` → **OK**
+
+6. Sélectionner le groupe **IT** dans la liste
+
+7. Dans les permissions, cocher **Refuser** pour :
+   - ✅ **Appliquer la stratégie de groupe** → **REFUSER**
+
+8. Cliquer **OK** → **Oui** pour confirmer le Deny
+
+#### Vérification
+
+```powershell
+# Vérifier les permissions de la GPO
+Get-GPPermission -Name "Block-ControlPanel" -All | Format-Table Trustee, Permission, Denied
+```
+
+**Attendu** : Le groupe `IT` doit avoir `Denied = True` pour `GpoApply`
 
 ### 8.5 GPO - Logo entreprise
 
