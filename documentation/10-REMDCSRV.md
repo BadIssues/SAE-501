@@ -629,13 +629,14 @@ foreach ($login in @("estique", "rtaha", "dpeltier")) {
 
 **Sur chaque dossier département :**
 
-| Dossier | Groupe à ajouter | Permission |
-|---------|------------------|------------|
-| `C:\shares\Department\IT` | `REM\IT` | Modification |
-| `C:\shares\Department\Direction` | `REM\Direction` | Modification |
-| `C:\shares\Department\Warehouse` | `REM\Warehouse` | Modification |
+| Dossier                          | Groupe à ajouter | Permission   |
+| -------------------------------- | ---------------- | ------------ |
+| `C:\shares\Department\IT`        | `REM\IT`         | Modification |
+| `C:\shares\Department\Direction` | `REM\Direction`  | Modification |
+| `C:\shares\Department\Warehouse` | `REM\Warehouse`  | Modification |
 
 Pour chaque dossier :
+
 1. Clic droit → **Propriétés** → **Sécurité** → **Avancé**
 2. **Désactiver l'héritage** → **Supprimer toutes les autorisations héritées**
 3. Ajouter `Administrateurs`, `SYSTEM` (Full Control) et le groupe correspondant (Modification)
@@ -705,19 +706,13 @@ foreach ($dept in @("IT", "Direction", "Warehouse")) {
 1. Ouvrir **Server Manager** → **Services de fichiers et de stockage** → **Partages**
 2. Cliquer **Tâches** → **Nouveau partage...**
 
-**Partage users :**
-3. Sélectionner **Partage SMB - Rapide** → **Suivant**
-4. **Emplacement du partage** : `C:\shares\datausers` → **Suivant**
-5. **Nom du partage** : `users` → **Suivant**
-6. ✅ Cocher **Activer l'énumération basée sur l'accès** (ABE) → **Suivant**
-7. **Autorisations** : Laisser par défaut ou personnaliser → **Suivant**
-8. **Créer**
+**Partage users :** 3. Sélectionner **Partage SMB - Rapide** → **Suivant** 4. **Emplacement du partage** : `C:\shares\datausers` → **Suivant** 5. **Nom du partage** : `users` → **Suivant** 6. ✅ Cocher **Activer l'énumération basée sur l'accès** (ABE) → **Suivant** 7. **Autorisations** : Laisser par défaut ou personnaliser → **Suivant** 8. **Créer**
 
-**Partage Department :**
-9. Répéter les étapes 2-8 avec :
-   - Emplacement : `C:\shares\Department`
-   - Nom : `Department`
-   - ✅ ABE activé
+**Partage Department :** 9. Répéter les étapes 2-8 avec :
+
+- Emplacement : `C:\shares\Department`
+- Nom : `Department`
+- ✅ ABE activé
 
 #### Activer ABE sur un partage existant (GUI)
 
@@ -813,36 +808,22 @@ Get-FsrmQuotaTemplate -Name "UserQuota20MB"
 > ✅ **Hard Limit** : Les utilisateurs ne pourront pas dépasser 20 Mo (écriture bloquée).
 > ⚠️ **Soft Limit** : Les utilisateurs peuvent dépasser mais reçoivent un avertissement.
 
-### 7.7 Créer la racine DFS Domaine
-
-> **Sujet** : "Create a DFS Domain root with REMINFRASRV"
+### 7.7 Vérifier les partages
 
 ```powershell
-# Créer le dossier racine DFS
-New-Item -Path "C:\DFSRoots\files" -ItemType Directory -Force
+# Lister les partages
+Get-SmbShare | Where-Object { $_.Name -notlike "*$" -or $_.Name -in @("users", "Department") }
 
-# Partager le dossier racine
-New-SmbShare -Name "files" -Path "C:\DFSRoots\files" -FullAccess "Everyone"
+# Vérifier ABE
+Get-SmbShare -Name "users" | Select-Object Name, Path, FolderEnumerationMode
+Get-SmbShare -Name "Department" | Select-Object Name, Path, FolderEnumerationMode
 
-# Créer le namespace DFS (Domain-based)
-New-DfsnRoot -TargetPath "\\REMDCSRV.rem.wsl2025.org\files" `
-    -Type DomainV2 `
-    -Path "\\rem.wsl2025.org\files"
-
-# Ajouter les dossiers au namespace
-New-DfsnFolder -Path "\\rem.wsl2025.org\files\users" `
-    -TargetPath "\\REMDCSRV.rem.wsl2025.org\users"
-
-New-DfsnFolder -Path "\\rem.wsl2025.org\files\Department" `
-    -TargetPath "\\REMDCSRV.rem.wsl2025.org\Department"
+# Tester l'accès
+Test-Path "\\remdcsrv.rem.wsl2025.org\users"
+Test-Path "\\remdcsrv.rem.wsl2025.org\Department"
 ```
 
-### 7.8 Vérifier DFS
-
-```powershell
-Get-DfsnRoot -Path "\\rem.wsl2025.org\files"
-Get-DfsnFolder -Path "\\rem.wsl2025.org\files\*"
-```
+> ⚠️ **Note** : Le namespace DFS (`\\rem.wsl2025.org\files`) sera configuré sur **REMINFRASRV** selon le sujet.
 
 ---
 
@@ -996,7 +977,7 @@ Write-Host "`n⚠️  CONFIGURER CHAQUE GPO EN GUI (voir sections 8.1 à 8.4)" -
 7. Configurer :
 
    - **Action** : Update
-   - **Location** : `\\rem.wsl2025.org\files\Department`
+   - **Location** : `\\remdcsrv.rem.wsl2025.org\Department`
    - **Reconnect** : ✅ Coché
    - **Label as** : `Department`
    - **Drive Letter** : `Use: S:`
@@ -1162,17 +1143,18 @@ Get-DhcpServerv4DnsSetting -ScopeId 10.4.100.0
 Get-DhcpServerInDC
 ```
 
-### 10.4 Tests DFS
+### 10.4 Tests Partages
 
 ```powershell
-# Namespace
-Get-DfsnRoot -Path "\\rem.wsl2025.org\files"
-Get-DfsnFolder -Path "\\rem.wsl2025.org\files\*"
+# Vérifier les partages
+Get-SmbShare -Name "users", "Department"
 
-# Accès
-Test-Path "\\rem.wsl2025.org\users"
-Test-Path "\\rem.wsl2025.org\files\Department"
+# Tester l'accès
+Test-Path "\\remdcsrv.rem.wsl2025.org\users"
+Test-Path "\\remdcsrv.rem.wsl2025.org\Department"
 ```
+
+> 💡 **Note** : Le DFS sera configuré sur REMINFRASRV.
 
 ### 10.5 Tests Partages
 
@@ -1219,7 +1201,7 @@ Get-GPOReport -All -ReportType HTML -Path "C:\GPOReport.html"
 | OUs       | Structure créée              | `Get-ADOrganizationalUnit -Filter *`               |
 | Users     | 3 utilisateurs Remote        | `Get-ADUser -Filter * -SearchBase "OU=Workers..."` |
 | Groups    | IT, Direction, Warehouse     | `Get-ADGroup -Filter * -SearchBase "OU=Groups..."` |
-| DFS       | Namespace créé               | `Get-DfsnRoot`                                     |
+| Partages  | users, Department avec ABE   | `Get-SmbShare -Name users, Department`             |
 | Shares    | ABE activé                   | `Get-SmbShare -Name users`                         |
 | Quotas    | 20 Mo configuré              | `Get-FsrmAutoQuota`                                |
 | GPO       | 4 GPO créées                 | `Get-GPO -All`                                     |
