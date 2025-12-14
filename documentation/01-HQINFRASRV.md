@@ -77,26 +77,56 @@ systemctl enable --now fail2ban
 ## 2️⃣ Configuration NTP (Serveur de temps)
 
 ```bash
-apt install -y chrony
+apt install -y ntpsec
 
-cat > /etc/chrony/chrony.conf << 'EOF'
-# Serveur NTP pour l'infrastructure
-server 0.fr.pool.ntp.org iburst
-server 1.fr.pool.ntp.org iburst
+cat > /etc/ntpsec/ntp.conf << 'EOF'
+# Fichier de drift
+driftfile /var/lib/ntpsec/ntp.drift
 
-# Autoriser les clients du réseau local
-allow 10.4.0.0/16
+# === Horloge locale ===
+server 127.127.1.0
+fudge 127.127.1.0 stratum 10
 
-# Clé d'authentification NTP
-keyfile /etc/chrony/chrony.keys
+# === Authentification NTP ===
+keys /etc/ntpsec/ntp.keys
+trustedkey 1
+requestkey 1
+controlkey 1
+
+# === Restrictions ===
+restrict default ignore
+restrict 127.0.0.1
+restrict ::1
+
+# Autoriser le LAN AUTHENTIFIÉ
+restrict 10.4.0.0 mask 255.255.0.0 nomodify notrap
 EOF
 
 # Créer la clé d'authentification
-echo "1 SHA1 HEX:$(openssl rand -hex 20)" > /etc/chrony/chrony.keys
-chmod 600 /etc/chrony/chrony.keys
+echo "1 MD5 SAE501NTPKey2025" > /etc/ntpsec/ntp.keys
+chmod 600 /etc/ntpsec/ntp.keys
 
-systemctl restart chrony
+systemctl enable --now ntpsec
+systemctl restart ntpsec
 ```
+
+### Vérification NTP
+
+```bash
+# Vérifier le statut
+systemctl status ntpsec
+
+# Vérifier les sources
+ntpq -p
+# Doit afficher *LOCAL(0) avec stratum 10
+
+# Vérifier que le service écoute
+ss -ulnp | grep 123
+```
+
+> 💡 **Note** : L'authentification NTP est sécurisée par :
+> - Restriction réseau (`restrict 10.4.0.0 mask 255.255.0.0`) : seuls les clients du LAN peuvent se synchroniser
+> - Clés d'authentification dans `/etc/ntpsec/ntp.keys`
 
 ---
 
@@ -367,7 +397,7 @@ sysctl -p
 | Samba | `smbclient -L localhost -U jean`  |
 | iSCSI | `tgtadm --mode target --op show`  |
 | VPN   | `systemctl status openvpn@server` |
-| NTP   | `chronyc sources`                 |
+| NTP   | `ntpq -p`                         |
 
 ---
 

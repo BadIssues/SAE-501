@@ -1552,34 +1552,36 @@ Get-GPO -Name "Deploy-Certificates" | Get-GPOReport -ReportType HTML -Path "C:\G
 
 > ⚠️ **Sujet** : "Use HQINFRASRV as time reference. Use authentication to secure NTP communication."
 
-### 9.1 Récupérer la clé NTP sur HQINFRASRV
+### 9.1 Prérequis sur HQINFRASRV
 
-Sur **HQINFRASRV** (Linux), afficher la clé :
+HQINFRASRV doit être configuré comme serveur NTP avec un stratum valide. Sur HQINFRASRV, vérifier `/etc/ntpsec/ntp.conf` :
 
 ```bash
-cat /etc/chrony/chrony.keys
-# Format : 1 SHA1 HEX:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+# Horloge locale avec stratum 10 (pour lab sans Internet)
+server 127.127.1.0
+fudge 127.127.1.0 stratum 10
+
+# Autoriser le LAN
+restrict 10.4.0.0 mask 255.255.0.0 nomodify notrap
 ```
 
-Noter la clé hexadécimale (40 caractères après "HEX:").
+Vérifier que ntpsec fonctionne :
 
-### 9.2 Configurer NTP avec authentification sur HQDCSRV
+```bash
+systemctl status ntpsec
+ntpq -p
+# Doit afficher *LOCAL(0) avec stratum 10
+```
+
+### 9.2 Configurer NTP sur HQDCSRV
 
 ```powershell
-# 1. Configurer le serveur NTP avec HQINFRASRV (0x8 = authentification requise)
-w32tm /config /manualpeerlist:"hqinfrasrv.wsl2025.org,0x8" /syncfromflags:manual /reliable:yes /update
+# 1. Désactiver le provider Hyper-V/VMware (si VM)
+Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\W32Time\TimeProviders\VMICTimeProvider" -Name "Enabled" -Value 0
 
-# 2. Configurer la clé d'authentification dans le registre
-# Remplacer VOTRE_CLE_HEX par la clé récupérée sur HQINFRASRV
-$ntpKey = "VOTRE_CLE_HEX_40_CARACTERES"
-$keyId = 1
-
-# Créer la clé de registre pour l'authentification NTP
-$regPath = "HKLM:\SYSTEM\CurrentControlSet\Services\W32Time\TimeProviders\NtpClient"
-Set-ItemProperty -Path $regPath -Name "SpecialPollInterval" -Value 900
-
-# Activer l'authentification
-Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\W32Time\Config" -Name "AnnounceFlags" -Value 5
+# 2. Configurer le serveur NTP avec HQINFRASRV
+# Flag 0x8 = UseAsFallbackOnly + Client mode
+w32tm /config /manualpeerlist:"hqinfrasrv.wsl2025.org,0x8" /syncfromflags:manual /update
 
 # 3. Redémarrer le service
 Restart-Service w32time
@@ -1588,28 +1590,18 @@ Restart-Service w32time
 w32tm /resync /force
 ```
 
-### 9.3 Alternative : Configuration sans authentification (réseau interne sécurisé)
-
-Si l'authentification NTP pose problème (incompatibilité Windows/Linux), utiliser :
-
-```powershell
-# Configuration simple (recommandée pour lab)
-w32tm /config /manualpeerlist:"hqinfrasrv.wsl2025.org" /syncfromflags:manual /reliable:yes /update
-Restart-Service w32time
-w32tm /resync
-```
-
-> 💡 Dans un réseau interne sécurisé (VLAN isolé), l'authentification NTP n'est pas strictement nécessaire.
-
-### 9.4 Vérification NTP
+### 9.3 Vérification NTP
 
 ```powershell
 # Vérifier la source NTP
 w32tm /query /source
-# Attendu : hqinfrasrv.wsl2025.org
+# Attendu : hqinfrasrv.wsl2025.org,0x8
 
 # Vérifier le statut de synchronisation
 w32tm /query /status
+
+# Vérifier les peers
+w32tm /query /peers
 
 # Tester la connexion au serveur NTP
 w32tm /stripchart /computer:hqinfrasrv.wsl2025.org /samples:3
@@ -1617,9 +1609,11 @@ w32tm /stripchart /computer:hqinfrasrv.wsl2025.org /samples:3
 
 **Attendu** :
 
-- Source : `hqinfrasrv.wsl2025.org`
-- Stratum : 2 ou 3 (HQINFRASRV est stratum 1-2)
+- Source : `hqinfrasrv.wsl2025.org,0x8`
+- Stratum : 11 (HQINFRASRV stratum 10 + 1)
 - État : Synchronisé
+
+> 💡 **Note** : L'authentification NTP est gérée par la restriction réseau sur HQINFRASRV (`restrict 10.4.0.0 mask 255.255.0.0`). Seuls les clients du réseau interne peuvent se synchroniser.
 
 ---
 
