@@ -874,27 +874,27 @@ Write-Host "`n⚠️  CONFIGURER CHAQUE GPO EN GUI (voir sections 8.1 à 8.4)" -
 
 1. Ouvrir **`gpmc.msc`** (Win+R → gpmc.msc)
 
-2. Naviguer vers : `Forest: rem.wsl2025.org` → `Domains` → `rem.wsl2025.org` → `Group Policy Objects`
+2. Naviguer vers : `Forêt: rem.wsl2025.org` → `Domaines` → `rem.wsl2025.org` → `Objets de stratégie de groupe`
 
 3. Clic droit sur **REM-IT-LocalAdmins** → **Modifier**
 
 4. Naviguer vers :
 
    ```
-   Computer Configuration
-   └── Policies
-       └── Windows Settings
-           └── Security Settings
-               └── Restricted Groups
+   Configuration ordinateur
+   └── Stratégies
+       └── Paramètres Windows
+           └── Paramètres de sécurité
+               └── Groupes restreints
    ```
 
-5. Clic droit sur **Restricted Groups** → **Add Group...**
+5. Clic droit sur **Groupes restreints** → **Ajouter un groupe...**
 
-6. Taper `Administrators` → **OK**
+6. Taper `Administrateurs` → **OK**
 
-7. Dans la fenêtre qui s'ouvre, section **"Members of this group"** :
+7. Dans la fenêtre qui s'ouvre, section **"Membres de ce groupe"** :
 
-   - Cliquer **Add...**
+   - Cliquer **Ajouter...**
    - Taper `REM\IT` → **OK**
 
 8. **OK** pour fermer
@@ -914,21 +914,21 @@ Write-Host "`n⚠️  CONFIGURER CHAQUE GPO EN GUI (voir sections 8.1 à 8.4)" -
 2. Naviguer vers :
 
    ```
-   User Configuration
-   └── Policies
-       └── Administrative Templates
-           └── Control Panel
+   Configuration utilisateur
+   └── Stratégies
+       └── Modèles d'administration
+           └── Panneau de configuration
    ```
 
-3. Double-clic sur **"Prohibit access to Control Panel and PC settings"**
+3. Double-clic sur **"Interdire l'accès au Panneau de configuration et à l'application Paramètres du PC"**
 
-4. Sélectionner **Enabled** → **OK**
+4. Sélectionner **Activé** → **OK**
 
 #### Étape 2 : Exclure le groupe IT
 
 1. Dans **gpmc.msc**, clic droit sur **REM-Block-ControlPanel** → **Propriétés**
 
-2. Onglet **Delegation** → **Avancé...**
+2. Onglet **Délégation** → **Avancé...**
 
 3. Cliquer **Ajouter...** → Taper `REM\IT` → **OK**
 
@@ -950,37 +950,37 @@ Write-Host "`n⚠️  CONFIGURER CHAQUE GPO EN GUI (voir sections 8.1 à 8.4)" -
 
 2. Naviguer vers :
    ```
-   User Configuration
-   └── Preferences
-       └── Windows Settings
-           └── Drive Maps
+   Configuration utilisateur
+   └── Préférences
+       └── Paramètres Windows
+           └── Mappages de lecteurs
    ```
 
 #### Lecteur U: (Home Drive)
 
-3. Clic droit sur **Drive Maps** → **New** → **Mapped Drive**
+3. Clic droit sur **Mappages de lecteurs** → **Nouveau** → **Lecteur mappé**
 
 4. Configurer :
 
-   - **Action** : Update
-   - **Location** : `\\rem.wsl2025.org\users\%USERNAME%`
-   - **Reconnect** : ✅ Coché
-   - **Label as** : `Home`
-   - **Drive Letter** : `Use: U:`
+   - **Action** : Mettre à jour
+   - **Emplacement** : `\\remdcsrv.rem.wsl2025.org\users\%USERNAME%`
+   - **Reconnecter** : ✅ Coché
+   - **Libellé** : `Home`
+   - **Lettre de lecteur** : `Utiliser : U:`
 
 5. **OK**
 
 #### Lecteur S: (Department)
 
-6. Clic droit sur **Drive Maps** → **New** → **Mapped Drive**
+6. Clic droit sur **Mappages de lecteurs** → **Nouveau** → **Lecteur mappé**
 
 7. Configurer :
 
-   - **Action** : Update
-   - **Location** : `\\remdcsrv.rem.wsl2025.org\Department`
-   - **Reconnect** : ✅ Coché
-   - **Label as** : `Department`
-   - **Drive Letter** : `Use: S:`
+   - **Action** : Mettre à jour
+   - **Emplacement** : `\\remdcsrv.rem.wsl2025.org\Department`
+   - **Reconnecter** : ✅ Coché
+   - **Libellé** : `Department`
+   - **Lettre de lecteur** : `Utiliser : S:`
 
 8. **OK**
 
@@ -1005,32 +1005,32 @@ Copier ces fichiers sur REMDCSRV (ex: `C:\Certs\`)
 
 2. Naviguer vers :
    ```
-   Computer Configuration
-   └── Policies
-       └── Windows Settings
-           └── Security Settings
-               └── Public Key Policies
+   Configuration ordinateur
+   └── Stratégies
+       └── Paramètres Windows
+           └── Paramètres de sécurité
+               └── Stratégies de clé publique
    ```
 
 #### Importer le Root CA
 
-3. Clic droit sur **Trusted Root Certification Authorities** → **Import...**
+3. Clic droit sur **Autorités de certification racines de confiance** → **Importer...**
 
-4. **Next** → **Browse** → Sélectionner `C:\Certs\WSFR-ROOT-CA.cer`
+4. **Suivant** → **Parcourir** → Sélectionner `C:\Certs\WSFR-ROOT-CA.cer`
 
-5. **Next** → **Place all certificates in the following store: Trusted Root Certification Authorities**
+5. **Suivant** → **Placer tous les certificats dans le magasin suivant : Autorités de certification racines de confiance**
 
-6. **Next** → **Finish**
+6. **Suivant** → **Terminer**
 
 #### Importer le Sub CA
 
-7. Clic droit sur **Intermediate Certification Authorities** → **Import...**
+7. Clic droit sur **Autorités de certification intermédiaires** → **Importer...**
 
-8. **Next** → **Browse** → Sélectionner `C:\Certs\WSFR-SUB-CA.cer`
+8. **Suivant** → **Parcourir** → Sélectionner `C:\Certs\WSFR-SUB-CA.cer`
 
-9. **Next** → **Place all certificates in the following store: Intermediate Certification Authorities**
+9. **Suivant** → **Placer tous les certificats dans le magasin suivant : Autorités de certification intermédiaires**
 
-10. **Next** → **Finish**
+10. **Suivant** → **Terminer**
 
 > ✅ **Résultat** : Les certificats CA seront déployés sur tous les ordinateurs du domaine REM.
 
