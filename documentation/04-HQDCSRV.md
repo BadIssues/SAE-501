@@ -798,32 +798,45 @@ foreach ($dept in $departments) {
 
 ### 7.3 Partage Home Drives (users$)
 
+> ⚠️ **Windows en français** : Les noms des groupes sont localisés. Utiliser les noms ci-dessous.
+
 ```powershell
+# Récupérer le nom NetBIOS du domaine
+$domainNetBIOS = (Get-ADDomain).NetBIOSName  # Retourne "HQ"
+
 # Créer le partage caché pour les home drives
 New-SmbShare -Name "users$" `
     -Path "D:\shares\datausers" `
-    -FullAccess "HQ\Domain Admins" `
-    -ChangeAccess "HQ\Authenticated Users" `
-    -FolderEnumerationMode AccessBased  # ABE activé
+    -FullAccess "$domainNetBIOS\Admins du domaine" `
+    -ChangeAccess "Utilisateurs authentifiés" `
+    -FolderEnumerationMode AccessBased
 
 # Configurer les permissions NTFS
 $acl = Get-Acl "D:\shares\datausers"
 $acl.SetAccessRuleProtection($true, $false)  # Désactiver l'héritage
 
-# Administrateurs - Full Control
-$rule = New-Object System.Security.AccessControl.FileSystemAccessRule("HQ\Domain Admins", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+# Administrateurs du domaine - Full Control
+$rule = New-Object System.Security.AccessControl.FileSystemAccessRule("$domainNetBIOS\Admins du domaine", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
 $acl.AddAccessRule($rule)
 
-# CREATOR OWNER - pour les sous-dossiers utilisateurs
-$rule = New-Object System.Security.AccessControl.FileSystemAccessRule("CREATOR OWNER", "FullControl", "ContainerInherit,ObjectInherit", "InheritOnly", "Allow")
+# CREATEUR PROPRIETAIRE - pour les sous-dossiers utilisateurs
+$rule = New-Object System.Security.AccessControl.FileSystemAccessRule("CREATEUR PROPRIETAIRE", "FullControl", "ContainerInherit,ObjectInherit", "InheritOnly", "Allow")
 $acl.AddAccessRule($rule)
 
 # Utilisateurs authentifiés - CreateFolders uniquement sur ce dossier
-$rule = New-Object System.Security.AccessControl.FileSystemAccessRule("HQ\Authenticated Users", "CreateDirectories", "None", "None", "Allow")
+$rule = New-Object System.Security.AccessControl.FileSystemAccessRule("Utilisateurs authentifiés", "CreateDirectories", "None", "None", "Allow")
 $acl.AddAccessRule($rule)
 
 Set-Acl "D:\shares\datausers" $acl
 ```
+
+> 💡 **Noms anglais vs français** :
+> | Anglais | Français |
+> |---------|----------|
+> | Domain Admins | Admins du domaine |
+> | Authenticated Users | Utilisateurs authentifiés |
+> | CREATOR OWNER | CREATEUR PROPRIETAIRE |
+> | Domain Users | Utilisateurs du domaine |
 
 ### 7.4 Quota 20 Mo pour les home drives
 
@@ -851,10 +864,14 @@ New-FsrmFileScreen -Path "D:\shares\datausers" -IncludeGroup "Executables" -Acti
 ### 7.6 Partage Department
 
 ```powershell
+# Variable pour le nom du domaine (si pas déjà définie)
+$domainNetBIOS = (Get-ADDomain).NetBIOSName
+$departments = @("IT", "Direction", "Factory", "Sales")
+
 # Créer le partage Department
 New-SmbShare -Name "Department$" `
     -Path "D:\shares\Department" `
-    -FullAccess "HQ\Domain Admins" `
+    -FullAccess "$domainNetBIOS\Admins du domaine" `
     -FolderEnumerationMode AccessBased
 
 # Configurer les permissions par département
@@ -863,12 +880,12 @@ foreach ($dept in $departments) {
     $acl = Get-Acl $deptPath
     $acl.SetAccessRuleProtection($true, $false)
 
-    # Administrateurs
-    $rule = New-Object System.Security.AccessControl.FileSystemAccessRule("HQ\Domain Admins", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+    # Administrateurs du domaine
+    $rule = New-Object System.Security.AccessControl.FileSystemAccessRule("$domainNetBIOS\Admins du domaine", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
     $acl.AddAccessRule($rule)
 
-    # Groupe du département - Modify
-    $rule = New-Object System.Security.AccessControl.FileSystemAccessRule("HQ\$dept", "Modify", "ContainerInherit,ObjectInherit", "None", "Allow")
+    # Groupe du département - Modify (les groupes IT, Direction, etc. gardent leur nom)
+    $rule = New-Object System.Security.AccessControl.FileSystemAccessRule("$domainNetBIOS\$dept", "Modify", "ContainerInherit,ObjectInherit", "None", "Allow")
     $acl.AddAccessRule($rule)
 
     Set-Acl $deptPath $acl
@@ -881,8 +898,8 @@ foreach ($dept in $departments) {
 # Créer le partage Public
 New-SmbShare -Name "Public$" `
     -Path "D:\shares\Public" `
-    -FullAccess "HQ\Domain Admins" `
-    -ReadAccess "HQ\Domain Users" `
+    -FullAccess "$domainNetBIOS\Admins du domaine" `
+    -ReadAccess "$domainNetBIOS\Utilisateurs du domaine" `
     -FolderEnumerationMode AccessBased
 
 # Configurer les permissions par département
@@ -891,16 +908,16 @@ foreach ($dept in $departments) {
     $acl = Get-Acl $deptPath
     $acl.SetAccessRuleProtection($true, $false)
 
-    # Administrateurs
-    $rule = New-Object System.Security.AccessControl.FileSystemAccessRule("HQ\Domain Admins", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+    # Administrateurs du domaine
+    $rule = New-Object System.Security.AccessControl.FileSystemAccessRule("$domainNetBIOS\Admins du domaine", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
     $acl.AddAccessRule($rule)
 
     # Groupe du département - Modify
-    $rule = New-Object System.Security.AccessControl.FileSystemAccessRule("HQ\$dept", "Modify", "ContainerInherit,ObjectInherit", "None", "Allow")
+    $rule = New-Object System.Security.AccessControl.FileSystemAccessRule("$domainNetBIOS\$dept", "Modify", "ContainerInherit,ObjectInherit", "None", "Allow")
     $acl.AddAccessRule($rule)
 
-    # Autres utilisateurs - Read only
-    $rule = New-Object System.Security.AccessControl.FileSystemAccessRule("HQ\Domain Users", "ReadAndExecute", "ContainerInherit,ObjectInherit", "None", "Allow")
+    # Autres utilisateurs du domaine - Read only
+    $rule = New-Object System.Security.AccessControl.FileSystemAccessRule("$domainNetBIOS\Utilisateurs du domaine", "ReadAndExecute", "ContainerInherit,ObjectInherit", "None", "Allow")
     $acl.AddAccessRule($rule)
 
     Set-Acl $deptPath $acl
