@@ -109,3 +109,4 @@ Une fois les paquets installés :
 
 1. Vous pouvez couper l'accès internet (NAT) si nécessaire pour passer à la configuration réseau finale.
 2. Procédez à la configuration IP statique de chaque machine selon les fiches respectives.
+

@@ -129,12 +129,9 @@ Add-DnsServerResourceRecordCName -ZoneName "hq.wsl2025.org" -Name "pki" -HostNam
 ### 3.3 Configurer le forwarder
 
 ```powershell
-# Forwarder vers DCWSL (domaine parent) pour les requêtes wsl2025.org et externes
-# DCWSL forward ensuite vers DNSSRV (8.8.4.1) si nécessaire
-Set-DnsServerForwarder -IPAddress 10.4.10.4
+# Forwarder vers DNSSRV pour les requêtes externes
+Set-DnsServerForwarder -IPAddress 8.8.4.1
 ```
-
-> ⚠️ **Note** : Dans une architecture AD avec child domain, HQDCSRV forward vers DCWSL (parent), qui forward vers DNSSRV. Cela garantit la résolution correcte de la chaîne de trust.
 
 ### 3.5 ✅ Vérification DNS
 
@@ -607,12 +604,12 @@ certtmpl.msc
 | 5     | Onglet **Sécurité** : **Utilisateurs authentifiés** → ✅ **Inscrire**                        |
 | 6     | Cliquer **OK**                                                                               |
 
-#### Template 2 : WSFR_Machine (Autoenrollment ordinateurs)
+#### Template 2 : WSFR_Machines (Autoenrollment ordinateurs)
 
 | Étape | Action                                                                                              |
 | ----- | --------------------------------------------------------------------------------------------------- |
 | 1     | Clic droit sur **"Ordinateur"** (ou "Computer") → **Dupliquer le modèle**                           |
-| 2     | Onglet **Général** : Nom complet = `WSFR_Machine`                                                   |
+| 2     | Onglet **Général** : Nom complet = `WSFR_Machines`                                                  |
 | 3     | Onglet **Sécurité** : **Ordinateurs du domaine** → ✅ **Inscrire** + ✅ **Inscription automatique** |
 | 4     | Cliquer **OK**                                                                                      |
 
@@ -630,7 +627,7 @@ certtmpl.msc
 Les 3 templates doivent apparaître dans la liste de `certtmpl.msc` :
 
 - WSFR_Services
-- WSFR_Machine
+- WSFR_Machines
 - WSFR_Users
 
 ### 5.9 Publier les templates sur la CA
@@ -646,14 +643,14 @@ certsrv.msc
 2. Dans l'arborescence, déplier **WSFR-SUB-CA**
 3. Clic droit sur **"Modèles de certificats"** → **Nouveau** → **Modèle de certificat à délivrer**
 4. Sélectionner **WSFR_Services** → **OK**
-5. Répéter pour **WSFR_Machine** et **WSFR_Users**
+5. Répéter pour **WSFR_Machines** et **WSFR_Users**
 
 #### Méthode PowerShell
 
 ```powershell
 # Publier les templates sur la CA (après création manuelle)
 Add-CATemplate -Name "WSFR_Services" -Force
-Add-CATemplate -Name "WSFR_Machine" -Force
+Add-CATemplate -Name "WSFR_Machines" -Force
 Add-CATemplate -Name "WSFR_Users" -Force
 ```
 
@@ -663,7 +660,7 @@ Add-CATemplate -Name "WSFR_Users" -Force
 # Vérifier les templates publiés sur la CA
 Get-CATemplate
 
-# Résultat attendu : WSFR_Services, WSFR_Machine, WSFR_Users dans la liste
+# Résultat attendu : WSFR_Services, WSFR_Machines, WSFR_Users dans la liste
 ```
 
 ---
@@ -1289,7 +1286,7 @@ gpresult /r
 - [ ] 1000 utilisateurs provisionnés (wslusr001-wslusr1000)
 - [ ] Shadow Group avec synchronisation automatique
 - [ ] ADCS Enterprise Subordinate CA configurée
-- [ ] Templates de certificats créés (WSFR_Services, WSFR_Machine, WSFR_Users)
+- [ ] Templates de certificats créés (WSFR_Services, WSFR_Machines, WSFR_Users)
 - [ ] Site IIS PKI configuré
 - [ ] RAID-5 avec 3 disques (NTFS, DATA)
 - [ ] Déduplication activée

@@ -72,3 +72,4 @@ POURQUOI : Vérification des liens montants.
 IMAGE : J10-PC-ping-vip.png
 DESCRIPTION : Ping depuis un PC client vers les passerelles par défaut (VIP HSRP).
 POURQUOI : Preuve ultime que la connectivité de bout en bout fonctionne à travers les VLANs.
+

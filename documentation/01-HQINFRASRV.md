@@ -1,43 +1,56 @@
 # HQINFRASRV - Serveur Infrastructure HQ
 
 > **OS** : Debian 13 CLI  
-> **IP** : 10.4.10.2 (VLAN 10 - Servers)  
-> **Rôles** : DHCP, VPN OpenVPN, Stockage LVM/iSCSI, Samba, NTP
+> **IP ens192** : 10.4.10.2/24 (VLAN 10 - Servers)  
+> **IP ens224** : 10.4.20.1/23 (VLAN 20 - Clients) - Interface DHCP  
+> **Rôles** : DHCP Primary, VPN OpenVPN, Stockage LVM/iSCSI, Samba, NTP
 
 ---
 
 ## 📋 Prérequis
 
 - [ ] Debian 13 installé
-- [ ] Accès réseau fonctionnel (VLAN 10 - Servers)
+- [ ] **2 cartes réseau** : ens192 (VLAN 10) + ens224 (VLAN 20 pour DHCP)
 - [ ] 2 disques supplémentaires de 5 Go chacun
 - [ ] HQDCSRV opérationnel (pour les certificats)
+- [ ] HQMAILSRV configuré pour le DHCP failover (Secondary)
 
 ---
 
 ## 1️⃣ Configuration de base
 
 ### Hostname et domaine
+
 ```bash
 hostnamectl set-hostname hqinfrasrv
 echo "hqinfrasrv.wsl2025.org" > /etc/hostname
 ```
 
 ### Configuration réseau
+
 ```bash
 nano /etc/network/interfaces
 ```
+
 ```
-auto eth0
-iface eth0 inet static
+# Interface VLAN 10 - Servers
+auto ens192
+iface ens192 inet static
     address 10.4.10.2
     netmask 255.255.255.0
     gateway 10.4.10.254
     dns-nameservers 10.4.10.1
     dns-search wsl2025.org hq.wsl2025.org
+
+# Interface VLAN 20 - Clients (pour DHCP)
+auto ens224
+iface ens224 inet static
+    address 10.4.20.1
+    netmask 255.255.254.0
 ```
 
 ### SSH et Fail2Ban
+
 ```bash
 apt update && apt install -y openssh-server fail2ban
 
@@ -90,6 +103,7 @@ systemctl restart chrony
 ## 3️⃣ Stockage LVM
 
 ### Création des volumes physiques
+
 ```bash
 apt install -y lvm2
 
@@ -134,7 +148,14 @@ systemctl enable tgt
 
 ---
 
-## 5️⃣ Serveur DHCP
+## 5️⃣ Serveur DHCP (Primary/Mère)
+
+> ⚠️ **IMPORTANT** : HQINFRASRV est le serveur DHCP **primaire (mère)** pour le VLAN 20 (Clients).
+> Le failover est assuré avec HQMAILSRV qui est le serveur **secondaire (fille)**.
+> Les deux serveurs communiquent via leurs interfaces dans le VLAN 20 :
+>
+> - HQINFRASRV : 10.4.20.1 (ens224)
+> - HQMAILSRV : 10.4.20.2 (ens224)
 
 ```bash
 apt install -y isc-dhcp-server
@@ -150,18 +171,18 @@ option domain-name "hq.wsl2025.org";
 option domain-name-servers 10.4.10.1;
 option ntp-servers 10.4.10.2;
 
-# Failover configuration (Primary)
+# Failover configuration (Primary - Mère)
 failover peer "dhcp-failover" {
     primary;
-    address 10.4.10.2;
+    address 10.4.20.1;           # IP de HQINFRASRV dans le VLAN 20
     port 647;
-    peer address 10.4.10.3;
+    peer address 10.4.20.2;      # IP de HQMAILSRV dans le VLAN 20
     peer port 647;
     max-response-delay 30;
     max-unacked-updates 10;
     load balance max seconds 3;
     mclt 1800;
-    split 128;
+    split 128;                   # 50/50 load balancing
 }
 
 # Subnet Clients (VLAN 20) - 10.4.20.0/23
@@ -170,7 +191,7 @@ subnet 10.4.20.0 netmask 255.255.254.0 {
     option broadcast-address 10.4.21.255;
     pool {
         failover peer "dhcp-failover";
-        range 10.4.20.1 10.4.21.200;
+        range 10.4.20.10 10.4.21.200;   # Plage DHCP (évite les IPs des serveurs DHCP)
     }
 }
 
@@ -185,21 +206,33 @@ subnet 10.4.10.0 netmask 255.255.255.0 {
 }
 EOF
 
-# Interface d'écoute
-echo 'INTERFACESv4="eth0"' > /etc/default/isc-dhcp-server
+# Interface d'écoute - VLAN 20 (ens224)
+echo 'INTERFACESv4="ens224"' > /etc/default/isc-dhcp-server
 
 systemctl restart isc-dhcp-server
 systemctl enable isc-dhcp-server
 ```
 
+### Vérification du failover
+
+```bash
+# Vérifier l'état du failover
+dhcpd -t -cf /etc/dhcp/dhcpd.conf
+
+# Voir les logs de communication failover
+journalctl -u isc-dhcp-server | grep -i failover
+```
+
 ### Configuration DHCP Relay sur les switches
-> Déjà fait dans le cœur de réseau (`ip helper-address 10.4.10.2`)
+
+> Déjà fait dans le cœur de réseau (`ip helper-address 10.4.20.1` et `ip helper-address 10.4.20.2`)
 
 ---
 
 ## 6️⃣ Serveur Samba
 
 ### Création des utilisateurs locaux
+
 ```bash
 useradd -m jean
 useradd -m tom
@@ -211,6 +244,7 @@ echo "emma:P@ssw0rd" | chpasswd
 ```
 
 ### Installation et configuration Samba
+
 ```bash
 apt install -y samba
 
@@ -231,7 +265,7 @@ cat > /etc/samba/smb.conf << 'EOF'
     server string = HQINFRASRV File Server
     security = user
     map to guest = never
-    
+
 [Public]
     path = /srv/datastorage/shares/public
     browseable = yes
@@ -259,11 +293,13 @@ systemctl enable smbd nmbd
 ## 7️⃣ Serveur VPN OpenVPN
 
 ### Installation
+
 ```bash
 apt install -y openvpn easy-rsa
 ```
 
 ### Génération des certificats
+
 ```bash
 make-cadir /etc/openvpn/easy-rsa
 cd /etc/openvpn/easy-rsa
@@ -284,6 +320,7 @@ openvpn --genkey secret /etc/openvpn/ta.key
 ```
 
 ### Configuration serveur OpenVPN
+
 ```bash
 cat > /etc/openvpn/server.conf << 'EOF'
 port 4443
@@ -314,6 +351,7 @@ systemctl enable --now openvpn@server
 ```
 
 ### Activer le forwarding IP
+
 ```bash
 echo "net.ipv4.ip_forward=1" >> /etc/sysctl.conf
 sysctl -p
@@ -323,13 +361,13 @@ sysctl -p
 
 ## ✅ Vérifications
 
-| Test | Commande |
-|------|----------|
-| DHCP | `journalctl -u isc-dhcp-server` |
-| Samba | `smbclient -L localhost -U jean` |
-| iSCSI | `tgtadm --mode target --op show` |
-| VPN | `systemctl status openvpn@server` |
-| NTP | `chronyc sources` |
+| Test  | Commande                          |
+| ----- | --------------------------------- |
+| DHCP  | `journalctl -u isc-dhcp-server`   |
+| Samba | `smbclient -L localhost -U jean`  |
+| iSCSI | `tgtadm --mode target --op show`  |
+| VPN   | `systemctl status openvpn@server` |
+| NTP   | `chronyc sources`                 |
 
 ---
 
@@ -338,4 +376,6 @@ sysctl -p
 - Le port VPN 4443 est NATé depuis 191.4.157.33 sur les routeurs EDGE
 - Les certificats VPN peuvent être signés par HQDCSRV (Sub CA)
 - Pour l'authentification AD du VPN, installer `openvpn-auth-ldap`
-- IP du serveur : **10.4.10.2**
+- **IP ens192 (VLAN 10 Servers)** : 10.4.10.2/24
+- **IP ens224 (VLAN 20 Clients)** : 10.4.20.1/23 - Interface DHCP Primary
+- Le DHCP failover fonctionne avec HQMAILSRV (10.4.20.2) dans le VLAN 20

@@ -72,3 +72,4 @@ case $MACHINE in
 esac
 
 echo ">>> Installation terminée pour $MACHINE !"
+
