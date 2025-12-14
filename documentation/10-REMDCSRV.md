@@ -614,24 +614,31 @@ foreach ($dept in @("IT", "Direction", "Warehouse")) {
 
 > **Sujet** : "Users can only see their personal folder" → Access-Based Enumeration
 
+> ⚠️ **Note** : On utilise "Everyone" au niveau SMB car les **permissions NTFS** (7.3/7.4) contrôlent l'accès réel. C'est une pratique courante et sécurisée.
+
 ```powershell
 # Partage users (Home drives)
 # Share path: \\rem.wsl2025.org\users
 New-SmbShare -Name "users" `
     -Path "C:\shares\datausers" `
-    -FullAccess "BUILTIN\Administrateurs" `
-    -ChangeAccess "NT AUTHORITY\Utilisateurs authentifiés" `
+    -FullAccess "Everyone" `
     -FolderEnumerationMode AccessBased `
     -Description "Home drives utilisateurs Remote"
 
 # Partage Department
 New-SmbShare -Name "Department" `
     -Path "C:\shares\Department" `
-    -FullAccess "BUILTIN\Administrateurs" `
-    -ChangeAccess "NT AUTHORITY\Utilisateurs authentifiés" `
+    -FullAccess "Everyone" `
     -FolderEnumerationMode AccessBased `
     -Description "Dossiers départements Remote"
+
+Write-Host "Partages créés avec ABE activé" -ForegroundColor Green
+
+# Vérifier
+Get-SmbShare -Name "users", "Department" | Select-Object Name, Path, FolderEnumerationMode
 ```
+
+> ✅ **ABE (Access-Based Enumeration)** : Les utilisateurs ne voient que les dossiers auxquels ils ont accès NTFS.
 
 ### 7.6 Configurer les quotas (20 Mo)
 
