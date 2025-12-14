@@ -773,6 +773,20 @@ Dans **Gestion des disques** (`diskmgmt.msc`) :
 
 ## 7️⃣ Serveur de fichiers et partages
 
+### 7.0 Variables communes (EXÉCUTER EN PREMIER !)
+
+> ⚠️ **IMPORTANT** : Exécute ce bloc AU DÉBUT de ta session PowerShell avant les autres sections !
+
+```powershell
+# Variables utilisées dans toute la section 7
+$domainNetBIOS = (Get-ADDomain).NetBIOSName  # Retourne "HQ"
+$departments = @("IT", "Direction", "Factory", "Sales")
+
+# Vérification
+Write-Host "Domaine: $domainNetBIOS" -ForegroundColor Cyan
+Write-Host "Départements: $($departments -join ', ')" -ForegroundColor Cyan
+```
+
 ### 7.1 Installer FSRM
 
 ```powershell
@@ -789,7 +803,6 @@ New-Item -Path "D:\shares\Department" -ItemType Directory -Force
 New-Item -Path "D:\shares\Public" -ItemType Directory -Force
 
 # Dossiers par département
-$departments = @("IT", "Direction", "Factory", "Sales")
 foreach ($dept in $departments) {
     New-Item -Path "D:\shares\Department\$dept" -ItemType Directory -Force
     New-Item -Path "D:\shares\Public\$dept" -ItemType Directory -Force
@@ -863,64 +876,72 @@ New-FsrmFileScreen -Path "D:\shares\datausers" -IncludeGroup "Executables" -Acti
 
 ### 7.6 Partage Department
 
-```powershell
-# Variable pour le nom du domaine (si pas déjà définie)
-$domainNetBIOS = (Get-ADDomain).NetBIOSName
-$departments = @("IT", "Direction", "Factory", "Sales")
+> ⚠️ **Prérequis** : Avoir exécuté la section **7.0** pour définir `$domainNetBIOS` et `$departments`
 
-# Créer le partage Department
+```powershell
+# Créer le partage Department (ignorer si existe déjà)
 New-SmbShare -Name "Department$" `
     -Path "D:\shares\Department" `
     -FullAccess "$domainNetBIOS\Admins du domaine" `
-    -FolderEnumerationMode AccessBased
+    -FolderEnumerationMode AccessBased -ErrorAction SilentlyContinue
 
 # Configurer les permissions par département
 foreach ($dept in $departments) {
     $deptPath = "D:\shares\Department\$dept"
-    $acl = Get-Acl $deptPath
-    $acl.SetAccessRuleProtection($true, $false)
+    
+    if (Test-Path $deptPath) {
+        $acl = Get-Acl $deptPath
+        $acl.SetAccessRuleProtection($true, $false)
 
-    # Administrateurs du domaine
-    $rule = New-Object System.Security.AccessControl.FileSystemAccessRule("$domainNetBIOS\Admins du domaine", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
-    $acl.AddAccessRule($rule)
+        # Administrateurs du domaine
+        $rule = New-Object System.Security.AccessControl.FileSystemAccessRule("$domainNetBIOS\Admins du domaine", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+        $acl.AddAccessRule($rule)
 
-    # Groupe du département - Modify (les groupes IT, Direction, etc. gardent leur nom)
-    $rule = New-Object System.Security.AccessControl.FileSystemAccessRule("$domainNetBIOS\$dept", "Modify", "ContainerInherit,ObjectInherit", "None", "Allow")
-    $acl.AddAccessRule($rule)
+        # Groupe du département - Modify
+        $rule = New-Object System.Security.AccessControl.FileSystemAccessRule("$domainNetBIOS\$dept", "Modify", "ContainerInherit,ObjectInherit", "None", "Allow")
+        $acl.AddAccessRule($rule)
 
-    Set-Acl $deptPath $acl
+        Set-Acl $deptPath $acl
+        Write-Host "OK: $deptPath" -ForegroundColor Green
+    }
 }
 ```
 
 ### 7.7 Partage Public
 
+> ⚠️ **Prérequis** : Avoir exécuté la section **7.0** pour définir `$domainNetBIOS` et `$departments`
+
 ```powershell
-# Créer le partage Public
+# Créer le partage Public (ignorer si existe déjà)
 New-SmbShare -Name "Public$" `
     -Path "D:\shares\Public" `
     -FullAccess "$domainNetBIOS\Admins du domaine" `
     -ReadAccess "$domainNetBIOS\Utilisateurs du domaine" `
-    -FolderEnumerationMode AccessBased
+    -FolderEnumerationMode AccessBased -ErrorAction SilentlyContinue
 
 # Configurer les permissions par département
 foreach ($dept in $departments) {
     $deptPath = "D:\shares\Public\$dept"
-    $acl = Get-Acl $deptPath
-    $acl.SetAccessRuleProtection($true, $false)
+    
+    if (Test-Path $deptPath) {
+        $acl = Get-Acl $deptPath
+        $acl.SetAccessRuleProtection($true, $false)
 
-    # Administrateurs du domaine
-    $rule = New-Object System.Security.AccessControl.FileSystemAccessRule("$domainNetBIOS\Admins du domaine", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
-    $acl.AddAccessRule($rule)
+        # Administrateurs du domaine
+        $rule = New-Object System.Security.AccessControl.FileSystemAccessRule("$domainNetBIOS\Admins du domaine", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+        $acl.AddAccessRule($rule)
 
-    # Groupe du département - Modify
-    $rule = New-Object System.Security.AccessControl.FileSystemAccessRule("$domainNetBIOS\$dept", "Modify", "ContainerInherit,ObjectInherit", "None", "Allow")
-    $acl.AddAccessRule($rule)
+        # Groupe du département - Modify
+        $rule = New-Object System.Security.AccessControl.FileSystemAccessRule("$domainNetBIOS\$dept", "Modify", "ContainerInherit,ObjectInherit", "None", "Allow")
+        $acl.AddAccessRule($rule)
 
-    # Autres utilisateurs du domaine - Read only
-    $rule = New-Object System.Security.AccessControl.FileSystemAccessRule("$domainNetBIOS\Utilisateurs du domaine", "ReadAndExecute", "ContainerInherit,ObjectInherit", "None", "Allow")
-    $acl.AddAccessRule($rule)
+        # Autres utilisateurs du domaine - Read only
+        $rule = New-Object System.Security.AccessControl.FileSystemAccessRule("$domainNetBIOS\Utilisateurs du domaine", "ReadAndExecute", "ContainerInherit,ObjectInherit", "None", "Allow")
+        $acl.AddAccessRule($rule)
 
-    Set-Acl $deptPath $acl
+        Set-Acl $deptPath $acl
+        Write-Host "OK: $deptPath" -ForegroundColor Green
+    }
 }
 ```
 
