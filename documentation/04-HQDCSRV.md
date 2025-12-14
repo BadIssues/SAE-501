@@ -581,6 +581,7 @@ Get-IISSite -Name "PKI"
 ### 5.8 Créer les templates de certificats
 
 > ⚠️ **Prérequis** : Si `certtmpl.msc` échoue avec une erreur DNS, configurer d'abord le forwarder DNS :
+>
 > ```powershell
 > Set-DnsServerForwarder -IPAddress 10.4.10.4
 > Clear-DnsClientCache
@@ -594,36 +595,37 @@ certtmpl.msc
 
 #### Template 1 : WSFR_Services (On-demand pour services web, VPN, etc.)
 
-| Étape | Action |
-|-------|--------|
-| 1 | Clic droit sur **"Serveur Web"** (ou "Web Server") → **Dupliquer le modèle** |
-| 2 | Onglet **Général** : Nom complet = `WSFR_Services` |
-| 3 | Onglet **Traitement de la demande** : ✅ Cocher **Autoriser l'exportation de la clé privée** |
-| 4 | Onglet **Nom du sujet** : Sélectionner ⚪ **Fourni dans la demande** |
-| 5 | Onglet **Sécurité** : **Utilisateurs authentifiés** → ✅ **Inscrire** |
-| 6 | Cliquer **OK** |
+| Étape | Action                                                                                       |
+| ----- | -------------------------------------------------------------------------------------------- |
+| 1     | Clic droit sur **"Serveur Web"** (ou "Web Server") → **Dupliquer le modèle**                 |
+| 2     | Onglet **Général** : Nom complet = `WSFR_Services`                                           |
+| 3     | Onglet **Traitement de la demande** : ✅ Cocher **Autoriser l'exportation de la clé privée** |
+| 4     | Onglet **Nom du sujet** : Sélectionner ⚪ **Fourni dans la demande**                         |
+| 5     | Onglet **Sécurité** : **Utilisateurs authentifiés** → ✅ **Inscrire**                        |
+| 6     | Cliquer **OK**                                                                               |
 
 #### Template 2 : WSFR_Machines (Autoenrollment ordinateurs)
 
-| Étape | Action |
-|-------|--------|
-| 1 | Clic droit sur **"Ordinateur"** (ou "Computer") → **Dupliquer le modèle** |
-| 2 | Onglet **Général** : Nom complet = `WSFR_Machines` |
-| 3 | Onglet **Sécurité** : **Ordinateurs du domaine** → ✅ **Inscrire** + ✅ **Inscription automatique** |
-| 4 | Cliquer **OK** |
+| Étape | Action                                                                                              |
+| ----- | --------------------------------------------------------------------------------------------------- |
+| 1     | Clic droit sur **"Ordinateur"** (ou "Computer") → **Dupliquer le modèle**                           |
+| 2     | Onglet **Général** : Nom complet = `WSFR_Machines`                                                  |
+| 3     | Onglet **Sécurité** : **Ordinateurs du domaine** → ✅ **Inscrire** + ✅ **Inscription automatique** |
+| 4     | Cliquer **OK**                                                                                      |
 
 #### Template 3 : WSFR_Users (Autoenrollment utilisateurs)
 
-| Étape | Action |
-|-------|--------|
-| 1 | Clic droit sur **"Utilisateur"** (ou "User") → **Dupliquer le modèle** |
-| 2 | Onglet **Général** : Nom complet = `WSFR_Users` |
-| 3 | Onglet **Sécurité** : **Utilisateurs du domaine** → ✅ **Inscrire** + ✅ **Inscription automatique** |
-| 4 | Cliquer **OK** |
+| Étape | Action                                                                                               |
+| ----- | ---------------------------------------------------------------------------------------------------- |
+| 1     | Clic droit sur **"Utilisateur"** (ou "User") → **Dupliquer le modèle**                               |
+| 2     | Onglet **Général** : Nom complet = `WSFR_Users`                                                      |
+| 3     | Onglet **Sécurité** : **Utilisateurs du domaine** → ✅ **Inscrire** + ✅ **Inscription automatique** |
+| 4     | Cliquer **OK**                                                                                       |
 
 #### ✅ Vérification
 
 Les 3 templates doivent apparaître dans la liste de `certtmpl.msc` :
+
 - WSFR_Services
 - WSFR_Machines
 - WSFR_Users
@@ -633,6 +635,7 @@ Les 3 templates doivent apparaître dans la liste de `certtmpl.msc` :
 #### Méthode GUI (recommandée)
 
 1. Ouvrir la console de la CA :
+
 ```powershell
 certsrv.msc
 ```
@@ -664,14 +667,39 @@ Get-CATemplate
 
 ## 6️⃣ Stockage RAID-5
 
-### 6.1 Identifier les disques disponibles
+### 6.0 Prérequis : Ajouter les disques sur ESXi
+
+> ⚠️ **Avant de commencer** : Ajouter 3 disques virtuels de 1 Go à la VM depuis ESXi/vSphere.
+
+1. Sur **ESXi** : Clic droit sur la VM → **Edit Settings**
+2. **Add New Device** → **Hard Disk** → **1 Go**
+3. Répéter 3 fois pour avoir 3 disques de 1 Go
+4. Redémarrer la VM si nécessaire
+
+### 6.1 Mettre les disques en ligne
+
+> ⚠️ **Important** : Les nouveaux disques sont "Hors connexion" par défaut. Ne PAS les initialiser !
+
+#### Méthode PowerShell
 
 ```powershell
-# Lister les disques physiques disponibles pour le pool
+# Mettre tous les disques hors ligne en ligne
+Get-Disk | Where-Object IsOffline -eq $true | Set-Disk -IsOffline $false
+
+# Vérifier les disques poolables (doit afficher 3 disques)
 Get-PhysicalDisk | Where-Object CanPool -eq $true | Format-Table FriendlyName, Size, MediaType
 ```
 
+#### Méthode GUI
+
+1. Ouvrir **Gestion des disques** (`diskmgmt.msc`)
+2. Si la fenêtre "Initialiser le disque" apparaît → **Cliquer sur Annuler**
+3. Clic droit sur chaque disque "Hors connexion" → **En ligne**
+4. **Ne pas initialiser** les disques !
+
 ### 6.2 Créer le pool de stockage
+
+#### Méthode PowerShell
 
 ```powershell
 # Récupérer les disques poolables
@@ -683,7 +711,17 @@ New-StoragePool -FriendlyName "DataPool" `
     -PhysicalDisks $disks
 ```
 
+#### Méthode GUI
+
+1. Ouvrir **Server Manager** → **Services de fichiers et de stockage** → **Pools de stockage**
+2. Dans la section **Disques physiques**, vérifier que les 3 disques apparaissent comme "Primordial"
+3. Clic droit sur **Primordial** → **Nouveau pool de stockage...**
+4. Nom : `DataPool`
+5. Sélectionner les 3 disques → **Créer**
+
 ### 6.3 Créer le disque virtuel RAID-5 (Parity)
+
+#### Méthode PowerShell
 
 ```powershell
 # Créer le disque virtuel avec résilience Parity (RAID-5)
@@ -693,7 +731,19 @@ New-VirtualDisk -StoragePoolFriendlyName "DataPool" `
     -UseMaximumSize
 ```
 
+#### Méthode GUI
+
+1. Dans Server Manager → Pools de stockage → clic droit sur **DataPool**
+2. **Nouveau disque virtuel...**
+3. Nom : `DataDisk`
+4. **Disposition du stockage** : Sélectionner **Parité** (= RAID-5)
+5. Type d'approvisionnement : **Fixe**
+6. Taille : **Taille maximale**
+7. **Créer**
+
 ### 6.4 Initialiser et formater en NTFS
+
+#### Méthode PowerShell
 
 ```powershell
 # Récupérer le disque virtuel et l'initialiser
@@ -710,7 +760,20 @@ New-Partition -DiskNumber $disk.Number -UseMaximumSize -DriveLetter D
 Format-Volume -DriveLetter D -FileSystem NTFS -NewFileSystemLabel "DATA" -Confirm:$false
 ```
 
+#### Méthode GUI
+
+1. Après la création du disque virtuel, l'assistant "Nouveau volume" se lance automatiquement
+2. Sinon : Clic droit sur le disque virtuel → **Nouveau volume...**
+3. Sélectionner le disque **DataDisk**
+4. Taille : **Maximum**
+5. Lettre de lecteur : **D:**
+6. Système de fichiers : **NTFS**
+7. Nom du volume : `DATA`
+8. **Créer**
+
 ### 6.5 Activer la déduplication
+
+#### Méthode PowerShell
 
 ```powershell
 # Installer la fonctionnalité de déduplication
@@ -722,6 +785,14 @@ Enable-DedupVolume -Volume "D:" -UsageType Default
 # Configurer les paramètres de déduplication
 Set-DedupVolume -Volume "D:" -MinimumFileAgeDays 0
 ```
+
+#### Méthode GUI
+
+1. Dans **Server Manager** → **Services de fichiers et de stockage** → **Volumes**
+2. Clic droit sur le volume **D:** → **Configurer la déduplication des données...**
+3. **Déduplication des données** : Sélectionner **Serveur de fichiers à usage général**
+4. **Dédupliquer les fichiers datant de plus de (jours)** : `0`
+5. **OK**
 
 #### ✅ Vérification Stockage RAID-5
 
