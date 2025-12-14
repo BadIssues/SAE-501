@@ -1,0 +1,89 @@
+
+### Configuration HQMAILSRV - Storage, Backup, Mail ###
+
+# 1. Configuration du stockage avec ZFS
+
+# Créer le pool ZFS RAIDZ1 avec les disques /dev/sdb, /dev/sdc et /dev/sdd
+wipefs -a /dev/sdb /dev/sdc /dev/sdd
+zpool create -o ashift=12   -O encryption=aes-256-gcm   -O keyformat=passphrase   -O keylocation=prompt   -O compression=lz4   -O atime=off   zfspool raidz1 /dev/sdb /dev/sdc /dev/sdd
+zpool status
+
+# Créer un dataset 'data' monté sur /data
+zfs create -o mountpoint=/data zfspool/data
+
+# 2. Configuration du Backup iSCSI
+
+# Installation d'Open iSCSI
+apt update
+apt install -y open-iscsi
+
+# Découverte du Target iSCSI
+iscsiadm -m discovery -t sendtargets -p 10.4.10.2
+
+# Connexion au LUN iSCSI
+iscsiadm -m node -T iqn.2025-12.hq.wsl2025.org:hqinfrasrv.storage -p 10.4.10.2 --login
+
+# Vérifier la session iSCSI active
+iscsiadm -m session
+
+# Créer le point de montage pour iSCSI
+mkdir -p /mnt/iscsi-backup
+mkfs.ext4 /dev/sde
+mount /dev/sde /mnt/iscsi-backup
+df -h | grep iscsi
+
+# Ajouter le disque iSCSI à /etc/fstab pour un montage automatique
+nano /etc/fstab
+# Ajoutez cette ligne :
+/dev/sde /mnt/iscsi-backup ext4 defaults 0 0
+
+
+# 3. Configuration du script de sauvegarde rsync
+
+# Créer le script de sauvegarde
+cat << 'EOF' > /usr/local/bin/backup_home.sh
+#!/bin/bash
+SRC="/home/"
+DST="/mnt/iscsi-backup/home/"
+mkdir -p "$DST"
+rsync -av --delete "$SRC" "$DST"
+EOF
+
+# Rendre le script exécutable
+chmod +x /usr/local/bin/backup_home.sh
+
+# Planification du backup avec cron (tous les jours à 22h)
+crontab -e
+# Ajoutez cette ligne dans crontab :
+0 22 * * * /usr/local/bin/backup_home.sh
+
+# 4. Configuration du serveur de mail (Postfix et Dovecot)
+
+# Installer Postfix (SMTP) et Dovecot (IMAP)
+apt install -y postfix dovecot-core dovecot-imapd dovecot-lmtpd
+
+# Configuration de Postfix pour SMTP sécurisé avec TLS
+nano /etc/postfix/main.cf
+# Exemple de configuration TLS pour SMTP :
+smtpd_tls_key_file = /etc/ssl/private/hqmailsrv.wsl2025.org.key
+smtpd_tls_cert_file = /etc/ssl/certs/hqmailsrv.wsl2025.org.crt
+smtpd_tls_security_level = may
+smtpd_use_tls = yes
+
+# Configuration de Dovecot pour IMAPS sécurisé avec TLS
+nano /etc/dovecot/dovecot.conf
+# Configuration de IMAPS sécurisé avec TLS :
+ssl_cert = </etc/ssl/certs/hqmailsrv.wsl2025.org.crt
+ssl_key = </etc/ssl/private/hqmailsrv.wsl2025.org.key
+
+# Vérification du service de mail
+systemctl status postfix
+systemctl status dovecot
+
+# 5. Vérification de la configuration iSCSI après reboot
+
+# Vérifier la session iSCSI active
+iscsiadm -m session
+
+# Vérifier le disque iSCSI monté
+df -h | grep iscsi
