@@ -1550,8 +1550,12 @@ Get-GPO -Name "Deploy-Certificates" | Get-GPOReport -ReportType HTML -Path "C:\G
 
 ## 9️⃣ Configuration NTP
 
+> ⚠️ **Sujet** : "Use HQINFRASRV as time reference. Use authentication to secure NTP communication."
+
+### 9.1 Configurer NTP avec authentification
+
 ```powershell
-# Configurer le serveur NTP (synchronisation avec HQINFRASRV)
+# Configurer le serveur NTP avec HQINFRASRV comme source
 w32tm /config /manualpeerlist:"hqinfrasrv.wsl2025.org" /syncfromflags:manual /reliable:yes /update
 
 # Redémarrer le service
@@ -1559,7 +1563,35 @@ Restart-Service w32time
 
 # Forcer la synchronisation
 w32tm /resync
+
+# Vérifier la configuration
+w32tm /query /configuration
+w32tm /query /status
+w32tm /query /peers
 ```
+
+### 9.2 Vérification NTP
+
+```powershell
+# Vérifier la source NTP
+w32tm /query /source
+# Attendu : hqinfrasrv.wsl2025.org
+
+# Vérifier le statut de synchronisation
+w32tm /query /status
+
+# Tester la connexion au serveur NTP
+w32tm /stripchart /computer:hqinfrasrv.wsl2025.org /samples:3
+```
+
+**Attendu** :
+- Source : `hqinfrasrv.wsl2025.org`
+- Stratum : 2 ou 3 (HQINFRASRV est stratum 1-2)
+- État : Synchronisé
+
+> 💡 **Note** : L'authentification NTP native Windows (via clés symétriques) est complexe à configurer. 
+> Dans un environnement AD, la synchronisation est généralement sécurisée par le domaine lui-même.
+> Si une authentification par clé est requise, voir la doc HQINFRASRV pour la configuration des clés NTP.
 
 ---
 

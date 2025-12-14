@@ -301,6 +301,49 @@ Test-Path "\\hq.wsl2025.org\NETLOGON\Logo\logo.jpg"
 
 ---
 
+## ✅ 9. NTP (Synchronisation avec HQINFRASRV)
+
+### Vérifier la source NTP
+
+```powershell
+# Source actuelle
+w32tm /query /source
+```
+
+**Attendu** : `hqinfrasrv.wsl2025.org`
+
+### Vérifier le statut
+
+```powershell
+# Statut de synchronisation
+w32tm /query /status
+```
+
+**Attendu** :
+- Leap Indicator: 0 (pas d'avertissement)
+- Stratum: 2 ou 3
+- Source: hqinfrasrv.wsl2025.org
+
+### Tester la connexion
+
+```powershell
+# Test de connexion au serveur NTP
+w32tm /stripchart /computer:hqinfrasrv.wsl2025.org /samples:3
+```
+
+**Attendu** : Réponses avec offset en millisecondes (pas d'erreur)
+
+### Configuration si nécessaire
+
+```powershell
+# Configurer HQINFRASRV comme source NTP
+w32tm /config /manualpeerlist:"hqinfrasrv.wsl2025.org" /syncfromflags:manual /reliable:yes /update
+Restart-Service w32time
+w32tm /resync
+```
+
+---
+
 ## 📋 Checklist finale HQDCSRV
 
 | #   | Test                          | Résultat |
@@ -319,6 +362,7 @@ Test-Path "\\hq.wsl2025.org\NETLOGON\Logo\logo.jpg"
 | 12  | Volume D: RAID-5              | ⬜       |
 | 13  | Partages SMB                  | ⬜       |
 | 14  | 6 GPO créées                  | ⬜       |
+| 15  | NTP synchro HQINFRASRV        | ⬜       |
 
 ---
 
