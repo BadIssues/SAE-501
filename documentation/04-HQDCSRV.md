@@ -580,56 +580,84 @@ Get-IISSite -Name "PKI"
 
 ### 5.8 Créer les templates de certificats
 
-#### Template WSFR_Services (On-demand pour services)
+> ⚠️ **Prérequis** : Si `certtmpl.msc` échoue avec une erreur DNS, configurer d'abord le forwarder DNS :
+> ```powershell
+> Set-DnsServerForwarder -IPAddress 10.4.10.4
+> Clear-DnsClientCache
+> ```
+
+#### Ouvrir la console des templates
 
 ```powershell
-# Dupliquer le template "Web Server" pour créer WSFR_Services
-$configContext = ([ADSI]"LDAP://RootDSE").configurationNamingContext
-$templateContainer = "CN=Certificate Templates,CN=Public Key Services,CN=Services,$configContext"
-
-# Exporter le template existant et le modifier (via GUI ou ADCS PowerShell)
-# Alternative : utiliser la console certtmpl.msc
-
-Write-Host "Ouvrir certtmpl.msc et créer manuellement les templates suivants :"
-Write-Host "1. WSFR_Services - Dupliquer 'Web Server', activer 'Supply in request'"
-Write-Host "2. WSFR_Machines - Dupliquer 'Computer', activer autoenrollment"
-Write-Host "3. WSFR_Users - Dupliquer 'User', activer autoenrollment"
+certtmpl.msc
 ```
 
-#### Configuration manuelle des templates (certtmpl.msc)
+#### Template 1 : WSFR_Services (On-demand pour services web, VPN, etc.)
 
-> **Étapes manuelles dans certtmpl.msc :**
->
-> **WSFR_Services :**
->
-> 1. Clic droit sur "Web Server" → Duplicate Template
-> 2. General : Nom = "WSFR_Services"
-> 3. Request Handling : Allow private key to be exported
-> 4. Subject Name : Supply in the request
-> 5. Security : Authenticated Users → Enroll
->
-> **WSFR_Machines :**
->
-> 1. Clic droit sur "Computer" → Duplicate Template
-> 2. General : Nom = "WSFR_Machines"
-> 3. Security : Domain Computers → Enroll + Autoenroll
->
-> **WSFR_Users :**
->
-> 1. Clic droit sur "User" → Duplicate Template
-> 2. General : Nom = "WSFR_Users"
-> 3. Security : Domain Users → Enroll + Autoenroll
+| Étape | Action |
+|-------|--------|
+| 1 | Clic droit sur **"Serveur Web"** (ou "Web Server") → **Dupliquer le modèle** |
+| 2 | Onglet **Général** : Nom complet = `WSFR_Services` |
+| 3 | Onglet **Traitement de la demande** : ✅ Cocher **Autoriser l'exportation de la clé privée** |
+| 4 | Onglet **Nom du sujet** : Sélectionner ⚪ **Fourni dans la demande** |
+| 5 | Onglet **Sécurité** : **Utilisateurs authentifiés** → ✅ **Inscrire** |
+| 6 | Cliquer **OK** |
 
-### 5.9 Publier les templates
+#### Template 2 : WSFR_Machines (Autoenrollment ordinateurs)
+
+| Étape | Action |
+|-------|--------|
+| 1 | Clic droit sur **"Ordinateur"** (ou "Computer") → **Dupliquer le modèle** |
+| 2 | Onglet **Général** : Nom complet = `WSFR_Machines` |
+| 3 | Onglet **Sécurité** : **Ordinateurs du domaine** → ✅ **Inscrire** + ✅ **Inscription automatique** |
+| 4 | Cliquer **OK** |
+
+#### Template 3 : WSFR_Users (Autoenrollment utilisateurs)
+
+| Étape | Action |
+|-------|--------|
+| 1 | Clic droit sur **"Utilisateur"** (ou "User") → **Dupliquer le modèle** |
+| 2 | Onglet **Général** : Nom complet = `WSFR_Users` |
+| 3 | Onglet **Sécurité** : **Utilisateurs du domaine** → ✅ **Inscrire** + ✅ **Inscription automatique** |
+| 4 | Cliquer **OK** |
+
+#### ✅ Vérification
+
+Les 3 templates doivent apparaître dans la liste de `certtmpl.msc` :
+- WSFR_Services
+- WSFR_Machines
+- WSFR_Users
+
+### 5.9 Publier les templates sur la CA
+
+#### Méthode GUI (recommandée)
+
+1. Ouvrir la console de la CA :
+```powershell
+certsrv.msc
+```
+
+2. Dans l'arborescence, déplier **WSFR-SUB-CA**
+3. Clic droit sur **"Modèles de certificats"** → **Nouveau** → **Modèle de certificat à délivrer**
+4. Sélectionner **WSFR_Services** → **OK**
+5. Répéter pour **WSFR_Machines** et **WSFR_Users**
+
+#### Méthode PowerShell
 
 ```powershell
 # Publier les templates sur la CA (après création manuelle)
 Add-CATemplate -Name "WSFR_Services" -Force
 Add-CATemplate -Name "WSFR_Machines" -Force
 Add-CATemplate -Name "WSFR_Users" -Force
+```
 
-# Vérifier les templates publiés
+#### ✅ Vérification
+
+```powershell
+# Vérifier les templates publiés sur la CA
 Get-CATemplate
+
+# Résultat attendu : WSFR_Services, WSFR_Machines, WSFR_Users dans la liste
 ```
 
 ---
