@@ -103,6 +103,7 @@ openssl x509 -in /etc/ssl/CA/certs/ca.crt -text -noout | head -20
 ```
 
 **Attendu** :
+
 - Issuer : `CN=WSFR-ROOT-CA`
 - Subject : `CN=WSFR-ROOT-CA`
 - Organization : `Worldskills France`
@@ -114,6 +115,7 @@ grep -A10 "v3_intermediate_ca" /etc/ssl/CA/openssl.cnf
 ```
 
 **Attendu** : Présence de :
+
 ```
 crlDistributionPoints = URI:http://pki.hq.wsl2025.org/WSFR-ROOT-CA.crl
 authorityInfoAccess = caIssuers;URI:http://pki.hq.wsl2025.org/WSFR-ROOT-CA.crt
@@ -149,15 +151,16 @@ curl -I http://localhost/pki/
 
 ## 📋 Checklist finale
 
-| Test | Commande | Résultat |
-|------|----------|----------|
-| Hostname | `hostname` | ⬜ dnssrv |
-| IP | `ip addr` | ⬜ 8.8.4.1/29 |
-| BIND9 | `systemctl status bind9` | ⬜ active |
-| Zone worldskills.org | `dig www.worldskills.org` | ⬜ 8.8.4.2 |
-| Zone wsl2025.org | `dig vpn.wsl2025.org` | ⬜ 191.4.157.33 |
-| DNSSEC | `dig +dnssec` | ⬜ RRSIG présent |
-| Root CA | Certificat WSFR-ROOT-CA | ⬜ OK |
-| Extensions CDP/AIA | Dans openssl.cnf | ⬜ OK |
-| SubCA signé | Extensions présentes | ⬜ OK |
-| CRL | Fichier ca.crl | ⬜ OK |
+| Test                 | Commande                  | Résultat         |
+| -------------------- | ------------------------- | ---------------- |
+| Hostname             | `hostname`                | ⬜ dnssrv        |
+| IP                   | `ip addr`                 | ⬜ 8.8.4.1/29    |
+| BIND9                | `systemctl status bind9`  | ⬜ active        |
+| Zone worldskills.org | `dig www.worldskills.org` | ⬜ 8.8.4.2       |
+| Zone wsl2025.org     | `dig vpn.wsl2025.org`     | ⬜ 191.4.157.33  |
+| DNSSEC               | `dig +dnssec`             | ⬜ RRSIG présent |
+| Root CA              | Certificat WSFR-ROOT-CA   | ⬜ OK            |
+| Extensions CDP/AIA   | Dans openssl.cnf          | ⬜ OK            |
+| SubCA signé          | Extensions présentes      | ⬜ OK            |
+| CRL                  | Fichier ca.crl            | ⬜ OK            |
+

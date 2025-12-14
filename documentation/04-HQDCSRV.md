@@ -951,12 +951,16 @@ New-FsrmFileScreen -Path "D:\shares\datausers" -IncludeGroup "Executables" -Acti
 ### 7.6 Partage Department
 
 > ⚠️ **Prérequis** : Avoir exécuté la section **7.0** pour définir les variables et SID
+>
+> **Selon le sujet** : Chaque utilisateur a RW sur son département SEULEMENT, ne voit que son dossier.
 
 ```powershell
 # Créer le partage Department (ignorer si existe déjà)
+# IMPORTANT : Les utilisateurs du domaine doivent avoir accès SMB pour que le mappage fonctionne
 New-SmbShare -Name "Department$" `
     -Path "D:\shares\Department" `
     -FullAccess "$domainNetBIOS\Admins du domaine" `
+    -ChangeAccess "$domainNetBIOS\Utilisateurs du domaine" `
     -FolderEnumerationMode AccessBased -ErrorAction SilentlyContinue
 
 # Configurer les permissions par département avec SID
@@ -987,13 +991,16 @@ foreach ($dept in $departments) {
 ### 7.7 Partage Public
 
 > ⚠️ **Prérequis** : Avoir exécuté la section **7.0** pour définir les variables et SID
+>
+> **Selon le sujet** : RW sur son département, R sur les autres départements.
 
 ```powershell
 # Créer le partage Public (ignorer si existe déjà)
+# IMPORTANT : Les utilisateurs du domaine doivent avoir accès SMB Change pour RW sur leur dossier
 New-SmbShare -Name "Public$" `
     -Path "D:\shares\Public" `
     -FullAccess "$domainNetBIOS\Admins du domaine" `
-    -ReadAccess "$domainNetBIOS\Utilisateurs du domaine" `
+    -ChangeAccess "$domainNetBIOS\Utilisateurs du domaine" `
     -FolderEnumerationMode AccessBased -ErrorAction SilentlyContinue
 
 # Configurer les permissions par département avec SID
@@ -1033,6 +1040,20 @@ Get-SmbShare | Format-Table Name, Path, Description
 
 # Vérifier les permissions sur les partages
 Get-SmbShareAccess -Name "users$"
+Get-SmbShareAccess -Name "Department$"
+Get-SmbShareAccess -Name "Public$"
+```
+
+#### 🔧 Correction si les lecteurs S: et P: ne se montent pas
+
+Si les utilisateurs ont l'erreur "Accès refusé" sur les partages :
+
+```powershell
+# Ajouter les permissions SMB manquantes
+Grant-SmbShareAccess -Name "Department$" -AccountName "HQ\Utilisateurs du domaine" -AccessRight Change -Force
+Grant-SmbShareAccess -Name "Public$" -AccountName "HQ\Utilisateurs du domaine" -AccessRight Change -Force
+
+# Vérifier
 Get-SmbShareAccess -Name "Department$"
 Get-SmbShareAccess -Name "Public$"
 
@@ -1158,6 +1179,7 @@ Set-GPRegistryValue -Name "Block-ControlPanel" `
 6. Sélectionner le groupe **IT** dans la liste
 
 7. Dans les permissions, cocher **Refuser** pour :
+
    - ✅ **Appliquer la stratégie de groupe** → **REFUSER**
 
 8. Cliquer **OK** → **Oui** pour confirmer le Deny

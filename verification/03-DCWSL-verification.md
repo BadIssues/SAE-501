@@ -43,6 +43,7 @@ Get-ADDomain | Select-Object Name, DNSRoot, NetBIOSName
 ```
 
 **Attendu** :
+
 - Name : `wsl2025`
 - DNSRoot : `wsl2025.org`
 - NetBIOSName : `WSL2025`
@@ -54,6 +55,7 @@ Get-ADForest | Select-Object Name, RootDomain, ForestMode
 ```
 
 **Attendu** :
+
 - RootDomain : `wsl2025.org`
 - ForestMode : `Windows2016Forest` ou supérieur
 
@@ -125,13 +127,14 @@ Resolve-DnsName google.com
 
 ## 📋 Checklist finale
 
-| Test | Commande | Résultat |
-|------|----------|----------|
-| Hostname | `hostname` | ⬜ DCWSL |
-| IP | `Get-NetIPAddress` | ⬜ 10.4.10.4 |
-| Domaine | `Get-ADDomain` | ⬜ wsl2025.org |
-| Global Catalog | `Get-ADDomainController` | ⬜ True |
-| Zone DNS | `Get-DnsServerZone` | ⬜ wsl2025.org |
-| Forwarder | `Get-DnsServerForwarder` | ⬜ 8.8.4.1 |
-| DNSSEC | Zone signée | ⬜ True |
-| Résolution externe | `Resolve-DnsName google.com` | ⬜ OK |
+| Test               | Commande                     | Résultat       |
+| ------------------ | ---------------------------- | -------------- |
+| Hostname           | `hostname`                   | ⬜ DCWSL       |
+| IP                 | `Get-NetIPAddress`           | ⬜ 10.4.10.4   |
+| Domaine            | `Get-ADDomain`               | ⬜ wsl2025.org |
+| Global Catalog     | `Get-ADDomainController`     | ⬜ True        |
+| Zone DNS           | `Get-DnsServerZone`          | ⬜ wsl2025.org |
+| Forwarder          | `Get-DnsServerForwarder`     | ⬜ 8.8.4.1     |
+| DNSSEC             | Zone signée                  | ⬜ True        |
+| Résolution externe | `Resolve-DnsName google.com` | ⬜ OK          |
+

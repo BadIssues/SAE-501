@@ -207,14 +207,42 @@ Get-DedupStatus -Volume D:
 Get-SmbShare | Where-Object { $_.Name -like "*$" -and $_.Name -notlike "ADMIN*" -and $_.Name -notlike "IPC*" -and $_.Name -notlike "C*" }
 ```
 
-**Attendu** : `users$`, `services$`, `public$`
+**Attendu** : `users$`, `Department$`, `Public$`
+
+### Permissions SMB (IMPORTANT)
+
+```powershell
+Get-SmbShareAccess -Name "users$"
+Get-SmbShareAccess -Name "Department$"
+Get-SmbShareAccess -Name "Public$"
+```
+
+**Attendu** :
+
+| Partage | Compte | Droit |
+|---------|--------|-------|
+| users$ | Admins du domaine | Full |
+| users$ | Utilisateurs authentifiés | Change |
+| Department$ | Admins du domaine | Full |
+| Department$ | **Utilisateurs du domaine** | **Change** |
+| Public$ | Admins du domaine | Full |
+| Public$ | **Utilisateurs du domaine** | **Change** |
+
+> ⚠️ Si `Utilisateurs du domaine` n'a pas `Change` sur Department$ et Public$, les lecteurs S: et P: ne se monteront pas !
+
+### Correction si nécessaire
+
+```powershell
+Grant-SmbShareAccess -Name "Department$" -AccountName "HQ\Utilisateurs du domaine" -AccessRight Change -Force
+Grant-SmbShareAccess -Name "Public$" -AccountName "HQ\Utilisateurs du domaine" -AccessRight Change -Force
+```
 
 ### Accès
 
 ```powershell
 Test-Path "\\hq.wsl2025.org\users$"
-Test-Path "\\hq.wsl2025.org\services$"
-Test-Path "\\hq.wsl2025.org\public$"
+Test-Path "\\HQDCSRV\Department$"
+Test-Path "\\HQDCSRV\Public$"
 ```
 
 **Attendu** : `True` pour les trois
@@ -363,6 +391,7 @@ Get-ChildItem Cert:\LocalMachine\My | Where-Object { $_.Issuer -like "*WSFR-SUB-
 ### Si ça ne fonctionne pas :
 
 Vérifier sur HQDCSRV :
+
 ```powershell
 Get-GPPermission -Name "Block-ControlPanel" -All | Format-Table Trustee, Permission, Denied
 ```
@@ -379,17 +408,29 @@ Le groupe `IT` doit avoir `Denied = True` pour `GpoApply`.
 2. Ouvrir **Explorateur** → **Ce PC**
 3. ✅ Vérifier :
 
-| Lecteur | Pointe vers       | Attendu |
-| ------- | ----------------- | ------- |
-| **U:**  | Dossier personnel | ✅      |
-| **S:**  | Partage services  | ✅      |
-| **P:**  | Partage public    | ✅      |
+| Lecteur | Pointe vers | Chemin UNC |
+| ------- | ----------- | ---------- |
+| **U:** | Dossier personnel | `\\hq.wsl2025.org\users$\wslusr001` |
+| **S:** | Département | `\\HQDCSRV\Department$` |
+| **P:** | Public | `\\HQDCSRV\Public$` |
 
 ### PowerShell :
 
 ```powershell
 Get-PSDrive -PSProvider FileSystem | Where-Object { $_.Name -in @("U", "S", "P") }
 ```
+
+### Si S: et P: ne se montent pas :
+
+1. Vérifier les permissions SMB sur HQDCSRV (voir section 7)
+2. Forcer le mappage manuel :
+
+```cmd
+net use S: \\HQDCSRV\Department$ /persistent:yes
+net use P: \\HQDCSRV\Public$ /persistent:yes
+```
+
+Si "Accès refusé" → Les permissions SMB sont incorrectes sur le serveur.
 
 ---
 
@@ -434,3 +475,4 @@ Get-PSDrive -PSProvider FileSystem | Where-Object { $_.Name -in @("U", "S", "P")
 3. Déconnexion → Connexion **`hq\wslusr001`** → Tests 3, 4a, 5, 6
 4. Déconnexion → Connexion **`hq\vtim`** → Test 4b
 5. **Win+L** → Test 7
+
