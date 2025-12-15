@@ -343,15 +343,17 @@ scp /tmp/worldskills.csr root@8.8.4.1:/tmp/
 ```bash
 # À exécuter sur DNSSRV
 openssl x509 -req -in /tmp/worldskills.csr \
-    -CA /etc/ssl/certs/WSFR-ROOT-CA.crt \
-    -CAkey /etc/ssl/private/WSFR-ROOT-CA.key \
+    -CA /etc/ssl/CA/certs/ca.crt \
+    -CAkey /etc/ssl/CA/private/ca.key \
     -CAcreateserial \
     -out /tmp/worldskills.crt \
     -days 365 \
     -extfile <(printf "subjectAltName=DNS:*.worldskills.org,DNS:worldskills.org")
 ```
 
-> ⚠️ **Note** : Le SAN inclut `*.worldskills.org` ET `worldskills.org` car le wildcard ne couvre pas le domaine racine.
+> ⚠️ **Notes** :
+> - Le SAN inclut `*.worldskills.org` ET `worldskills.org` car le wildcard ne couvre pas le domaine racine.
+> - La clé `ca.key` est protégée par mot de passe (celui défini lors de la création du Root CA).
 
 ### Étape 4 : Récupérer le certificat signé
 
@@ -360,7 +362,7 @@ openssl x509 -req -in /tmp/worldskills.csr \
 scp root@8.8.4.1:/tmp/worldskills.crt /etc/ssl/certs/
 
 # Récupérer aussi le Root CA pour la chaîne
-scp root@8.8.4.1:/etc/ssl/certs/WSFR-ROOT-CA.crt /etc/ssl/certs/
+scp root@8.8.4.1:/etc/ssl/CA/certs/ca.crt /etc/ssl/certs/WSFR-ROOT-CA.crt
 ```
 
 ### Étape 5 : Créer le bundle pour HAProxy
