@@ -352,6 +352,7 @@ openssl x509 -req -in /tmp/worldskills.csr \
 ```
 
 > ⚠️ **Notes** :
+>
 > - Le SAN inclut `*.worldskills.org` ET `worldskills.org` car le wildcard ne couvre pas le domaine racine.
 > - La clé `ca.key` est protégée par mot de passe (celui défini lors de la création du Root CA).
 
@@ -373,7 +374,7 @@ cat /etc/ssl/private/worldskills.key \
     /etc/ssl/certs/worldskills.crt \
     /etc/ssl/certs/WSFR-ROOT-CA.crt > /etc/ssl/certs/worldskills.pem
 
-chmod 600 /etc/ssl/certs/worldskills.pem
+chmod 644 /etc/ssl/certs/worldskills.pem
 ```
 
 > ✅ **Ce certificat wildcard sera utilisé pour le Web ET le FTP !**
