@@ -10,11 +10,11 @@
 
 Ce poste simule un employé du site Remote (MAN) :
 
-| Fonction | Description |
-|----------|-------------|
-| **DHCP** | Obtient son IP automatiquement de REMDCSRV/REMINFRASRV (plage 10.4.100.10-120). |
-| **Domaine** | Membre du domaine `rem.wsl2025.org`. |
-| **Accès** | Doit accéder aux ressources corporate (HQ et Remote) et à Internet via MAN. |
+| Fonction    | Description                                                                     |
+| ----------- | ------------------------------------------------------------------------------- |
+| **DHCP**    | Obtient son IP automatiquement de REMDCSRV/REMINFRASRV (plage 10.4.100.10-120). |
+| **Domaine** | Membre du domaine `rem.wsl2025.org`.                                            |
+| **Accès**   | Doit accéder aux ressources corporate (HQ et Remote) et à Internet via MAN.     |
 
 ---
 
@@ -30,16 +30,17 @@ Ce poste simule un employé du site Remote (MAN) :
 
 ### Informations DHCP attendues
 
-| Paramètre | Valeur |
-|-----------|--------|
-| IP | 10.4.100.X (plage 10.4.100.10 - 10.4.100.120) |
-| Masque | 255.255.255.128 (/25) |
-| Passerelle | 10.4.100.126 (REMFW) |
-| DNS | 10.4.100.1 (REMDCSRV) |
-| Domaine | rem.wsl2025.org |
-| NTP | 10.4.10.2 (HQINFRASRV via WAN) |
+| Paramètre  | Valeur                                        |
+| ---------- | --------------------------------------------- |
+| IP         | 10.4.100.X (plage 10.4.100.10 - 10.4.100.120) |
+| Masque     | 255.255.255.128 (/25)                         |
+| Passerelle | 10.4.100.126 (REMFW)                          |
+| DNS        | 10.4.100.1 (REMDCSRV)                         |
+| Domaine    | rem.wsl2025.org                               |
+| NTP        | 10.4.10.2 (HQINFRASRV via WAN)                |
 
 ### Vérifier DHCP
+
 ```powershell
 ipconfig /all
 ipconfig /release
@@ -51,6 +52,7 @@ ipconfig /renew
 ## 2️⃣ Joindre le domaine
 
 ### Via GUI
+
 1. **Paramètres** → **Système** → **À propos** → **Paramètres avancés**
 2. **Nom de l'ordinateur** → **Modifier**
 3. Sélectionner **Domaine** : `rem.wsl2025.org`
@@ -58,6 +60,7 @@ ipconfig /renew
 5. Redémarrer
 
 ### Via PowerShell
+
 ```powershell
 Add-Computer -DomainName "rem.wsl2025.org" -Credential (Get-Credential) -Restart
 ```
@@ -67,6 +70,7 @@ Add-Computer -DomainName "rem.wsl2025.org" -Credential (Get-Credential) -Restart
 ## 3️⃣ Tests de connectivité
 
 ### Réseau local Remote
+
 ```powershell
 # Ping gateway
 ping 10.4.100.126
@@ -77,6 +81,7 @@ ping 10.4.100.2   # REMINFRASRV
 ```
 
 ### Réseau HQ (via MAN)
+
 ```powershell
 # Ping serveurs HQ
 ping 10.4.10.1    # HQDCSRV
@@ -89,6 +94,7 @@ nslookup www.wsl2025.org
 ```
 
 ### Internet
+
 ```powershell
 ping 8.8.4.1      # DNSSRV
 ping 8.8.8.8      # Google DNS
@@ -114,16 +120,18 @@ Utilisateurs du site Remote :
 ## 5️⃣ Vérifications post-jonction
 
 ### Vérifier les GPO
+
 ```powershell
 gpresult /r
 gpresult /h C:\GPO-Report.html
 ```
 
 ### Lecteurs réseau mappés
-| Lettre | Chemin | Description |
-|--------|--------|-------------|
-| U: | `\\rem.wsl2025.org\files\users\%username%` | Home drive |
-| S: | `\\rem.wsl2025.org\files\Department\%department%` | Département |
+
+| Lettre | Chemin                                            | Description |
+| ------ | ------------------------------------------------- | ----------- |
+| U:     | `\\rem.wsl2025.org\files\users\%username%`        | Home drive  |
+| S:     | `\\rem.wsl2025.org\files\Department\%department%` | Département |
 
 ```powershell
 net use
@@ -134,16 +142,19 @@ net use
 ## 6️⃣ Accès aux services
 
 ### Email (via HQ)
+
 1. Configurer Outlook
 2. Serveur IMAP : `hqmailsrv.wsl2025.org:993` (SSL)
 3. Serveur SMTP : `hqmailsrv.wsl2025.org:465` (SSL)
 
 ### Webmail
+
 ```powershell
 Start-Process "https://webmail.wsl2025.org"
 ```
 
 ### Site web corporate
+
 ```powershell
 Start-Process "https://www.wsl2025.org"
 ```
@@ -163,61 +174,123 @@ certmgr.msc
 
 ## ✅ Vérification Finale
 
-> **Instructions** : Exécuter ces tests sur REMCLT après connexion avec un utilisateur du domaine.
+### 🔌 Comment se connecter à REMCLT
 
-### 1. DHCP - IP obtenue
+1. Ouvrir la console VMware du poste REMCLT
+2. Se connecter avec un utilisateur du domaine : `REM\dpeltier` / `P@ssw0rd`
+3. Attendre que le bureau Windows 11 s'affiche
+4. Clic droit sur le bouton Windows → **Terminal** ou **PowerShell**
+
+---
+
+### Test 1 : Vérifier l'IP obtenue par DHCP
+
+**Étape 1** : Tape cette commande :
 ```powershell
-ipconfig | Select-String "IPv4"
+ipconfig | findstr "IPv4"
 ```
-✅ Doit afficher une IP dans la plage `10.4.100.X`
 
-### 2. Domaine
+**Étape 2** : Regarde le résultat :
+```
+   Adresse IPv4. . . . . . . . . . . . . .: 10.4.100.15
+```
+
+✅ **C'est bon si** : L'IP commence par `10.4.100.`
+❌ **Problème si** : IP en `169.254.x.x` → DHCP ne fonctionne pas
+
+---
+
+### Test 2 : Vérifier la jonction au domaine
+
+**Étape 1** : Tape cette commande :
 ```powershell
-(Get-WmiObject Win32_ComputerSystem).Domain
+systeminfo | findstr "Domaine"
 ```
-✅ Doit afficher `rem.wsl2025.org`
 
-### 3. Ping serveurs Remote
+**Étape 2** : Regarde le résultat :
+```
+Domaine:                       rem.wsl2025.org
+```
+
+✅ **C'est bon si** : Tu vois `rem.wsl2025.org`
+❌ **Problème si** : `WORKGROUP` → Pas joint au domaine
+
+---
+
+### Test 3 : Ping vers les serveurs Remote
+
+**Étape 1** : Tape cette commande :
 ```powershell
-Test-Connection 10.4.100.1 -Count 1  # REMDCSRV
-Test-Connection 10.4.100.2 -Count 1  # REMINFRASRV
+ping 10.4.100.1 -n 1
 ```
-✅ Les deux doivent répondre
 
-### 4. Ping serveurs HQ (via MAN)
+**Étape 2** : Regarde le résultat :
+```
+Réponse de 10.4.100.1 : octets=32 temps<1ms TTL=128
+```
+
+✅ **C'est bon si** : Tu vois une réponse
+❌ **Problème si** : "Délai d'attente" → Problème réseau local
+
+---
+
+### Test 4 : Ping vers HQ (via le réseau MAN)
+
+**Étape 1** : Tape cette commande :
 ```powershell
-Test-Connection 10.4.10.1 -Count 1  # HQDCSRV
-Test-Connection 10.4.10.4 -Count 1  # DCWSL
+ping 10.4.10.1 -n 1
 ```
-✅ Les deux doivent répondre
 
-### 5. Accès Internet
+**Étape 2** : Regarde le résultat :
+```
+Réponse de 10.4.10.1 : octets=32 temps=XXms TTL=12X
+```
+
+✅ **C'est bon si** : Tu vois une réponse (le temps sera plus long car passe par le MAN)
+❌ **Problème si** : "Délai d'attente" → Vérifier REMFW/WANRTR
+
+---
+
+### Test 5 : Accès Internet
+
+**Étape 1** : Tape cette commande :
 ```powershell
-Test-NetConnection google.com -Port 443
+ping google.com -n 1
 ```
-✅ `TcpTestSucceeded` doit être `True`
 
-### 6. Accès ressources web
+**Étape 2** : Regarde le résultat :
+
+✅ **C'est bon si** : Tu vois une réponse avec une IP Google
+❌ **Problème si** : "Hôte introuvable" → DNS ou routage
+
+---
+
+### Test 6 : Accès au webmail
+
+**Étape 1** : Ouvre Microsoft Edge
+
+**Étape 2** : Tape dans la barre d'adresse : `https://webmail.wsl2025.org`
+
+✅ **C'est bon si** : Tu vois la page de connexion Roundcube
+❌ **Problème si** : "Page inaccessible"
+
+---
+
+### 📋 Résumé rapide PowerShell
+
 ```powershell
-Test-NetConnection www.wsl2025.org -Port 443
-Test-NetConnection webmail.wsl2025.org -Port 443
+Write-Host "=== IP ===" -ForegroundColor Cyan
+ipconfig | findstr "IPv4"
+
+Write-Host "=== DOMAINE ===" -ForegroundColor Cyan
+systeminfo | findstr "Domaine"
+
+Write-Host "=== PING REMDCSRV ===" -ForegroundColor Cyan
+ping 10.4.100.1 -n 1 | findstr "Réponse"
+
+Write-Host "=== PING HQ ===" -ForegroundColor Cyan
+ping 10.4.10.1 -n 1 | findstr "Réponse"
+
+Write-Host "=== INTERNET ===" -ForegroundColor Cyan
+ping google.com -n 1 | findstr "Réponse"
 ```
-✅ Accessibles
-
-### 7. Certificats CA
-```powershell
-Get-ChildItem Cert:\LocalMachine\Root | Where-Object { $_.Subject -like "*WSFR*" }
-```
-✅ Doit afficher `WSFR-ROOT-CA`
-
-### Tableau récapitulatif
-
-| Test | Commande/Action | Résultat attendu |
-|------|-----------------|------------------|
-| IP DHCP | `ipconfig` | `10.4.100.X` |
-| Domaine | `systeminfo \| find "Domaine"` | `rem.wsl2025.org` |
-| Ping REMDCSRV | `ping 10.4.100.1` | Réponse |
-| Ping HQDCSRV | `ping 10.4.10.1` | Réponse (via MAN) |
-| Internet | `ping google.com` | Réponse |
-| Webmail | Navigateur | Page Roundcube |
-

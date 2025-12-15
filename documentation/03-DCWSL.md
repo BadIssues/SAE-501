@@ -10,12 +10,12 @@
 
 Ce serveur est la **racine de la forêt Active Directory** `wsl2025.org` :
 
-| Service | Description |
-|---------|-------------|
-| **Active Directory** | Forest root, Global Catalog. Domaine parent de `hq.wsl2025.org` et `rem.wsl2025.org`. |
-| **DNS** | Zone `wsl2025.org` avec tous les enregistrements de l'infrastructure (serveurs, switches, routeurs, VPN). |
-| **DNSSEC** | Zone signée avec certificat. |
-| **Forwarder** | Requêtes externes redirigées vers DNSSRV (8.8.4.1). |
+| Service              | Description                                                                                               |
+| -------------------- | --------------------------------------------------------------------------------------------------------- |
+| **Active Directory** | Forest root, Global Catalog. Domaine parent de `hq.wsl2025.org` et `rem.wsl2025.org`.                     |
+| **DNS**              | Zone `wsl2025.org` avec tous les enregistrements de l'infrastructure (serveurs, switches, routeurs, VPN). |
+| **DNSSEC**           | Zone signée avec certificat.                                                                              |
+| **Forwarder**        | Requêtes externes redirigées vers DNSSRV (8.8.4.1).                                                       |
 
 ---
 
@@ -197,63 +197,138 @@ Resolve-DnsName vpn.wsl2025.org
 
 ## ✅ Vérification Finale
 
-> **Instructions** : Exécuter ces commandes sur DCWSL (PowerShell Admin) pour valider le bon fonctionnement.
+### 🔌 Comment se connecter à DCWSL
 
-### 1. Active Directory
+1. Ouvrir la console VMware ou Bureau à distance (RDP) vers `10.4.10.4`
+2. Se connecter avec `Administrateur` / `P@ssw0rd`
+3. Clic droit sur le bouton Windows → **Windows PowerShell (Admin)**
+4. Tu dois voir le prompt : `PS C:\Users\Administrateur>`
+
+---
+
+### Test 1 : Vérifier Active Directory
+
+**Étape 1** : Tape cette commande et appuie sur Entrée :
 ```powershell
-# Vérifier le domaine
-Get-ADDomain | Select-Object Name, DNSRoot, Forest
+Get-ADDomain | Format-List Name, DNSRoot, Forest
 ```
-✅ Doit afficher `Name=wsl2025`, `DNSRoot=wsl2025.org`, `Forest=wsl2025.org`
 
-```powershell
-# Vérifier que c'est un Global Catalog
-Get-ADDomainController | Select-Object Name, IsGlobalCatalog
+**Étape 2** : Regarde le résultat. Tu dois voir :
 ```
-✅ `IsGlobalCatalog` doit être `True`
-
-### 2. DNS - Zone et Enregistrements
-```powershell
-# Vérifier la zone
-Get-DnsServerZone -Name "wsl2025.org" | Select-Object ZoneName, ZoneType, IsSigned
+Name    : wsl2025
+DNSRoot : wsl2025.org
+Forest  : wsl2025.org
 ```
-✅ `ZoneType=Primary`, `IsSigned=True`
 
+✅ **C'est bon si** : Tu vois exactement ces 3 valeurs
+❌ **Problème si** : Erreur ou valeurs différentes
+
+---
+
+### Test 2 : Vérifier que c'est un Global Catalog
+
+**Étape 1** : Tape cette commande :
 ```powershell
-# Compter les enregistrements
-(Get-DnsServerResourceRecord -ZoneName "wsl2025.org").Count
+Get-ADDomainController | Format-List Name, IsGlobalCatalog
 ```
-✅ Doit être supérieur à 15 (enregistrements infrastructure)
 
-### 3. DNS - Résolution
+**Étape 2** : Regarde le résultat :
+```
+Name             : DCWSL
+IsGlobalCatalog  : True
+```
+
+✅ **C'est bon si** : `IsGlobalCatalog` est `True`
+❌ **Problème si** : `IsGlobalCatalog` est `False`
+
+---
+
+### Test 3 : Vérifier la zone DNS
+
+**Étape 1** : Tape cette commande :
 ```powershell
-# Test enregistrements internes
-Resolve-DnsName hqinfrasrv.wsl2025.org
+Get-DnsServerZone -Name "wsl2025.org" | Format-List ZoneName, ZoneType, IsSigned
+```
+
+**Étape 2** : Regarde le résultat :
+```
+ZoneName : wsl2025.org
+ZoneType : Primary
+IsSigned : True
+```
+
+✅ **C'est bon si** : `ZoneType` = `Primary` ET `IsSigned` = `True`
+❌ **Problème si** : `IsSigned` = `False` → DNSSEC pas activé
+
+---
+
+### Test 4 : Vérifier les enregistrements DNS
+
+**Étape 1** : Tape cette commande :
+```powershell
 Resolve-DnsName vpn.wsl2025.org
+```
+
+**Étape 2** : Regarde le résultat. Tu dois voir :
+```
+Name                     Type   TTL   Section    IPAddress
+----                     ----   ---   -------    ---------
+vpn.wsl2025.org          A      3600  Answer     191.4.157.33
+```
+
+✅ **C'est bon si** : L'IP est `191.4.157.33`
+❌ **Problème si** : Erreur "DNS name does not exist" → Enregistrement manquant
+
+**Étape 3** : Teste aussi les autres enregistrements :
+```powershell
 Resolve-DnsName www.wsl2025.org
+Resolve-DnsName webmail.wsl2025.org
 ```
-✅ Doivent résoudre vers les bonnes IPs
 
-### 4. DNS - Forwarder
+---
+
+### Test 5 : Vérifier le forwarder DNS
+
+**Étape 1** : Tape cette commande :
 ```powershell
-# Vérifier le forwarder
-Get-DnsServerForwarder
+Get-DnsServerForwarder | Format-List IPAddress
 ```
-✅ Doit inclure `8.8.4.1` (DNSSRV)
 
+**Étape 2** : Regarde le résultat :
+```
+IPAddress : {8.8.4.1}
+```
+
+✅ **C'est bon si** : Tu vois `8.8.4.1` dans la liste
+❌ **Problème si** : Liste vide ou autre IP
+
+**Étape 3** : Teste la résolution externe :
 ```powershell
-# Test résolution externe
 Resolve-DnsName google.com
 ```
-✅ Doit résoudre via le forwarder
 
-### Tableau récapitulatif
+✅ **C'est bon si** : Tu obtiens des IPs Google
+❌ **Problème si** : Timeout → Forwarder ne fonctionne pas
 
-| Test | Commande | Résultat attendu |
-|------|----------|------------------|
-| Domaine | `(Get-ADDomain).DNSRoot` | `wsl2025.org` |
-| Global Catalog | `(Get-ADDomainController).IsGlobalCatalog` | `True` |
-| Zone DNS | `(Get-DnsServerZone "wsl2025.org").ZoneType` | `Primary` |
-| DNSSEC | `(Get-DnsServerZone "wsl2025.org").IsSigned` | `True` |
-| Forwarder | `Get-DnsServerForwarder` | Contient `8.8.4.1` |
-| VPN DNS | `Resolve-DnsName vpn.wsl2025.org` | `191.4.157.33` |
+---
+
+### 📋 Résumé rapide (copie-colle tout d'un coup)
+
+```powershell
+Write-Host "=== DOMAINE ===" -ForegroundColor Cyan
+(Get-ADDomain).DNSRoot
+
+Write-Host "=== GLOBAL CATALOG ===" -ForegroundColor Cyan
+(Get-ADDomainController).IsGlobalCatalog
+
+Write-Host "=== ZONE DNS ===" -ForegroundColor Cyan
+Get-DnsServerZone -Name "wsl2025.org" | Select-Object ZoneName, ZoneType, IsSigned
+
+Write-Host "=== TEST DNS VPN ===" -ForegroundColor Cyan
+(Resolve-DnsName vpn.wsl2025.org -ErrorAction SilentlyContinue).IPAddress
+
+Write-Host "=== FORWARDER ===" -ForegroundColor Cyan
+(Get-DnsServerForwarder).IPAddress.IPAddressToString
+```
+
+Tu peux copier-coller ce bloc entier. Chaque section doit afficher la bonne valeur.

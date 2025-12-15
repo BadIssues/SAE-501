@@ -11,15 +11,15 @@
 
 Ce serveur est le contrôleur de domaine principal du site HQ avec de nombreux services :
 
-| Service | Description |
-|---------|-------------|
-| **AD DS** | Child domain `hq.wsl2025.org` de la forêt `wsl2025.org`. Global Catalog. |
-| **DNS** | Zone `hq.wsl2025.org` avec DNSSEC. Forwarder vers DNSSRV. |
-| **ADCS** | Sub CA `WSFR-SUB-CA` (Enterprise Subordinate CA). Templates certificats. |
-| **PKI/IIS** | Site web PKI pour CRL et AIA sur `http://pki.hq.wsl2025.org`. |
+| Service         | Description                                                                           |
+| --------------- | ------------------------------------------------------------------------------------- |
+| **AD DS**       | Child domain `hq.wsl2025.org` de la forêt `wsl2025.org`. Global Catalog.              |
+| **DNS**         | Zone `hq.wsl2025.org` avec DNSSEC. Forwarder vers DNSSRV.                             |
+| **ADCS**        | Sub CA `WSFR-SUB-CA` (Enterprise Subordinate CA). Templates certificats.              |
+| **PKI/IIS**     | Site web PKI pour CRL et AIA sur `http://pki.hq.wsl2025.org`.                         |
 | **File Server** | Partages `users$` (home drives), `Department$`, `Public$`. Quotas 20Mo, blocage .exe. |
-| **GPO** | Déploiement certificats, Edge homepage, Control Panel bloqué, lecteurs réseau. |
-| **Stockage** | RAID-5 avec 3 disques de 1Go, déduplication activée. |
+| **GPO**         | Déploiement certificats, Edge homepage, Control Panel bloqué, lecteurs réseau.        |
+| **Stockage**    | RAID-5 avec 3 disques de 1Go, déduplication activée.                                  |
 
 ---
 
@@ -1760,6 +1760,57 @@ Get-PSDrive | Where-Object { $_.Name -in @("U", "S", "P") }
 | Kerberos | 88   | hqdcsrv.hq.wsl2025.org         |
 | PKI/CRL  | 80   | http://pki.hq.wsl2025.org      |
 | SMB      | 445  | \\hq.wsl2025.org\*             |
+
+---
+
+## ✅ Vérification Finale
+
+### 🔌 Comment se connecter à HQDCSRV
+
+1. Ouvrir la console VMware ou Bureau à distance (RDP) vers `10.4.10.1`
+2. Se connecter avec `HQ\Administrateur` / `P@ssw0rd`
+3. Clic droit sur le bouton Windows → **Windows PowerShell (Admin)**
+
+---
+
+### Script de vérification automatique
+
+> 📝 **Comment utiliser** : Copie-colle le script complet (section "Script de diagnostic") dans PowerShell.
+> Le script génère un fichier `C:\HQDCSRV_Verification.txt` avec tous les résultats.
+
+### Vérification manuelle rapide
+
+Si tu veux vérifier manuellement, voici les tests essentiels :
+
+**1. Domaine :**
+```powershell
+(Get-ADDomain).DNSRoot
+```
+✅ Doit afficher `hq.wsl2025.org`
+
+**2. Services critiques :**
+```powershell
+Get-Service CertSvc, W3SVC, DNS | Format-Table Name, Status
+```
+✅ Tous doivent être `Running`
+
+**3. Nombre d'utilisateurs :**
+```powershell
+(Get-ADUser -Filter *).Count
+```
+✅ Doit être > 1000 (4 HQ + 1000 provisionnés)
+
+**4. Partages SMB :**
+```powershell
+Get-SmbShare | Where-Object { $_.Name -in @("users$","Department$","Public$") }
+```
+✅ Les 3 partages doivent exister
+
+**5. Templates certificats :**
+```powershell
+Get-CATemplate | Select-Object Name
+```
+✅ Doit inclure WSFR_Services, WSFR_Machines, WSFR_Users
 
 ---
 

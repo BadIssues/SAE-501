@@ -10,13 +10,13 @@
 
 Ce poste est dédié à l'administration des équipements réseau :
 
-| Fonction | Description |
-|----------|-------------|
-| **Ansible** | Playbooks pour gérer ACCSW1, ACCSW2, CORESW1, CORESW2. |
-| **Backup/Restore** | Sauvegarde et restauration des configs switches via TFTP local. |
-| **Monitoring** | Collecte version OS, état interfaces, paramètres environnementaux (3750). |
-| **NTP** | Synchronisation des switches avec HQINFRASRV. |
-| **Stockage** | Playbooks stockés sur FTP (INETSRV - ftp.worldskills.org). |
+| Fonction           | Description                                                               |
+| ------------------ | ------------------------------------------------------------------------- |
+| **Ansible**        | Playbooks pour gérer ACCSW1, ACCSW2, CORESW1, CORESW2.                    |
+| **Backup/Restore** | Sauvegarde et restauration des configs switches via TFTP local.           |
+| **Monitoring**     | Collecte version OS, état interfaces, paramètres environnementaux (3750). |
+| **NTP**            | Synchronisation des switches avec HQINFRASRV.                             |
+| **Stockage**       | Playbooks stockés sur FTP (INETSRV - ftp.worldskills.org).                |
 
 ---
 
@@ -31,11 +31,13 @@ Ce poste est dédié à l'administration des équipements réseau :
 ## 1️⃣ Configuration de base
 
 ### Hostname
+
 ```bash
 hostnamectl set-hostname mgmtclt
 ```
 
 ### Configuration réseau (IP statique ou DHCP)
+
 ```bash
 cat > /etc/network/interfaces << 'EOF'
 auto eth0
@@ -84,6 +86,7 @@ systemctl enable tftpd-hpa
 ## 4️⃣ Configuration Ansible
 
 ### Inventaire avec les vraies IP
+
 ```bash
 mkdir -p ~/ansible
 cat > ~/ansible/inventory.yml << 'EOF'
@@ -111,6 +114,7 @@ EOF
 ```
 
 ### Configuration Ansible
+
 ```bash
 cat > ~/ansible/ansible.cfg << 'EOF'
 [defaults]
@@ -130,26 +134,27 @@ EOF
 ## 5️⃣ Playbooks Ansible
 
 ### Playbook 1 : Backup des configurations
+
 ```bash
 cat > ~/ansible/backup_config.yml << 'EOF'
 ---
 - name: Backup switch configurations
   hosts: switches
   gather_facts: no
-  
+
   tasks:
     - name: Get current date
       set_fact:
         backup_date: "{{ lookup('pipe', 'date +%Y%m%d') }}"
       delegate_to: localhost
       run_once: true
-      
+
     - name: Get running configuration
       cisco.ios.ios_command:
         commands:
           - show running-config
       register: config
-      
+
     - name: Save configuration to local file
       copy:
         content: "{{ config.stdout[0] }}"
@@ -159,6 +164,7 @@ EOF
 ```
 
 ### Playbook 2 : Restore des configurations
+
 ```bash
 cat > ~/ansible/restore_config.yml << 'EOF'
 ---
@@ -167,13 +173,13 @@ cat > ~/ansible/restore_config.yml << 'EOF'
   gather_facts: no
   vars:
     tftp_server: 10.4.99.1
-  
+
   tasks:
     - name: Restore from TFTP
       cisco.ios.ios_command:
         commands:
           - "copy tftp://{{ tftp_server }}/{{ inventory_hostname }}.cfg running-config"
-      
+
     - name: Save to startup
       cisco.ios.ios_config:
         save_when: always
@@ -181,20 +187,21 @@ EOF
 ```
 
 ### Playbook 3 : Collecter version OS
+
 ```bash
 cat > ~/ansible/get_version.yml << 'EOF'
 ---
 - name: Collect OS version from all switches
   hosts: switches
   gather_facts: no
-  
+
   tasks:
     - name: Get version
       cisco.ios.ios_command:
         commands:
           - show version | include Version
       register: version
-      
+
     - name: Display version
       debug:
         msg: "{{ inventory_hostname }}: {{ version.stdout_lines[0] }}"
@@ -202,20 +209,21 @@ EOF
 ```
 
 ### Playbook 4 : État des interfaces
+
 ```bash
 cat > ~/ansible/interface_status.yml << 'EOF'
 ---
 - name: Display interface status
   hosts: switches
   gather_facts: no
-  
+
   tasks:
     - name: Get interface brief
       cisco.ios.ios_command:
         commands:
           - show ip interface brief
       register: interfaces
-      
+
     - name: Display interfaces
       debug:
         var: interfaces.stdout_lines[0]
@@ -223,13 +231,14 @@ EOF
 ```
 
 ### Playbook 5 : Synchronisation NTP
+
 ```bash
 cat > ~/ansible/sync_ntp.yml << 'EOF'
 ---
 - name: Synchronize NTP on all switches
   hosts: switches
   gather_facts: no
-  
+
   tasks:
     - name: Configure NTP server
       cisco.ios.ios_config:
@@ -237,13 +246,13 @@ cat > ~/ansible/sync_ntp.yml << 'EOF'
           - ntp server 10.4.10.2 prefer
           - clock timezone CET 1
           - clock summer-time CEST recurring last Sun Mar 2:00 last Sun Oct 3:00
-          
+
     - name: Verify NTP status
       cisco.ios.ios_command:
         commands:
           - show ntp status
       register: ntp
-      
+
     - name: Display NTP status
       debug:
         msg: "{{ inventory_hostname }}: {{ ntp.stdout_lines[0][0] | default('NTP not synced') }}"
@@ -251,13 +260,14 @@ EOF
 ```
 
 ### Playbook 6 : Paramètres environnementaux
+
 ```bash
 cat > ~/ansible/environment_status.yml << 'EOF'
 ---
 - name: Display environment status (3750 switches)
   hosts: switches
   gather_facts: no
-  
+
   tasks:
     - name: Get environment status
       cisco.ios.ios_command:
@@ -265,7 +275,7 @@ cat > ~/ansible/environment_status.yml << 'EOF'
           - show environment all
       register: env
       ignore_errors: yes
-      
+
     - name: Display environment
       debug:
         var: env.stdout_lines[0]
@@ -330,73 +340,143 @@ ssh admin@10.4.99.252  # CORESW2
 
 ## ✅ Vérification Finale
 
-> **Instructions** : Exécuter ces commandes sur MGMTCLT pour valider le bon fonctionnement.
+### 🔌 Comment se connecter à MGMTCLT
 
-### 1. Connectivité réseau
+1. Ouvrir la console VMware du poste MGMTCLT
+2. Se connecter avec l'utilisateur local (ex: `admin` / mot de passe configuré)
+3. Ouvrir un terminal : clic droit sur le bureau → **Terminal** ou `Ctrl+Alt+T`
+4. Tu dois voir le prompt : `admin@mgmtclt:~$`
+
+---
+
+### Test 1 : Ping vers les switches
+
+**Étape 1** : Tape cette commande (teste les 4 switches d'un coup) :
 ```bash
-# Ping vers tous les switches
-ping -c 1 10.4.99.11 && echo "ACCSW1 OK"
-ping -c 1 10.4.99.12 && echo "ACCSW2 OK"
-ping -c 1 10.4.99.253 && echo "CORESW1 OK"
-ping -c 1 10.4.99.252 && echo "CORESW2 OK"
+for ip in 10.4.99.11 10.4.99.12 10.4.99.253 10.4.99.252; do ping -c 1 -W 1 $ip > /dev/null && echo "$ip OK" || echo "$ip ECHEC"; done
 ```
-✅ Tous les switches doivent répondre
 
-### 2. SSH - Accès aux switches
+**Étape 2** : Regarde le résultat :
+```
+10.4.99.11 OK
+10.4.99.12 OK
+10.4.99.253 OK
+10.4.99.252 OK
+```
+
+✅ **C'est bon si** : Tu vois "OK" pour les 4 IPs
+❌ **Problème si** : "ECHEC" → Le switch ne répond pas (vérifie VLAN 99)
+
+---
+
+### Test 2 : SSH vers un switch
+
+**Étape 1** : Tape cette commande :
 ```bash
-ssh -o BatchMode=yes -o ConnectTimeout=5 admin@10.4.99.11 "show version | include uptime"
+ssh admin@10.4.99.11
 ```
-✅ Doit afficher l'uptime du switch (bannière visible avant)
 
-### 3. Ansible - Test de connectivité
+**Étape 2** : Tu dois voir :
+1. D'abord la bannière : `/!\ Restricted access. Only for authorized people /!\`
+2. Ensuite le prompt de mot de passe
+3. Tape le mot de passe : `P@ssw0rd`
+4. Tu arrives sur le prompt Cisco : `ACCSW1>`
+
+**Étape 3** : Tape `exit` pour sortir
+
+✅ **C'est bon si** : Tu as vu la bannière et pu te connecter
+❌ **Problème si** : "Connection refused" → SSH pas configuré sur le switch
+
+---
+
+### Test 3 : Ansible ping
+
+**Étape 1** : Va dans le dossier Ansible :
 ```bash
 cd ~/ansible
+```
+
+**Étape 2** : Tape cette commande :
+```bash
 ansible switches -m ping
 ```
-✅ Tous les switches doivent retourner `SUCCESS`
 
-### 4. TFTP - Service actif
+**Étape 3** : Regarde le résultat :
+```
+accsw1 | SUCCESS => { "changed": false, "ping": "pong" }
+accsw2 | SUCCESS => { "changed": false, "ping": "pong" }
+coresw1 | SUCCESS => { "changed": false, "ping": "pong" }
+coresw2 | SUCCESS => { "changed": false, "ping": "pong" }
+```
+
+✅ **C'est bon si** : Tu vois `SUCCESS` pour les 4 switches
+❌ **Problème si** : `UNREACHABLE` → Problème SSH ou inventaire Ansible
+
+---
+
+### Test 4 : Vérifier TFTP
+
+**Étape 1** : Tape cette commande :
 ```bash
 systemctl is-active tftpd-hpa
-ls /srv/tftp/
 ```
-✅ Service `active`, dossier accessible
 
-### 5. Playbook - Version des équipements
+**Étape 2** : Regarde le résultat :
+```
+active
+```
+
+✅ **C'est bon si** : `active`
+❌ **Problème si** : `inactive` → TFTP pas démarré
+
+---
+
+### Test 5 : Accès FTP vers INETSRV
+
+**Étape 1** : Tape cette commande :
 ```bash
-cd ~/ansible
-ansible-playbook get_version.yml
+curl -s -u devops:P@ssw0rd ftp://ftp.worldskills.org/ | head -3
 ```
-✅ Doit afficher la version IOS de chaque switch
 
-### 6. FTP - Accès à INETSRV
+**Étape 2** : Regarde le résultat (liste de fichiers) :
+```
+drwxr-xr-x    2 1000     1000         4096 Jan 01 12:00 playbooks
+-rw-r--r--    1 1000     1000          123 Jan 01 12:00 README.txt
+```
+
+✅ **C'est bon si** : Tu vois une liste de fichiers/dossiers
+❌ **Problème si** : Erreur 530 → Mauvais login/mot de passe
+
+---
+
+### 📋 Résumé rapide (copie-colle tout d'un coup)
+
 ```bash
-curl -u devops:P@ssw0rd ftp://ftp.worldskills.org/ 2>/dev/null | head
+echo "=== PING SWITCHES ===" 
+for ip in 10.4.99.11 10.4.99.12 10.4.99.253 10.4.99.252; do ping -c 1 -W 1 $ip > /dev/null && echo "$ip OK" || echo "$ip ECHEC"; done
+
+echo "=== TFTP ===" 
+systemctl is-active tftpd-hpa
+
+echo "=== ANSIBLE ===" 
+cd ~/ansible && ansible switches -m ping 2>/dev/null | grep -E "SUCCESS|UNREACHABLE"
+
+echo "=== FTP INETSRV ===" 
+curl -s -u devops:P@ssw0rd ftp://ftp.worldskills.org/ 2>/dev/null | head -2 || echo "FTP ECHEC"
 ```
-✅ Doit lister le contenu du serveur FTP
-
-### Tableau récapitulatif
-
-| Test | Commande | Résultat attendu |
-|------|----------|------------------|
-| Ping ACCSW1 | `ping -c 1 10.4.99.11` | Réponse |
-| SSH ACCSW1 | `ssh admin@10.4.99.11` | Connexion + bannière |
-| Ansible | `ansible switches -m ping` | SUCCESS x4 |
-| TFTP | `systemctl is-active tftpd-hpa` | `active` |
-| FTP INETSRV | `curl ftp://ftp.worldskills.org/` | Liste fichiers |
 
 ---
 
 ## 📝 Tableau des équipements
 
-| Équipement | IP | Rôle |
-|------------|-----|------|
-| MGMTCLT | 10.4.99.1 | Client Management |
-| ACCSW1 | 10.4.99.11 | Access Switch 1 |
-| ACCSW2 | 10.4.99.12 | Access Switch 2 |
-| CORESW1 | 10.4.99.253 | Core Switch 1 |
-| CORESW2 | 10.4.99.252 | Core Switch 2 |
-| Gateway | 10.4.99.254 | VIP HSRP |
+| Équipement | IP          | Rôle              |
+| ---------- | ----------- | ----------------- |
+| MGMTCLT    | 10.4.99.1   | Client Management |
+| ACCSW1     | 10.4.99.11  | Access Switch 1   |
+| ACCSW2     | 10.4.99.12  | Access Switch 2   |
+| CORESW1    | 10.4.99.253 | Core Switch 1     |
+| CORESW2    | 10.4.99.252 | Core Switch 2     |
+| Gateway    | 10.4.99.254 | VIP HSRP          |
 
 ---
 

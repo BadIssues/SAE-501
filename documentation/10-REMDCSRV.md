@@ -12,13 +12,13 @@
 
 Ce serveur est le contrôleur de domaine principal du site Remote :
 
-| Service | Description |
-|---------|-------------|
-| **Active Directory** | Child domain `rem.wsl2025.org` de la forêt `wsl2025.org`. Global Catalog. |
-| **DNS** | Zone `rem.wsl2025.org` avec DNSSEC. Forwarder vers wsl2025.org. |
-| **DHCP** | Serveur primaire pour le réseau Remote (10.4.100.0/25). Dynamic DNS activé. |
-| **DFS** | DFS Namespace avec REMINFRASRV pour partages `users` et `Department`. |
-| **GPO** | IT = admins locaux, Control Panel bloqué, certificats CA déployés, mapping partages. |
+| Service              | Description                                                                          |
+| -------------------- | ------------------------------------------------------------------------------------ |
+| **Active Directory** | Child domain `rem.wsl2025.org` de la forêt `wsl2025.org`. Global Catalog.            |
+| **DNS**              | Zone `rem.wsl2025.org` avec DNSSEC. Forwarder vers wsl2025.org.                      |
+| **DHCP**             | Serveur primaire pour le réseau Remote (10.4.100.0/25). Dynamic DNS activé.          |
+| **DFS**              | DFS Namespace avec REMINFRASRV pour partages `users` et `Department`.                |
+| **GPO**              | IT = admins locaux, Control Panel bloqué, certificats CA déployés, mapping partages. |
 
 ---
 
@@ -1452,53 +1452,140 @@ terminal monitor
 
 ## ✅ Vérification Finale
 
-> **Instructions** : Exécuter ces commandes sur REMDCSRV (PowerShell Admin) pour valider le bon fonctionnement.
+### 🔌 Comment se connecter à REMDCSRV
 
-### 1. Active Directory
+1. Ouvrir la console VMware ou Bureau à distance (RDP) vers `10.4.100.1`
+2. Se connecter avec `REM\Administrateur` / `P@ssw0rd`
+3. Clic droit sur le bouton Windows → **Windows PowerShell (Admin)**
+4. Tu dois voir le prompt : `PS C:\Users\Administrateur>`
+
+---
+
+### Test 1 : Vérifier Active Directory
+
+**Étape 1** : Tape cette commande :
 ```powershell
-Get-ADDomain | Select-Object Name, DNSRoot, ParentDomain
+Get-ADDomain | Format-List Name, DNSRoot, ParentDomain
 ```
-✅ Doit afficher `Name=rem`, `DNSRoot=rem.wsl2025.org`, `ParentDomain=wsl2025.org`
 
-### 2. Trust avec le domaine parent
+**Étape 2** : Regarde le résultat :
+```
+Name         : rem
+DNSRoot      : rem.wsl2025.org
+ParentDomain : wsl2025.org
+```
+
+✅ **C'est bon si** : Tu vois ces 3 valeurs exactement
+❌ **Problème si** : Erreur ou `ParentDomain` vide → Pas un child domain
+
+---
+
+### Test 2 : Vérifier le trust avec le domaine parent
+
+**Étape 1** : Tape cette commande :
 ```powershell
-Get-ADTrust -Filter * | Select-Object Name, Direction
+Get-ADTrust -Filter * | Format-List Name, Direction, TrustType
 ```
-✅ Doit montrer un trust vers `wsl2025.org`
 
-### 3. DNS - Zone configurée
+**Étape 2** : Regarde le résultat :
+```
+Name       : wsl2025.org
+Direction  : BiDirectional
+TrustType  : ParentChild
+```
+
+✅ **C'est bon si** : Tu vois `wsl2025.org` avec `TrustType: ParentChild`
+❌ **Problème si** : Rien ne s'affiche → Trust pas établi
+
+---
+
+### Test 3 : Vérifier la zone DNS
+
+**Étape 1** : Tape cette commande :
 ```powershell
-Get-DnsServerZone -Name "rem.wsl2025.org"
+Get-DnsServerZone -Name "rem.wsl2025.org" | Format-List ZoneName, ZoneType, IsSigned
 ```
-✅ Zone `Primary` et `IsSigned=True` (DNSSEC)
 
-### 4. DHCP - Service actif
+**Étape 2** : Regarde le résultat :
+```
+ZoneName : rem.wsl2025.org
+ZoneType : Primary
+IsSigned : True
+```
+
+✅ **C'est bon si** : `ZoneType` = `Primary` et `IsSigned` = `True`
+❌ **Problème si** : Zone absente ou `IsSigned` = `False`
+
+---
+
+### Test 4 : Vérifier DHCP
+
+**Étape 1** : Tape cette commande :
 ```powershell
-Get-Service DHCPServer | Select-Object Status
-Get-DhcpServerv4Scope
+Get-Service DHCPServer | Format-List Status
 ```
-✅ Service `Running`, scope 10.4.100.0 visible
 
-### 5. DFS - Namespace configuré
+**Étape 2** : Regarde le résultat :
+```
+Status : Running
+```
+
+✅ **C'est bon si** : `Status` = `Running`
+❌ **Problème si** : `Stopped` → DHCP pas démarré
+
+**Étape 3** : Vérifie le scope :
 ```powershell
-Get-DfsnRoot -Path "\\rem.wsl2025.org\*" -ErrorAction SilentlyContinue
+Get-DhcpServerv4Scope | Format-Table ScopeId, Name, State -AutoSize
 ```
-✅ Doit lister les namespaces DFS
 
-### 6. Connectivité vers HQ
+Tu dois voir :
+```
+ScopeId       Name          State
+-------       ----          -----
+10.4.100.0    Remote LAN    Active
+```
+
+---
+
+### Test 5 : Vérifier la connectivité vers HQ
+
+**Étape 1** : Tape cette commande :
 ```powershell
-Test-Connection 10.4.10.1 -Count 2
-Test-Connection 10.4.10.4 -Count 2
+Test-Connection 10.4.10.4 -Count 1
 ```
-✅ HQDCSRV et DCWSL doivent répondre
 
-### Tableau récapitulatif
+**Étape 2** : Regarde le résultat :
+```
+Source     Destination     IPV4Address      Bytes    Time(ms)
+------     -----------     -----------      -----    --------
+REMDCSRV   10.4.10.4       10.4.10.4        32       XX
+```
 
-| Test | Commande | Résultat attendu |
-|------|----------|------------------|
-| Domaine | `(Get-ADDomain).DNSRoot` | `rem.wsl2025.org` |
-| Trust | `Get-ADTrust -Filter *` | Trust vers wsl2025.org |
-| DNS Zone | `Get-DnsServerZone` | rem.wsl2025.org |
-| DHCP | `Get-Service DHCPServer` | Running |
-| Ping DCWSL | `ping 10.4.10.4` | Réponse |
-| Ping HQDCSRV | `ping 10.4.10.1` | Réponse |
+✅ **C'est bon si** : Tu vois une réponse avec un temps en ms
+❌ **Problème si** : "Request timed out" → Problème ACL REMFW ou routage
+
+---
+
+### 📋 Résumé rapide PowerShell
+
+```powershell
+Write-Host "=== DOMAINE ===" -ForegroundColor Cyan
+(Get-ADDomain).DNSRoot
+
+Write-Host "=== TRUST ===" -ForegroundColor Cyan
+(Get-ADTrust -Filter *).Name
+
+Write-Host "=== DNS ZONE ===" -ForegroundColor Cyan
+Get-DnsServerZone -Name "rem.wsl2025.org" | Select-Object ZoneName, IsSigned
+
+Write-Host "=== DHCP ===" -ForegroundColor Cyan
+(Get-Service DHCPServer).Status
+
+Write-Host "=== PING DCWSL ===" -ForegroundColor Cyan
+Test-Connection 10.4.10.4 -Count 1 -Quiet
+
+Write-Host "=== PING HQDCSRV ===" -ForegroundColor Cyan
+Test-Connection 10.4.10.1 -Count 1 -Quiet
+```
+
+Les deux dernières commandes doivent retourner `True`.

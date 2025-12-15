@@ -11,13 +11,13 @@
 
 Ce serveur fournit plusieurs services d'infrastructure pour le site HQ :
 
-| Service | Description |
-|---------|-------------|
-| **DHCP** | Serveur primaire pour les réseaux Clients (VLAN 20) et Management (VLAN 99). Failover avec HQMAILSRV. Bail de 2h. |
-| **VPN** | Serveur OpenVPN sur port 4443, accessible via 191.4.157.33 (NAT). Auth par certificat HQDCSRV + user/password AD. |
-| **Stockage** | LVM avec 2 disques de 5Go. LV `lvdatastorage` (2Go, ext4) + LV `lviscsi` (2Go) pour target iSCSI. |
-| **Samba** | Partage `Public` (lecture seule) + `Private` (caché, RW Tom/Emma, RO Jean, blocage .exe/.zip). |
-| **NTP** | Serveur de temps pour toute l'infrastructure. Authentification par restriction réseau. |
+| Service      | Description                                                                                                       |
+| ------------ | ----------------------------------------------------------------------------------------------------------------- |
+| **DHCP**     | Serveur primaire pour les réseaux Clients (VLAN 20) et Management (VLAN 99). Failover avec HQMAILSRV. Bail de 2h. |
+| **VPN**      | Serveur OpenVPN sur port 4443, accessible via 191.4.157.33 (NAT). Auth par certificat HQDCSRV + user/password AD. |
+| **Stockage** | LVM avec 2 disques de 5Go. LV `lvdatastorage` (2Go, ext4) + LV `lviscsi` (2Go) pour target iSCSI.                 |
+| **Samba**    | Partage `Public` (lecture seule) + `Private` (caché, RW Tom/Emma, RO Jean, blocage .exe/.zip).                    |
+| **NTP**      | Serveur de temps pour toute l'infrastructure. Authentification par restriction réseau.                            |
 
 ---
 
@@ -338,6 +338,7 @@ systemctl enable smbd nmbd
 ## 7️⃣ Serveur VPN OpenVPN
 
 > ⚠️ **Exigences du sujet** :
+>
 > - Protocole : OpenVPN
 > - Port : **4443**
 > - Adresse publique NAT : **191.4.157.33:4443**
@@ -529,49 +530,55 @@ ip addr show tun0
 
 ## ✅ Vérifications
 
-| Test       | Commande                                        | Résultat attendu                    |
-| ---------- | ----------------------------------------------- | ----------------------------------- |
-| DHCP       | `journalctl -u isc-dhcp-server`                 | Service actif, failover OK          |
-| Samba      | `smbclient -L localhost -U jean`                | Partages Public et Private visibles |
-| iSCSI      | `tgtadm --mode target --op show`                | Target LUN1 visible                 |
-| VPN        | `systemctl status openvpn@server`               | Active (running)                    |
-| VPN Port   | `ss -ulnp \| grep 4443`                         | Port 4443/udp en écoute             |
-| VPN Tunnel | `ip addr show tun0`                             | Interface tun0 avec IP 10.4.22.1    |
-| VPN Logs   | `tail /var/log/openvpn.log`                     | Pas d'erreurs                       |
-| NTP        | `ntpq -p`                                       | Synchronisé (stratum 10)            |
-| Forwarding | `sysctl net.ipv4.ip_forward`                    | = 1                                 |
+| Test       | Commande                          | Résultat attendu                    |
+| ---------- | --------------------------------- | ----------------------------------- |
+| DHCP       | `journalctl -u isc-dhcp-server`   | Service actif, failover OK          |
+| Samba      | `smbclient -L localhost -U jean`  | Partages Public et Private visibles |
+| iSCSI      | `tgtadm --mode target --op show`  | Target LUN1 visible                 |
+| VPN        | `systemctl status openvpn@server` | Active (running)                    |
+| VPN Port   | `ss -ulnp \| grep 4443`           | Port 4443/udp en écoute             |
+| VPN Tunnel | `ip addr show tun0`               | Interface tun0 avec IP 10.4.22.1    |
+| VPN Logs   | `tail /var/log/openvpn.log`       | Pas d'erreurs                       |
+| NTP        | `ntpq -p`                         | Synchronisé (stratum 10)            |
+| Forwarding | `sysctl net.ipv4.ip_forward`      | = 1                                 |
 
 ---
 
 ## 📝 Notes
 
 ### Configuration Réseau
+
 - **IP ens192 (VLAN 10 Servers)** : 10.4.10.2/24
 - **IP ens224 (VLAN 20 Clients)** : 10.4.20.1/23 - Interface DHCP Primary
 - Le DHCP failover fonctionne avec HQMAILSRV (10.4.20.2) dans le VLAN 20
 
 ### Configuration VPN (selon le sujet)
-| Paramètre | Valeur |
-|-----------|--------|
-| Protocole | OpenVPN |
-| Port | **4443/UDP** |
-| Adresse publique | **191.4.157.33** (NAT sur EDGE1/EDGE2) |
-| Réseau tunnel | 10.4.22.0/24 |
+
+| Paramètre        | Valeur                                      |
+| ---------------- | ------------------------------------------- |
+| Protocole        | OpenVPN                                     |
+| Port             | **4443/UDP**                                |
+| Adresse publique | **191.4.157.33** (NAT sur EDGE1/EDGE2)      |
+| Réseau tunnel    | 10.4.22.0/24                                |
 | Authentification | **Certificat (HQDCSRV) + user/password AD** |
-| Accès | Ressources HQ + Remote site |
+| Accès            | Ressources HQ + Remote site                 |
 
 ### NAT VPN sur les routeurs EDGE
+
 Les routeurs EDGE1/EDGE2 doivent avoir cette règle NAT :
+
 ```
 ip nat inside source static udp 10.4.10.2 4443 191.4.157.33 4443 extendable
 ```
 
 ### Certificat VPN
+
 - Le certificat serveur VPN **doit être émis par HQDCSRV** (Sub CA WSFR-SUB-CA)
 - Utiliser le template **WSFR_Services** pour demander le certificat
 - La chaîne de certificats inclut : Root CA (WSFR-ROOT-CA) + Sub CA (WSFR-SUB-CA)
 
 ### Authentification Active Directory
+
 - Le plugin `openvpn-auth-ldap` vérifie les credentials contre AD (hq.wsl2025.org)
 - Les utilisateurs du domaine peuvent se connecter avec leur login/mot de passe AD
 - L'authentification combine : certificat client valide + credentials AD
@@ -580,89 +587,163 @@ ip nat inside source static udp 10.4.10.2 4443 191.4.157.33 4443 extendable
 
 ## ✅ Vérification Finale
 
-> **Instructions** : Exécuter ces commandes sur HQINFRASRV pour valider le bon fonctionnement.
+### 🔌 Comment se connecter à HQINFRASRV
 
-### 1. Services de base
+1. Ouvrir un terminal SSH depuis ton PC ou utiliser la console VMware
+2. Se connecter : `ssh root@10.4.10.2` (mot de passe : celui configuré)
+3. Tu dois voir le prompt : `root@hqinfrasrv:~#`
+
+---
+
+### Test 1 : Vérifier les services
+
+**Étape 1** : Tape cette commande et appuie sur Entrée :
 ```bash
-# Vérifier que tous les services sont actifs
-systemctl status isc-dhcp-server
-systemctl status smbd
-systemctl status tgt
-systemctl status openvpn@server
-systemctl status ntpsec
+systemctl is-active isc-dhcp-server smbd tgt openvpn@server ntpsec
 ```
-✅ Tous les services doivent être `active (running)`
 
-### 2. DHCP
+**Étape 2** : Regarde le résultat. Tu dois voir :
+```
+active
+active
+active
+active
+active
+```
+
+✅ **C'est bon si** : Tu vois 5 fois "active" (un par ligne)
+❌ **Problème si** : Tu vois "inactive" ou "failed" → Le service n'est pas démarré
+
+---
+
+### Test 2 : Vérifier le DHCP
+
+**Étape 1** : Tape cette commande :
 ```bash
-# Vérifier la configuration
 dhcpd -t -cf /etc/dhcp/dhcpd.conf
-
-# Vérifier le failover (logs)
-journalctl -u isc-dhcp-server | grep -i failover | tail -5
 ```
-✅ Pas d'erreurs, failover en état "normal"
 
-### 3. Stockage LVM
+**Étape 2** : Regarde le résultat :
+
+✅ **C'est bon si** : Aucun message d'erreur, juste des infos sur le fichier
+❌ **Problème si** : Tu vois "error" ou "warning" → Problème de configuration
+
+---
+
+### Test 3 : Vérifier le stockage LVM
+
+**Étape 1** : Tape cette commande :
 ```bash
-# Vérifier les volumes logiques
 lvs
 ```
-✅ Doit afficher `lvdatastorage` et `lviscsi` de 2Go chacun
 
-```bash
-# Vérifier le montage
-df -h /srv/datastorage
+**Étape 2** : Regarde le résultat. Tu dois voir quelque chose comme :
 ```
-✅ Doit montrer `/dev/mapper/vgstorage-lvdatastorage` monté sur `/srv/datastorage`
-
-### 4. iSCSI
-```bash
-tgtadm --mode target --op show
+  LV             VG         Attr       LSize
+  lvdatastorage  vgstorage  -wi-ao---- 2.00g
+  lviscsi        vgstorage  -wi-ao---- 2.00g
 ```
-✅ Doit afficher le target `iqn.2025-01.org.wsl2025:storage.lun1`
 
-### 5. Samba
+✅ **C'est bon si** : Tu vois les 2 lignes avec `lvdatastorage` et `lviscsi`, chacun avec environ 2Go
+❌ **Problème si** : Les lignes n'apparaissent pas ou taille différente
+
+---
+
+### Test 4 : Vérifier iSCSI
+
+**Étape 1** : Tape cette commande :
 ```bash
-# Lister les partages
-smbclient -L localhost -U jean%P@ssw0rd
+tgtadm --mode target --op show | head -5
 ```
-✅ Doit voir `Public` (mais pas `Private` car caché)
 
-```bash
-# Tester l'accès Private avec Tom
-smbclient //localhost/Private -U tom%P@ssw0rd -c "ls"
+**Étape 2** : Regarde le résultat. Tu dois voir :
 ```
-✅ Doit lister le contenu
+Target 1: iqn.2025-01.org.wsl2025:storage.lun1
+    System information:
+        Driver: iscsi
+        State: ready
+```
 
-### 6. VPN
+✅ **C'est bon si** : Tu vois "Target 1:" avec le nom `iqn.2025-01.org.wsl2025:storage.lun1` et "State: ready"
+❌ **Problème si** : Rien ne s'affiche ou "State: offline"
+
+---
+
+### Test 5 : Vérifier Samba
+
+**Étape 1** : Tape cette commande (avec le mot de passe dans la commande) :
 ```bash
-# Vérifier le port
+smbclient -L localhost -U jean%P@ssw0rd 2>/dev/null | grep -E "Public|Private"
+```
+
+**Étape 2** : Regarde le résultat :
+```
+        Public
+```
+
+✅ **C'est bon si** : Tu vois "Public" (mais PAS "Private" car il est caché)
+❌ **Problème si** : Tu ne vois rien ou une erreur d'authentification
+
+---
+
+### Test 6 : Vérifier le VPN OpenVPN
+
+**Étape 1** : Vérifie que le port 4443 est en écoute :
+```bash
 ss -ulnp | grep 4443
 ```
-✅ Doit montrer OpenVPN écoutant sur le port 4443
 
-```bash
-# Vérifier l'interface tunnel
-ip addr show tun0
+**Étape 2** : Regarde le résultat. Tu dois voir :
 ```
-✅ Doit exister avec l'IP 10.4.22.1
+UNCONN 0  0  0.0.0.0:4443  0.0.0.0:*  users:(("openvpn",pid=XXXX,fd=X))
+```
 
-### 7. NTP
+✅ **C'est bon si** : Tu vois une ligne avec `:4443` et `openvpn`
+❌ **Problème si** : Rien ne s'affiche → OpenVPN n'écoute pas
+
+**Étape 3** : Vérifie l'interface tunnel :
+```bash
+ip addr show tun0 2>/dev/null | grep "inet "
+```
+
+**Étape 2** : Tu dois voir :
+```
+    inet 10.4.22.1/24 ...
+```
+
+✅ **C'est bon si** : Tu vois l'IP `10.4.22.1`
+❌ **Problème si** : Erreur "Device not found" → Le tunnel n'est pas créé (pas de client connecté, c'est normal si aucun client)
+
+---
+
+### Test 7 : Vérifier NTP
+
+**Étape 1** : Tape cette commande :
 ```bash
 ntpq -p
 ```
-✅ Doit montrer `*LOCAL(0)` avec stratum 10
 
-### Tableau récapitulatif
+**Étape 2** : Regarde le résultat. Tu dois voir :
+```
+     remote           refid      st t when poll reach   delay   offset  jitter
+==============================================================================
+*LOCAL(0)        .LOCL.          10 l   ...
+```
 
-| Test | Commande | Résultat attendu |
-|------|----------|------------------|
-| DHCP actif | `systemctl is-active isc-dhcp-server` | `active` |
-| Samba actif | `systemctl is-active smbd` | `active` |
-| iSCSI actif | `systemctl is-active tgt` | `active` |
-| VPN actif | `systemctl is-active openvpn@server` | `active` |
-| NTP actif | `systemctl is-active ntpsec` | `active` |
-| LV datastorage | `lvs \| grep lvdatastorage` | Présent, 2Go |
-| LV iscsi | `lvs \| grep lviscsi` | Présent, 2Go |
-| Port VPN | `ss -ulnp \| grep 4443` | Écoute active |
+✅ **C'est bon si** : Tu vois une ligne avec `*LOCAL(0)` et le stratum (st) = 10
+❌ **Problème si** : Pas de ligne avec `*` devant
+
+---
+
+### 📋 Résumé rapide (copie-colle tout d'un coup)
+
+```bash
+echo "=== SERVICES ===" && systemctl is-active isc-dhcp-server smbd tgt openvpn@server ntpsec
+echo "=== LVM ===" && lvs 2>/dev/null | grep -E "lvdatastorage|lviscsi"
+echo "=== ISCSI ===" && tgtadm --mode target --op show 2>/dev/null | grep -E "Target|State"
+echo "=== SAMBA ===" && smbclient -L localhost -U jean%P@ssw0rd 2>/dev/null | grep Public
+echo "=== VPN PORT ===" && ss -ulnp | grep 4443
+echo "=== NTP ===" && ntpq -p 2>/dev/null | grep -E "^\*|remote"
+```
+
+Tu peux copier-coller ce bloc entier. Chaque section doit afficher quelque chose de correct.

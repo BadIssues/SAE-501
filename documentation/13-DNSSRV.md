@@ -10,12 +10,12 @@
 
 Ce serveur fournit les services DNS publics et PKI pour l'infrastructure :
 
-| Service | Description |
-|---------|-------------|
-| **DNS** | Zones `worldskills.org` et `wsl2025.org` (vue publique). Enregistrements pour www, ftp, vpn, webmail. |
-| **DNSSEC** | Zones signées pour la sécurité. |
-| **Root CA** | Autorité de certification racine `WSFR-ROOT-CA`. Signe le Sub CA de HQDCSRV. |
-| **CRL** | Publie les listes de révocation de certificats. |
+| Service     | Description                                                                                           |
+| ----------- | ----------------------------------------------------------------------------------------------------- |
+| **DNS**     | Zones `worldskills.org` et `wsl2025.org` (vue publique). Enregistrements pour www, ftp, vpn, webmail. |
+| **DNSSEC**  | Zones signées pour la sécurité.                                                                       |
+| **Root CA** | Autorité de certification racine `WSFR-ROOT-CA`. Signe le Sub CA de HQDCSRV.                          |
+| **CRL**     | Publie les listes de révocation de certificats.                                                       |
 
 ---
 
@@ -534,37 +534,127 @@ systemctl enable apache2
 
 ---
 
-## ✅ Vérification Finale (Résumé)
+## ✅ Vérification Finale
 
-> **Instructions** : Exécuter ces commandes sur DNSSRV pour une validation rapide.
+### 🔌 Comment se connecter à DNSSRV
 
-### Tests rapides
+1. Ouvrir un terminal SSH ou utiliser la console VMware
+2. Se connecter : `ssh root@8.8.4.1` (mot de passe : celui configuré)
+3. Tu dois voir le prompt : `root@dnssrv:~#`
+
+---
+
+### Test 1 : Vérifier que BIND9 est actif
+
+**Étape 1** : Tape cette commande :
 ```bash
-# 1. DNS actif
 systemctl is-active bind9
-
-# 2. Résolutions DNS
-dig @localhost www.worldskills.org +short
-dig @localhost vpn.wsl2025.org +short
-dig @localhost www.wsl2025.org +short
-
-# 3. DNSSEC (présence RRSIG)
-dig @localhost www.worldskills.org +dnssec | grep RRSIG
-
-# 4. Root CA
-openssl x509 -in /etc/ssl/CA/certs/ca.crt -noout -subject
-
-# 5. CRL accessible
-curl -s -o /dev/null -w "%{http_code}" http://localhost/pki/ca.crl
 ```
 
-### Tableau récapitulatif
+**Étape 2** : Regarde le résultat :
+```
+active
+```
 
-| Test | Commande | Résultat attendu |
-|------|----------|------------------|
-| BIND9 | `systemctl is-active bind9` | `active` |
-| www.worldskills.org | `dig @localhost www.worldskills.org +short` | `8.8.4.2` |
-| vpn.wsl2025.org | `dig @localhost vpn.wsl2025.org +short` | `191.4.157.33` |
-| Root CA | `openssl x509 ... -subject` | `CN=WSFR-ROOT-CA` |
-| CRL HTTP | `curl http://localhost/pki/ca.crl` | HTTP 200 |
-| Apache | `systemctl is-active apache2` | `active` |
+✅ **C'est bon si** : `active`
+❌ **Problème si** : `inactive` ou `failed` → DNS pas démarré
+
+---
+
+### Test 2 : Tester la résolution DNS - worldskills.org
+
+**Étape 1** : Tape cette commande :
+```bash
+dig @localhost www.worldskills.org +short
+```
+
+**Étape 2** : Regarde le résultat :
+```
+8.8.4.2
+```
+
+✅ **C'est bon si** : Tu vois l'IP `8.8.4.2` (INETSRV)
+❌ **Problème si** : Rien ou erreur → Enregistrement DNS manquant
+
+---
+
+### Test 3 : Tester la résolution DNS - wsl2025.org
+
+**Étape 1** : Tape cette commande :
+```bash
+dig @localhost vpn.wsl2025.org +short
+```
+
+**Étape 2** : Regarde le résultat :
+```
+191.4.157.33
+```
+
+✅ **C'est bon si** : Tu vois l'IP `191.4.157.33`
+❌ **Problème si** : Autre IP ou rien
+
+---
+
+### Test 4 : Vérifier DNSSEC
+
+**Étape 1** : Tape cette commande :
+```bash
+dig @localhost www.worldskills.org +dnssec | grep -c RRSIG
+```
+
+**Étape 2** : Regarde le résultat :
+```
+1
+```
+(ou un nombre > 0)
+
+✅ **C'est bon si** : Le nombre est supérieur à 0 (il y a des signatures)
+❌ **Problème si** : `0` → DNSSEC pas activé
+
+---
+
+### Test 5 : Vérifier le Root CA
+
+**Étape 1** : Tape cette commande :
+```bash
+openssl x509 -in /etc/ssl/CA/certs/ca.crt -noout -subject
+```
+
+**Étape 2** : Regarde le résultat :
+```
+subject=C = FR, O = Worldskills France, OU = Worldskills France Lyon 2025, CN = WSFR-ROOT-CA
+```
+
+✅ **C'est bon si** : Tu vois `CN = WSFR-ROOT-CA`
+❌ **Problème si** : Fichier non trouvé → Root CA pas générée
+
+---
+
+### Test 6 : Vérifier la CRL via Apache
+
+**Étape 1** : Tape cette commande :
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" http://localhost/pki/ca.crl
+```
+
+**Étape 2** : Regarde le résultat :
+```
+200
+```
+
+✅ **C'est bon si** : Code `200`
+❌ **Problème si** : `404` → Fichier CRL manquant ou Apache pas configuré
+
+---
+
+### 📋 Résumé rapide (copie-colle tout d'un coup)
+
+```bash
+echo "=== BIND9 ===" && systemctl is-active bind9
+echo "=== DNS worldskills ===" && dig @localhost www.worldskills.org +short
+echo "=== DNS vpn ===" && dig @localhost vpn.wsl2025.org +short
+echo "=== DNSSEC ===" && dig @localhost www.worldskills.org +dnssec 2>/dev/null | grep -c RRSIG
+echo "=== ROOT CA ===" && openssl x509 -in /etc/ssl/CA/certs/ca.crt -noout -subject 2>/dev/null | grep -o "CN = .*"
+echo "=== CRL ===" && curl -s -o /dev/null -w "HTTP %{http_code}\n" http://localhost/pki/ca.crl
+echo "=== APACHE ===" && systemctl is-active apache2
+```

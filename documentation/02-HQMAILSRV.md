@@ -11,13 +11,13 @@
 
 Ce serveur héberge les services de messagerie et de stockage pour le site HQ :
 
-| Service | Description |
-|---------|-------------|
-| **ZFS** | Pool RAID-5 avec 3 disques de 1Go, chiffré. Volume `data` monté sur `/data`. Homes utilisateurs sur `/data/home`. |
-| **Backup** | Sauvegarde automatique de `/data/home` tous les jours à 22h via rsync vers iSCSI (HQINFRASRV). |
-| **Mail** | SMTP (Postfix) + IMAP (Dovecot) sécurisés avec certificats de HQDCSRV. Protocoles non sécurisés désactivés. |
-| **Webmail** | Roundcube accessible sur `https://webmail.wsl2025.org` (interne et externe via NAT 191.4.157.33). |
-| **DHCP Failover** | Serveur secondaire (fille) avec HQINFRASRV (primaire). Partage 50/50 des adresses. |
+| Service           | Description                                                                                                       |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------- |
+| **ZFS**           | Pool RAID-5 avec 3 disques de 1Go, chiffré. Volume `data` monté sur `/data`. Homes utilisateurs sur `/data/home`. |
+| **Backup**        | Sauvegarde automatique de `/data/home` tous les jours à 22h via rsync vers iSCSI (HQINFRASRV).                    |
+| **Mail**          | SMTP (Postfix) + IMAP (Dovecot) sécurisés avec certificats de HQDCSRV. Protocoles non sécurisés désactivés.       |
+| **Webmail**       | Roundcube accessible sur `https://webmail.wsl2025.org` (interne et externe via NAT 191.4.157.33).                 |
+| **DHCP Failover** | Serveur secondaire (fille) avec HQINFRASRV (primaire). Partage 50/50 des adresses.                                |
 
 ---
 
@@ -445,71 +445,136 @@ systemctl restart bind9
 
 ## ✅ Vérification Finale
 
-> **Instructions** : Exécuter ces commandes sur HQMAILSRV pour valider le bon fonctionnement.
+### 🔌 Comment se connecter à HQMAILSRV
 
-### 1. ZFS
+1. Ouvrir un terminal SSH depuis ton PC ou utiliser la console VMware
+2. Se connecter : `ssh root@10.4.10.3` (mot de passe : celui configuré)
+3. Tu dois voir le prompt : `root@hqmailsrv:~#`
+
+---
+
+### Test 1 : Vérifier le pool ZFS
+
+**Étape 1** : Tape cette commande :
 ```bash
-# Vérifier l'état du pool
 zpool status
 ```
-✅ Doit montrer `zfspool` en état `ONLINE` avec 3 disques en raidz1
 
+**Étape 2** : Regarde le résultat. Tu dois voir :
+```
+  pool: zfspool
+ state: ONLINE
+config:
+        NAME        STATE     READ WRITE CKSUM
+        zfspool     ONLINE       0     0     0
+          raidz1-0  ONLINE       0     0     0
+            sdb     ONLINE       0     0     0
+            sdc     ONLINE       0     0     0
+            sdd     ONLINE       0     0     0
+```
+
+✅ **C'est bon si** : Tu vois `state: ONLINE` et 3 disques (sdb, sdc, sdd) tous `ONLINE`
+❌ **Problème si** : `state: DEGRADED` ou disques en `FAULTED`
+
+---
+
+### Test 2 : Vérifier le volume ZFS
+
+**Étape 1** : Tape cette commande :
 ```bash
-# Vérifier les volumes
 zfs list
 ```
-✅ Doit montrer `zfspool/data` monté sur `/data`
 
-### 2. iSCSI (connexion à HQINFRASRV)
+**Étape 2** : Regarde le résultat :
+```
+NAME           USED  AVAIL     REFER  MOUNTPOINT
+zfspool        xxx   xxx       xxx    /zfspool
+zfspool/data   xxx   xxx       xxx    /data
+```
+
+✅ **C'est bon si** : Tu vois `zfspool/data` monté sur `/data`
+❌ **Problème si** : Pas de ligne `zfspool/data`
+
+---
+
+### Test 3 : Vérifier la connexion iSCSI
+
+**Étape 1** : Tape cette commande :
 ```bash
 iscsiadm -m session
 ```
-✅ Doit montrer une session active vers `10.4.10.2`
 
-### 3. Mail (Postfix + Dovecot)
-```bash
-systemctl status postfix dovecot
+**Étape 2** : Regarde le résultat :
 ```
-✅ Les deux services doivent être `active (running)`
+tcp: [1] 10.4.10.2:3260,1 iqn.2025-01.org.wsl2025:storage.lun1 (non-flash)
+```
+
+✅ **C'est bon si** : Tu vois une ligne avec `10.4.10.2` (IP de HQINFRASRV)
+❌ **Problème si** : Message "No active sessions" → Connexion iSCSI non établie
+
+---
+
+### Test 4 : Vérifier les services Mail
+
+**Étape 1** : Tape cette commande :
+```bash
+systemctl is-active postfix dovecot
+```
+
+**Étape 2** : Regarde le résultat :
+```
+active
+active
+```
+
+✅ **C'est bon si** : Les deux lignes affichent `active`
+❌ **Problème si** : `inactive` ou `failed`
+
+---
+
+### Test 5 : Tester le webmail
+
+**Étape 1** : Tape cette commande :
+```bash
+curl -k -s https://localhost | grep -i "roundcube" | head -1
+```
+
+**Étape 2** : Regarde le résultat :
+```
+<title>Roundcube Webmail :: Bienvenue sur Roundcube Webmail</title>
+```
+
+✅ **C'est bon si** : Tu vois le mot "Roundcube" quelque part
+❌ **Problème si** : Rien ne s'affiche → Apache ou Roundcube ne fonctionne pas
+
+---
+
+### Test 6 : Vérifier DHCP Failover
+
+**Étape 1** : Tape cette commande :
+```bash
+systemctl is-active isc-dhcp-server
+```
+
+**Étape 2** : Regarde le résultat :
+```
+active
+```
+
+✅ **C'est bon si** : `active`
+❌ **Problème si** : `inactive` ou `failed`
+
+---
+
+### 📋 Résumé rapide (copie-colle tout d'un coup)
 
 ```bash
-# Test SMTPS (port 465)
-echo | openssl s_client -connect localhost:465 2>/dev/null | grep "subject"
+echo "=== ZFS POOL ===" && zpool status | grep -E "pool:|state:"
+echo "=== ZFS DATA ===" && zfs list | grep data
+echo "=== ISCSI ===" && iscsiadm -m session 2>/dev/null || echo "Pas de session iSCSI"
+echo "=== SERVICES MAIL ===" && systemctl is-active postfix dovecot
+echo "=== WEBMAIL ===" && curl -k -s https://localhost 2>/dev/null | grep -qi roundcube && echo "Roundcube OK" || echo "Roundcube NOK"
+echo "=== DHCP ===" && systemctl is-active isc-dhcp-server
 ```
-✅ Doit afficher le certificat du serveur
 
-```bash
-# Test IMAPS (port 993)
-echo | openssl s_client -connect localhost:993 2>/dev/null | grep "subject"
-```
-✅ Doit afficher le certificat du serveur
-
-### 4. Webmail
-```bash
-curl -k -s https://localhost | grep -i roundcube
-```
-✅ Doit contenir "Roundcube" dans la réponse
-
-### 5. DHCP Failover
-```bash
-journalctl -u isc-dhcp-server | grep -i "failover" | tail -3
-```
-✅ Doit montrer `peer moves from ... to normal` ou état similaire
-
-### 6. Backup (cron rsync)
-```bash
-crontab -l | grep rsync
-```
-✅ Doit montrer une ligne avec rsync vers le disque iSCSI à 22h
-
-### Tableau récapitulatif
-
-| Test | Commande | Résultat attendu |
-|------|----------|------------------|
-| ZFS pool | `zpool status \| grep state` | `ONLINE` |
-| ZFS data | `zfs list \| grep data` | Présent |
-| iSCSI | `iscsiadm -m session` | Session active |
-| Postfix | `systemctl is-active postfix` | `active` |
-| Dovecot | `systemctl is-active dovecot` | `active` |
-| DHCP | `systemctl is-active isc-dhcp-server` | `active` |
-| Webmail | `curl -k -s https://localhost` | Contenu HTML |
+Tu peux copier-coller ce bloc entier.

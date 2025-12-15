@@ -486,37 +486,37 @@ openssl s_client -connect 127.0.0.1:21 -starttls ftp < /dev/null 2>/dev/null | h
 
 ### 2. Vérifications Web (depuis un client)
 
-| Test | URL / Commande | Résultat attendu |
-|------|----------------|------------------|
-| Page d'accueil | `https://www.worldskills.org/` | Affiche IP client, navigateur, date/heure |
-| Page dangereuse | `https://www.worldskills.org/bad.html` | Page avec contenu "dangereux" simulé |
-| Redirection HTTP→HTTPS | `http://www.worldskills.org/` | Redirige automatiquement vers HTTPS |
-| HAProxy Stats | `http://8.8.4.2:8080/stats` | Page de statistiques (login: admin/P@ssw0rd) |
-| Load Balancing | Rafraîchir plusieurs fois | Le "Serveur" change entre les conteneurs |
+| Test                   | URL / Commande                         | Résultat attendu                             |
+| ---------------------- | -------------------------------------- | -------------------------------------------- |
+| Page d'accueil         | `https://www.worldskills.org/`         | Affiche IP client, navigateur, date/heure    |
+| Page dangereuse        | `https://www.worldskills.org/bad.html` | Page avec contenu "dangereux" simulé         |
+| Redirection HTTP→HTTPS | `http://www.worldskills.org/`          | Redirige automatiquement vers HTTPS          |
+| HAProxy Stats          | `http://8.8.4.2:8080/stats`            | Page de statistiques (login: admin/P@ssw0rd) |
+| Load Balancing         | Rafraîchir plusieurs fois              | Le "Serveur" change entre les conteneurs     |
 
 ### 3. Vérifications FTPS avec FileZilla (depuis un client Windows)
 
 #### Configuration FileZilla :
 
-| Paramètre | Valeur |
-|-----------|--------|
-| **Hôte** | `ftp.worldskills.org` ou `8.8.4.2` |
-| **Port** | `21` |
-| **Protocole** | FTP - File Transfer Protocol |
-| **Chiffrement** | `Require explicit FTP over TLS` |
-| **Type d'authentification** | Normale |
-| **Utilisateur** | `devops` |
-| **Mot de passe** | `P@ssw0rd` |
+| Paramètre                   | Valeur                             |
+| --------------------------- | ---------------------------------- |
+| **Hôte**                    | `ftp.worldskills.org` ou `8.8.4.2` |
+| **Port**                    | `21`                               |
+| **Protocole**               | FTP - File Transfer Protocol       |
+| **Chiffrement**             | `Require explicit FTP over TLS`    |
+| **Type d'authentification** | Normale                            |
+| **Utilisateur**             | `devops`                           |
+| **Mot de passe**            | `P@ssw0rd`                         |
 
 #### Tests à effectuer :
 
-| Test | Action | Résultat attendu |
-|------|--------|------------------|
-| Connexion FTPS | Se connecter avec FileZilla | ✅ Connexion établie (avertissement certificat si Root CA non installé) |
-| Certificat TLS | Vérifier le certificat affiché | ✅ Délivré à `*.worldskills.org` par `WSFR-ROOT-CA` |
-| Lister fichiers | Afficher le contenu | ✅ Dossier `playbooks` visible |
-| Upload | Glisser un fichier vers le serveur | ✅ Fichier uploadé dans `/home/devops/` |
-| Download | Télécharger un fichier | ✅ Fichier récupéré |
+| Test            | Action                             | Résultat attendu                                                        |
+| --------------- | ---------------------------------- | ----------------------------------------------------------------------- |
+| Connexion FTPS  | Se connecter avec FileZilla        | ✅ Connexion établie (avertissement certificat si Root CA non installé) |
+| Certificat TLS  | Vérifier le certificat affiché     | ✅ Délivré à `*.worldskills.org` par `WSFR-ROOT-CA`                     |
+| Lister fichiers | Afficher le contenu                | ✅ Dossier `playbooks` visible                                          |
+| Upload          | Glisser un fichier vers le serveur | ✅ Fichier uploadé dans `/home/devops/`                                 |
+| Download        | Télécharger un fichier             | ✅ Fichier récupéré                                                     |
 
 > ⚠️ **Note** : Si un avertissement de certificat s'affiche, c'est normal ! Cela signifie que FTPS fonctionne. Accepter le certificat ou installer le Root CA sur le client.
 
@@ -578,59 +578,148 @@ Installer le Root CA (`WSFR-ROOT-CA`) sur le client :
 
 ## ✅ Vérification Finale
 
-> **Instructions** : Exécuter ces commandes sur INETSRV pour valider le bon fonctionnement.
+### 🔌 Comment se connecter à INETSRV
 
-### 1. Docker - Conteneurs actifs
+1. Ouvrir un terminal SSH ou utiliser la console VMware
+2. Se connecter : `ssh root@8.8.4.2` (mot de passe : celui configuré)
+3. Tu dois voir le prompt : `root@inetsrv:~#`
+
+---
+
+### Test 1 : Vérifier les conteneurs Docker
+
+**Étape 1** : Tape cette commande :
 ```bash
 docker ps --format "table {{.Names}}\t{{.Status}}"
 ```
-✅ 4 conteneurs : nginx1, nginx2, php, haproxy - tous "Up"
 
-### 2. Web HTTPS
-```bash
-curl -k https://localhost | head -5
+**Étape 2** : Regarde le résultat :
 ```
-✅ Doit afficher la page avec IP client, navigateur, date
+NAMES       STATUS
+haproxy     Up 2 hours
+php         Up 2 hours
+nginx2      Up 2 hours
+nginx1      Up 2 hours
+```
 
-### 3. Redirection HTTP → HTTPS
+✅ **C'est bon si** : Tu vois 4 conteneurs et tous affichent "Up"
+❌ **Problème si** : Moins de 4 ou "Exited" → Conteneur crashé
+
+---
+
+### Test 2 : Tester le site web HTTPS
+
+**Étape 1** : Tape cette commande :
+```bash
+curl -k -s https://localhost | head -10
+```
+
+**Étape 2** : Regarde le résultat (tu dois voir du HTML) :
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WorldSkills France</title>
+...
+```
+
+✅ **C'est bon si** : Tu vois du code HTML
+❌ **Problème si** : Erreur connexion → HAProxy ou conteneurs down
+
+---
+
+### Test 3 : Tester la redirection HTTP → HTTPS
+
+**Étape 1** : Tape cette commande :
 ```bash
 curl -I http://localhost 2>/dev/null | head -1
 ```
-✅ Doit retourner `HTTP/1.1 301` ou `302` (redirection)
 
-### 4. Page bad.html
-```bash
-curl -k https://localhost/bad.html | head -3
+**Étape 2** : Regarde le résultat :
 ```
-✅ Doit afficher le contenu "dangereux"
-
-### 5. HAProxy Stats
-```bash
-curl -s http://localhost:8080/stats | grep -c "UP"
+HTTP/1.1 301 Moved Permanently
 ```
-✅ Doit retourner 2 ou plus (web1 et web2 UP)
+ou
+```
+HTTP/1.1 302 Found
+```
 
-### 6. FTP Service
+✅ **C'est bon si** : Tu vois `301` ou `302` (redirection)
+❌ **Problème si** : `200` → La redirection n'est pas configurée
+
+---
+
+### Test 4 : Vérifier HAProxy Stats
+
+**Étape 1** : Tape cette commande :
+```bash
+curl -s http://localhost:8080/stats | grep -o "UP" | wc -l
+```
+
+**Étape 2** : Regarde le résultat :
+```
+2
+```
+(ou plus)
+
+✅ **C'est bon si** : Le nombre est 2 ou plus (web1 et web2 sont UP)
+❌ **Problème si** : `0` → Les backends sont DOWN
+
+---
+
+### Test 5 : Vérifier le service FTP
+
+**Étape 1** : Tape cette commande :
 ```bash
 systemctl is-active vsftpd
-ss -tlnp | grep 21
 ```
-✅ Service actif, port 21 en écoute
 
-### 7. Test connexion FTPS (depuis un autre poste)
+**Étape 2** : Regarde le résultat :
+```
+active
+```
+
+✅ **C'est bon si** : `active`
+❌ **Problème si** : `inactive` → vsftpd pas démarré
+
+**Étape 3** : Vérifie que le port 21 écoute :
 ```bash
-# Sur INETCLT ou autre :
-lftp -u devops,P@ssw0rd -e "set ssl:verify-certificate no; ls; quit" ftp://ftp.worldskills.org
+ss -tlnp | grep ":21"
 ```
-✅ Doit lister les fichiers
 
-### Tableau récapitulatif
+Tu dois voir :
+```
+LISTEN 0  32  *:21  *:*  users:(("vsftpd",...))
+```
 
-| Test | Commande | Résultat attendu |
-|------|----------|------------------|
-| Docker | `docker ps` | 4 conteneurs UP |
-| Web HTTPS | `curl -k https://localhost` | Page HTML |
-| HTTP→HTTPS | `curl -I http://localhost` | 301/302 |
-| HAProxy | `curl http://localhost:8080/stats` | Interface stats |
-| vsftpd | `systemctl is-active vsftpd` | `active` |
-| Port 21 | `ss -tlnp \| grep 21` | En écoute |
+---
+
+### Test 6 : Tester FTP depuis un autre poste (INETCLT)
+
+> Ce test doit être fait depuis INETCLT ou MGMTCLT
+
+**Étape 1** : Sur l'autre poste, tape :
+```bash
+lftp -u devops,P@ssw0rd -e "set ssl:verify-certificate no; ls; quit" ftp://8.8.4.2
+```
+
+**Étape 2** : Regarde le résultat (liste de fichiers) :
+```
+drwxr-xr-x    2 1000     1000         4096 Jan 01 12:00 playbooks
+```
+
+✅ **C'est bon si** : Tu vois une liste de fichiers/dossiers
+❌ **Problème si** : Erreur connexion → Port fermé ou vsftpd down
+
+---
+
+### 📋 Résumé rapide (copie-colle tout d'un coup)
+
+```bash
+echo "=== DOCKER ===" && docker ps --format "{{.Names}}: {{.Status}}" | head -4
+echo "=== WEB HTTPS ===" && curl -k -s https://localhost 2>/dev/null | head -1 | grep -q "DOCTYPE" && echo "OK" || echo "ECHEC"
+echo "=== REDIRECTION ===" && curl -I http://localhost 2>/dev/null | head -1
+echo "=== HAPROXY ===" && curl -s http://localhost:8080/stats 2>/dev/null | grep -o "UP" | wc -l
+echo "=== VSFTPD ===" && systemctl is-active vsftpd
+echo "=== PORT 21 ===" && ss -tlnp | grep -q ":21" && echo "OK" || echo "ECHEC"
+```

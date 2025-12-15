@@ -11,12 +11,12 @@
 
 Ce serveur assure la tolérance de panne pour les services du site Remote :
 
-| Service | Description |
-|---------|-------------|
-| **AD Member** | Membre du domaine `rem.wsl2025.org` (pas contrôleur). |
-| **DNS Secondary** | Zone secondaire de `rem.wsl2025.org` depuis REMDCSRV. |
-| **DHCP Failover** | Serveur secondaire avec REMDCSRV pour le réseau Remote. |
-| **DFS** | Namespace DFS partagé avec REMDCSRV pour `users` et `Department`. |
+| Service           | Description                                                       |
+| ----------------- | ----------------------------------------------------------------- |
+| **AD Member**     | Membre du domaine `rem.wsl2025.org` (pas contrôleur).             |
+| **DNS Secondary** | Zone secondaire de `rem.wsl2025.org` depuis REMDCSRV.             |
+| **DHCP Failover** | Serveur secondaire avec REMDCSRV pour le réseau Remote.           |
+| **DFS**           | Namespace DFS partagé avec REMDCSRV pour `users` et `Department`. |
 
 ---
 
@@ -477,45 +477,123 @@ Test-Path "\\rem.wsl2025.org\Department"
 
 ## ✅ Vérification Finale
 
-> **Instructions** : Exécuter ces commandes sur REMINFRASRV (PowerShell Admin) pour valider le bon fonctionnement.
+### 🔌 Comment se connecter à REMINFRASRV
 
-### 1. Membre du domaine
+1. Ouvrir la console VMware ou Bureau à distance (RDP) vers `10.4.100.2`
+2. Se connecter avec `REM\Administrateur` / `P@ssw0rd`
+3. Clic droit sur le bouton Windows → **Windows PowerShell (Admin)**
+
+---
+
+### Test 1 : Vérifier la jonction au domaine
+
+**Étape 1** : Tape cette commande :
 ```powershell
 (Get-WmiObject Win32_ComputerSystem).Domain
 ```
-✅ Doit afficher `rem.wsl2025.org`
 
-### 2. DNS Secondary
-```powershell
-Get-DnsServerZone | Where-Object { $_.ZoneType -eq "Secondary" }
+**Étape 2** : Regarde le résultat :
 ```
-✅ Doit montrer `rem.wsl2025.org` en type Secondary
-
-### 3. DHCP Failover
-```powershell
-Get-DhcpServerv4Failover
+rem.wsl2025.org
 ```
-✅ Doit afficher une relation failover avec REMDCSRV
 
-### 4. DFS Namespaces
+✅ **C'est bon si** : Tu vois `rem.wsl2025.org`
+❌ **Problème si** : `WORKGROUP` → Serveur pas joint au domaine
+
+---
+
+### Test 2 : Vérifier DNS Secondary
+
+**Étape 1** : Tape cette commande :
 ```powershell
-Get-DfsnRoot -Path "\\rem.wsl2025.org\*" | Select-Object Path, State
+Get-DnsServerZone | Where-Object { $_.ZoneType -eq "Secondary" } | Format-Table ZoneName, ZoneType -AutoSize
 ```
-✅ Doit lister `users` et `Department` en état `Online`
 
-### 5. Accès DFS
+**Étape 2** : Regarde le résultat :
+```
+ZoneName         ZoneType
+--------         --------
+rem.wsl2025.org  Secondary
+```
+
+✅ **C'est bon si** : Tu vois `rem.wsl2025.org` en type `Secondary`
+❌ **Problème si** : Rien → Zone secondaire pas configurée
+
+---
+
+### Test 3 : Vérifier DHCP Failover
+
+**Étape 1** : Tape cette commande :
+```powershell
+Get-DhcpServerv4Failover | Format-List Name, PartnerServer, State
+```
+
+**Étape 2** : Regarde le résultat :
+```
+Name          : Remote-Failover
+PartnerServer : remdcsrv.rem.wsl2025.org
+State         : Normal
+```
+
+✅ **C'est bon si** : Tu vois `PartnerServer` = `remdcsrv...` et `State` = `Normal`
+❌ **Problème si** : `State` = `CommunicationInterrupted` → Problème de com avec REMDCSRV
+
+---
+
+### Test 4 : Vérifier les DFS Namespaces
+
+**Étape 1** : Tape cette commande :
+```powershell
+Get-DfsnRoot -Path "\\rem.wsl2025.org\*" -ErrorAction SilentlyContinue | Format-Table Path, State -AutoSize
+```
+
+**Étape 2** : Regarde le résultat :
+```
+Path                        State
+----                        -----
+\\rem.wsl2025.org\users     Online
+\\rem.wsl2025.org\Department Online
+```
+
+✅ **C'est bon si** : Tu vois les 2 namespaces en état `Online`
+❌ **Problème si** : Rien ou `Offline` → DFS pas configuré
+
+---
+
+### Test 5 : Tester l'accès DFS
+
+**Étape 1** : Tape ces commandes :
 ```powershell
 Test-Path "\\rem.wsl2025.org\users"
 Test-Path "\\rem.wsl2025.org\Department"
 ```
-✅ Les deux doivent retourner `True`
 
-### Tableau récapitulatif
+**Étape 2** : Regarde le résultat :
+```
+True
+True
+```
 
-| Test | Commande | Résultat attendu |
-|------|----------|------------------|
-| Domaine | `(gwmi Win32_ComputerSystem).Domain` | `rem.wsl2025.org` |
-| DNS Secondary | `Get-DnsServerZone` | Zone secondaire |
-| DHCP Failover | `Get-DhcpServerv4Failover` | Relation active |
-| DFS users | `Test-Path "\\rem.wsl2025.org\users"` | `True` |
-| DFS Department | `Test-Path "\\rem.wsl2025.org\Department"` | `True` |
+✅ **C'est bon si** : Les deux retournent `True`
+❌ **Problème si** : `False` → Problème d'accès aux partages
+
+---
+
+### 📋 Résumé rapide PowerShell
+
+```powershell
+Write-Host "=== DOMAINE ===" -ForegroundColor Cyan
+(Get-WmiObject Win32_ComputerSystem).Domain
+
+Write-Host "=== DNS SECONDARY ===" -ForegroundColor Cyan
+Get-DnsServerZone | Where-Object { $_.ZoneType -eq "Secondary" } | Select-Object ZoneName
+
+Write-Host "=== DHCP FAILOVER ===" -ForegroundColor Cyan
+(Get-DhcpServerv4Failover).State
+
+Write-Host "=== DFS USERS ===" -ForegroundColor Cyan
+Test-Path "\\rem.wsl2025.org\users"
+
+Write-Host "=== DFS DEPARTMENT ===" -ForegroundColor Cyan
+Test-Path "\\rem.wsl2025.org\Department"
+```

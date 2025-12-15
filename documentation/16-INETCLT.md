@@ -10,11 +10,11 @@
 
 Ce poste simule un utilisateur externe sur Internet :
 
-| Fonction | Description |
-|----------|-------------|
+| Fonction         | Description                                                                       |
+| ---------------- | --------------------------------------------------------------------------------- |
 | **Accès public** | Doit pouvoir accéder aux services publics : www.wsl2025.org, www.worldskills.org. |
-| **DNS** | Utilise DNSSRV (8.8.4.1) comme serveur DNS. |
-| **Tests** | Permet de valider l'accessibilité des services depuis l'extérieur. |
+| **DNS**          | Utilise DNSSRV (8.8.4.1) comme serveur DNS.                                       |
+| **Tests**        | Permet de valider l'accessibilité des services depuis l'extérieur.                |
 
 ---
 
@@ -28,6 +28,7 @@ Ce poste simule un utilisateur externe sur Internet :
 ## 1️⃣ Configuration de base
 
 ### Hostname et réseau
+
 ```bash
 hostnamectl set-hostname inetclt
 
@@ -55,6 +56,7 @@ apt install -y firefox-esr curl wget dnsutils netcat-openbsd
 ## 3️⃣ Tests d'accès aux services publics
 
 ### DNS
+
 ```bash
 # Résolution des noms publics
 dig @8.8.4.1 www.worldskills.org
@@ -64,6 +66,7 @@ dig @8.8.4.1 webmail.wsl2025.org
 ```
 
 ### Sites web WorldSkills
+
 ```bash
 # Site WorldSkills
 curl -I http://www.worldskills.org
@@ -74,6 +77,7 @@ firefox https://www.worldskills.org &
 ```
 
 ### Sites web WSL2025 (via DMZ)
+
 ```bash
 # Site principal (via HQFWSRV)
 curl -I http://www.wsl2025.org
@@ -89,6 +93,7 @@ firefox https://www.wsl2025.org &
 ```
 
 ### FTP WorldSkills
+
 ```bash
 # Test FTP (FTPS)
 apt install -y lftp
@@ -104,6 +109,7 @@ EOF
 ## 4️⃣ Tests de connectivité réseau
 
 ### Ping
+
 ```bash
 # Serveurs Internet
 ping -c 4 8.8.4.1   # DNSSRV
@@ -116,6 +122,7 @@ ping -c 4 191.4.157.33  # VPN/Webmail NAT IP
 ```
 
 ### Traceroute
+
 ```bash
 traceroute www.wsl2025.org
 traceroute www.worldskills.org
@@ -126,6 +133,7 @@ traceroute www.worldskills.org
 ## 5️⃣ Tests de ports
 
 ### Vérifier les services accessibles
+
 ```bash
 # Web WorldSkills
 nc -zv 8.8.4.2 80
@@ -150,23 +158,23 @@ nc -zv 8.8.4.2 21
 
 ## 6️⃣ Ce qui doit fonctionner
 
-| Service | URL/IP | Attendu |
-|---------|--------|---------|
-| www.worldskills.org | 8.8.4.2 | ✅ Accessible |
-| ftp.worldskills.org | 8.8.4.2:21 | ✅ Accessible (FTPS) |
-| www.wsl2025.org | 217.4.160.1 | ✅ Accessible |
-| webmail.wsl2025.org | 191.4.157.33 | ✅ Accessible |
-| vpn.wsl2025.org:4443 | 191.4.157.33:4443 | ✅ Accessible |
+| Service              | URL/IP            | Attendu              |
+| -------------------- | ----------------- | -------------------- |
+| www.worldskills.org  | 8.8.4.2           | ✅ Accessible        |
+| ftp.worldskills.org  | 8.8.4.2:21        | ✅ Accessible (FTPS) |
+| www.wsl2025.org      | 217.4.160.1       | ✅ Accessible        |
+| webmail.wsl2025.org  | 191.4.157.33      | ✅ Accessible        |
+| vpn.wsl2025.org:4443 | 191.4.157.33:4443 | ✅ Accessible        |
 
 ---
 
 ## 7️⃣ Ce qui ne doit PAS fonctionner
 
-| Service | IP | Attendu |
-|---------|-----|---------|
-| Serveurs internes HQ | 10.4.10.X | ❌ Non accessible |
-| Serveurs Remote | 10.4.100.X | ❌ Non accessible |
-| Switches/Routeurs | 10.4.99.X | ❌ Non accessible |
+| Service                    | IP          | Attendu           |
+| -------------------------- | ----------- | ----------------- |
+| Serveurs internes HQ       | 10.4.10.X   | ❌ Non accessible |
+| Serveurs Remote            | 10.4.100.X  | ❌ Non accessible |
+| Switches/Routeurs          | 10.4.99.X   | ❌ Non accessible |
 | SSH vers serveurs internes | 10.4.X.X:22 | ❌ Non accessible |
 
 ```bash
@@ -181,6 +189,7 @@ nc -zv -w 2 10.4.10.1 22   # Doit échouer
 ## 8️⃣ Test du webmail
 
 ### Accès au webmail (sans compte)
+
 ```bash
 firefox https://webmail.wsl2025.org &
 ```
@@ -191,55 +200,137 @@ L'accès à la page de login doit fonctionner, mais la connexion nécessite un c
 
 ## ✅ Vérification Finale
 
-> **Instructions** : Exécuter ces commandes sur INETCLT pour valider l'accès aux services publics.
+### 🔌 Comment se connecter à INETCLT
 
-### 1. Résolution DNS
+1. Ouvrir la console VMware du poste INETCLT
+2. Se connecter avec l'utilisateur local (ex: `user` / mot de passe configuré)
+3. Ouvrir un terminal : clic droit sur le bureau → **Terminal** ou `Ctrl+Alt+T`
+4. Tu dois voir le prompt : `user@inetclt:~$`
+
+---
+
+### Test 1 : Résolution DNS - worldskills.org
+
+**Étape 1** : Tape cette commande :
 ```bash
 dig @8.8.4.1 www.worldskills.org +short
-dig @8.8.4.1 www.wsl2025.org +short
+```
+
+**Étape 2** : Regarde le résultat :
+```
+8.8.4.2
+```
+
+✅ **C'est bon si** : Tu vois l'IP `8.8.4.2` (INETSRV)
+❌ **Problème si** : Rien → DNSSRV ne répond pas
+
+---
+
+### Test 2 : Résolution DNS - wsl2025.org
+
+**Étape 1** : Tape cette commande :
+```bash
 dig @8.8.4.1 vpn.wsl2025.org +short
 ```
-✅ Doivent résoudre : 8.8.4.2, 217.4.160.1, 191.4.157.33
 
-### 2. Accès site www.worldskills.org
-```bash
-curl -k -s https://www.worldskills.org | head -5
+**Étape 2** : Regarde le résultat :
 ```
-✅ Doit afficher du contenu HTML
-
-### 3. Accès site www.wsl2025.org
-```bash
-curl -k -s https://www.wsl2025.org | head -5
+191.4.157.33
 ```
-✅ Doit afficher du contenu HTML
 
-### 4. Accès webmail
+✅ **C'est bon si** : Tu vois l'IP `191.4.157.33`
+❌ **Problème si** : Rien ou autre IP
+
+---
+
+### Test 3 : Accès au site www.worldskills.org
+
+**Étape 1** : Tape cette commande :
 ```bash
-curl -k -s -o /dev/null -w "%{http_code}" https://webmail.wsl2025.org
+curl -k -s https://www.worldskills.org | head -3
 ```
-✅ Doit retourner `200`
 
-### 5. Port VPN ouvert
+**Étape 2** : Regarde le résultat (tu dois voir du HTML) :
+```html
+<!DOCTYPE html>
+<html>
+...
+```
+
+✅ **C'est bon si** : Tu vois du code HTML
+❌ **Problème si** : Erreur connexion → Site down
+
+---
+
+### Test 4 : Accès au webmail
+
+**Étape 1** : Tape cette commande :
 ```bash
-nc -zvu 191.4.157.33 4443 2>&1 | head -1
+curl -k -s -o /dev/null -w "%{http_code}\n" https://webmail.wsl2025.org
 ```
-✅ Doit indiquer le port ouvert/accessible
 
-### 6. Pas d'accès aux réseaux privés
+**Étape 2** : Regarde le résultat :
+```
+200
+```
+
+✅ **C'est bon si** : Code `200`
+❌ **Problème si** : Autre code ou timeout
+
+---
+
+### Test 5 : Vérifier que les réseaux privés sont INACCESSIBLES
+
+> C'est un test de sécurité : depuis Internet, on ne doit PAS pouvoir accéder aux serveurs internes
+
+**Étape 1** : Tape cette commande :
 ```bash
 ping -c 1 -W 2 10.4.10.1 2>/dev/null && echo "ERREUR: Accessible!" || echo "OK: Non accessible"
 ```
-✅ Doit afficher "OK: Non accessible"
+
+**Étape 2** : Regarde le résultat :
+```
+OK: Non accessible
+```
+
+✅ **C'est bon si** : Tu vois "OK: Non accessible"
+❌ **Problème si** : "ERREUR: Accessible!" → Faille de sécurité !
+
+---
+
+### Test 6 : Accès via navigateur
+
+**Étape 1** : Ouvre Firefox : `firefox &`
+
+**Étape 2** : Teste chaque URL :
+
+| URL | Ce que tu dois voir |
+|-----|---------------------|
+| `https://www.worldskills.org` | Page WorldSkills avec IP client, navigateur, date |
+| `https://www.wsl2025.org` | Page d'accueil WSL2025 |
+| `https://webmail.wsl2025.org` | Page de connexion Roundcube |
+
+✅ **C'est bon si** : Chaque page s'affiche correctement
+❌ **Problème si** : "Connexion impossible" → Vérifier DNS ou NAT
+
+---
+
+### 📋 Résumé rapide (copie-colle tout d'un coup)
+
+```bash
+echo "=== DNS worldskills ===" && dig @8.8.4.1 www.worldskills.org +short
+echo "=== DNS vpn ===" && dig @8.8.4.1 vpn.wsl2025.org +short
+echo "=== WEB worldskills ===" && curl -k -s https://www.worldskills.org 2>/dev/null | head -1 | grep -q "DOCTYPE" && echo "OK" || echo "ECHEC"
+echo "=== WEBMAIL ===" && curl -k -s -o /dev/null -w "HTTP %{http_code}\n" https://webmail.wsl2025.org
+echo "=== SECURITE (doit échouer) ===" && ping -c 1 -W 2 10.4.10.1 2>/dev/null && echo "ERREUR: Accessible!" || echo "OK: Non accessible"
+```
 
 ### Tableau récapitulatif
 
-| Test | Commande | Résultat attendu |
-|------|----------|------------------|
-| DNS worldskills | `dig www.worldskills.org +short` | `8.8.4.2` |
-| DNS wsl2025 | `dig www.wsl2025.org +short` | `217.4.160.1` |
-| Web worldskills | `curl -k https://www.worldskills.org` | HTML |
-| Web wsl2025 | `curl -k https://www.wsl2025.org` | HTML |
-| Webmail | `curl -k https://webmail.wsl2025.org` | HTTP 200 |
-| VPN port | `nc -zvu 191.4.157.33 4443` | Ouvert |
-| Privé bloqué | `ping 10.4.10.1` | Timeout |
-
+| Test            | Commande                              | Résultat attendu   |
+| --------------- | ------------------------------------- | ------------------ |
+| DNS worldskills | `dig www.worldskills.org +short`      | `8.8.4.2`          |
+| DNS vpn         | `dig vpn.wsl2025.org +short`          | `191.4.157.33`     |
+| Web worldskills | `curl -k https://www.worldskills.org` | HTML               |
+| Webmail         | `curl -k https://webmail.wsl2025.org` | HTTP 200           |
+| Privé bloqué    | `ping 10.4.10.1`                      | Timeout (sécurité) |
