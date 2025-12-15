@@ -542,6 +542,11 @@ keepalive 10 120
 persist-key
 persist-tun
 
+# === Routes poussées aux clients ===
+push "route 10.4.10.0 255.255.255.0"
+push "route 10.4.0.0 255.255.0.0"
+push "route 10.4.100.0 255.255.255.128"
+
 # === Scripts Bridge ===
 up /etc/openvpn/bridge-start.sh
 down /etc/openvpn/bridge-stop.sh
