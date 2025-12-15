@@ -390,6 +390,7 @@ chmod 644 /etc/ssl/certs/worldskills.pem
 ```bash
 cat > /etc/vsftpd.conf << 'EOF'
 listen=YES
+listen_ipv6=NO
 anonymous_enable=NO
 local_enable=YES
 write_enable=YES
@@ -405,19 +406,21 @@ pam_service_name=vsftpd
 
 # FTPS Configuration
 ssl_enable=YES
-ssl_tlsv1=YES
+ssl_tlsv1_2=YES
 ssl_sslv2=NO
 ssl_sslv3=NO
 rsa_cert_file=/etc/ssl/certs/ftp.crt
 rsa_private_key_file=/etc/ssl/private/ftp.key
 force_local_data_ssl=YES
 force_local_logins_ssl=YES
+require_ssl_reuse=NO
 
 # Passive mode
 pasv_enable=YES
 pasv_min_port=40000
 pasv_max_port=40100
 pasv_address=8.8.4.2
+pasv_addr_resolve=NO
 EOF
 ```
 
@@ -454,15 +457,79 @@ systemctl enable vsftpd
 
 ---
 
-## ✅ Vérifications
+## ✅ Vérifications complètes
 
-| Test          | Commande                                 |
-| ------------- | ---------------------------------------- |
-| Web HTTP      | `curl -I http://8.8.4.2`                 |
-| Web HTTPS     | `curl -Ik https://www.worldskills.org`   |
-| HAProxy Stats | `curl http://8.8.4.2:8080/stats`         |
-| Docker        | `docker ps`                              |
-| FTP           | `lftp -u devops,P@ssw0rd ftps://8.8.4.2` |
+### 1. Vérifications sur INETSRV (serveur)
+
+```bash
+# Services actifs
+systemctl status docker
+systemctl status vsftpd
+systemctl status fail2ban
+
+# Conteneurs Docker
+docker ps
+# Attendu : 4 conteneurs UP (nginx1, nginx2, php, haproxy)
+
+# Ports ouverts
+ss -tlnp | grep -E ':(21|80|443|8080)'
+# Attendu : 21 (vsftpd), 80/443/8080 (docker-proxy)
+
+# Certificat SSL valide
+openssl s_client -connect 127.0.0.1:443 -servername www.worldskills.org < /dev/null 2>/dev/null | openssl x509 -noout -subject -issuer
+# Attendu : subject=CN=*.worldskills.org, issuer=CN=WSFR-ROOT-CA
+
+# Test FTPS avec openssl
+openssl s_client -connect 127.0.0.1:21 -starttls ftp < /dev/null 2>/dev/null | head -20
+# Attendu : Affiche le certificat *.worldskills.org
+```
+
+### 2. Vérifications Web (depuis un client)
+
+| Test | URL / Commande | Résultat attendu |
+|------|----------------|------------------|
+| Page d'accueil | `https://www.worldskills.org/` | Affiche IP client, navigateur, date/heure |
+| Page dangereuse | `https://www.worldskills.org/bad.html` | Page avec contenu "dangereux" simulé |
+| Redirection HTTP→HTTPS | `http://www.worldskills.org/` | Redirige automatiquement vers HTTPS |
+| HAProxy Stats | `http://8.8.4.2:8080/stats` | Page de statistiques (login: admin/P@ssw0rd) |
+| Load Balancing | Rafraîchir plusieurs fois | Le "Serveur" change entre les conteneurs |
+
+### 3. Vérifications FTPS avec FileZilla (depuis un client Windows)
+
+#### Configuration FileZilla :
+
+| Paramètre | Valeur |
+|-----------|--------|
+| **Hôte** | `ftp.worldskills.org` ou `8.8.4.2` |
+| **Port** | `21` |
+| **Protocole** | FTP - File Transfer Protocol |
+| **Chiffrement** | `Require explicit FTP over TLS` |
+| **Type d'authentification** | Normale |
+| **Utilisateur** | `devops` |
+| **Mot de passe** | `P@ssw0rd` |
+
+#### Tests à effectuer :
+
+| Test | Action | Résultat attendu |
+|------|--------|------------------|
+| Connexion FTPS | Se connecter avec FileZilla | ✅ Connexion établie (avertissement certificat si Root CA non installé) |
+| Certificat TLS | Vérifier le certificat affiché | ✅ Délivré à `*.worldskills.org` par `WSFR-ROOT-CA` |
+| Lister fichiers | Afficher le contenu | ✅ Dossier `playbooks` visible |
+| Upload | Glisser un fichier vers le serveur | ✅ Fichier uploadé dans `/home/devops/` |
+| Download | Télécharger un fichier | ✅ Fichier récupéré |
+
+> ⚠️ **Note** : Si un avertissement de certificat s'affiche, c'est normal ! Cela signifie que FTPS fonctionne. Accepter le certificat ou installer le Root CA sur le client.
+
+### 4. Checklist finale
+
+- [ ] **Docker** : 4 conteneurs UP (nginx1, nginx2, php, haproxy)
+- [ ] **Web HTTPS** : Page d'accueil affiche IP, navigateur, date/heure
+- [ ] **Web bad.html** : Page dangereuse accessible
+- [ ] **Redirection HTTP→HTTPS** : Fonctionne
+- [ ] **HAProxy Stats** : Accessible sur :8080/stats, web1 et web2 en vert
+- [ ] **FTPS** : Connexion avec FileZilla, certificat TLS affiché
+- [ ] **FTP Upload/Download** : Fonctionne avec l'utilisateur devops
+- [ ] **Fail2Ban** : Service actif
 
 ---
 
@@ -473,4 +540,36 @@ systemctl enable vsftpd
 - HTTP est automatiquement redirigé vers HTTPS
 - Les headers sensibles (Server, X-Powered-By) sont masqués
 - Le FTP utilise FTPS (FTP over TLS) sur les ports 21 et 40000-40100
-- Les playbooks Ansible de MGMTCLT sont stockés dans /home/devops/playbooks
+- Les playbooks Ansible de MGMTCLT sont stockés dans `/home/devops/playbooks`
+- **Certificat wildcard** `*.worldskills.org` utilisé pour Web ET FTP
+
+---
+
+## 🔧 Dépannage
+
+### Erreur "Connexion refusée" en FTPS local
+
+Le mode passif est configuré pour les connexions externes (pasv_address=8.8.4.2). Pour tester localement :
+
+```bash
+lftp -u devops,P@ssw0rd -e "set ssl:verify-certificate no; set ftp:passive-mode off; ls; quit" ftp://127.0.0.1
+```
+
+### HAProxy ne démarre pas (certificat introuvable)
+
+```bash
+# Vérifier que le fichier PEM existe et a les bonnes permissions
+ls -la /etc/ssl/certs/worldskills.pem
+chmod 644 /etc/ssl/certs/worldskills.pem
+
+# Relancer
+cd /opt/webserver && docker-compose down && docker-compose up -d
+```
+
+### Avertissement certificat sur les clients
+
+Installer le Root CA (`WSFR-ROOT-CA`) sur le client :
+
+- **Windows** : Importer dans le magasin "Autorités de certification racines de confiance"
+- **Linux** : `cp WSFR-ROOT-CA.crt /usr/local/share/ca-certificates/ && update-ca-certificates`
+- **FileZilla** : Accepter le certificat et cocher "Toujours faire confiance"
