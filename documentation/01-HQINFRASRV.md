@@ -323,90 +323,241 @@ systemctl enable smbd nmbd
 
 ## 7️⃣ Serveur VPN OpenVPN
 
+> ⚠️ **Exigences du sujet** :
+> - Protocole : OpenVPN
+> - Port : **4443**
+> - Adresse publique NAT : **191.4.157.33:4443**
+> - Authentification : **Certificat + user/password Active Directory**
+> - Certificat : **Émis par HQDCSRV** (Sub CA WSFR-SUB-CA)
+> - Accès : Ressources HQ **ET** Remote site
+
 ### Installation
 
 ```bash
-apt install -y openvpn easy-rsa
+apt install -y openvpn openvpn-auth-ldap
 ```
 
-### Génération des certificats
+### Prérequis : Obtenir le certificat serveur de HQDCSRV
+
+> ⚠️ **IMPORTANT** : Le certificat VPN doit être émis par HQDCSRV (Sub CA), pas généré localement !
+
+#### Étape 1 : Générer une CSR (Certificate Signing Request)
 
 ```bash
-make-cadir /etc/openvpn/easy-rsa
-cd /etc/openvpn/easy-rsa
+mkdir -p /etc/openvpn/certs
+cd /etc/openvpn/certs
 
-# Initialiser la PKI
-./easyrsa init-pki
-./easyrsa build-ca nopass  # Ou utiliser le certificat de HQDCSRV
+# Générer la clé privée du serveur VPN
+openssl genrsa -out vpn-server.key 2048
+chmod 600 vpn-server.key
 
-# Générer le certificat serveur
-./easyrsa gen-req server nopass
-./easyrsa sign-req server server
+# Générer la CSR
+openssl req -new -key vpn-server.key -out vpn-server.csr \
+    -subj "/CN=vpn.wsl2025.org/O=WSL2025/OU=IT"
+```
 
-# Générer les paramètres DH
-./easyrsa gen-dh
+#### Étape 2 : Sur HQDCSRV, émettre le certificat
 
-# Générer la clé TLS
+1. Copier le fichier `vpn-server.csr` vers HQDCSRV
+2. Sur HQDCSRV (PowerShell) :
+
+```powershell
+# Soumettre la demande à la CA avec le template WSFR_Services
+certreq -submit -attrib "CertificateTemplate:WSFR_Services" C:\vpn-server.csr C:\vpn-server.cer
+```
+
+3. Récupérer le certificat signé (`vpn-server.cer`) sur HQINFRASRV
+
+#### Étape 3 : Récupérer les certificats CA
+
+```bash
+# Copier depuis HQDCSRV ou DNSSRV
+scp administrateur@10.4.10.1:/C:/WSFR-ROOT-CA.cer /etc/openvpn/certs/ca-root.crt
+scp administrateur@10.4.10.1:/C:/SubCA.cer /etc/openvpn/certs/ca-sub.crt
+
+# Créer la chaîne de certificats complète
+cat /etc/openvpn/certs/ca-sub.crt /etc/openvpn/certs/ca-root.crt > /etc/openvpn/certs/ca-chain.crt
+```
+
+### Générer les paramètres DH et clé TLS
+
+```bash
+cd /etc/openvpn/certs
+
+# Générer les paramètres Diffie-Hellman
+openssl dhparam -out dh2048.pem 2048
+
+# Générer la clé TLS-Auth
 openvpn --genkey secret /etc/openvpn/ta.key
+```
+
+### Configuration de l'authentification LDAP (Active Directory)
+
+```bash
+cat > /etc/openvpn/auth-ldap.conf << 'EOF'
+<LDAP>
+    URL             ldap://hqdcsrv.hq.wsl2025.org:389
+    BindDN          "CN=Administrateur,CN=Users,DC=hq,DC=wsl2025,DC=org"
+    Password        P@ssw0rd
+    Timeout         15
+    TLSEnable       no
+    FollowReferrals yes
+</LDAP>
+
+<Authorization>
+    BaseDN          "DC=hq,DC=wsl2025,DC=org"
+    SearchFilter    "(sAMAccountName=%u)"
+    RequireGroup    false
+</Authorization>
+EOF
+
+chmod 600 /etc/openvpn/auth-ldap.conf
 ```
 
 ### Configuration serveur OpenVPN
 
 ```bash
 cat > /etc/openvpn/server.conf << 'EOF'
+# === Interface et Port ===
 port 4443
 proto udp
 dev tun
 
-ca /etc/openvpn/easy-rsa/pki/ca.crt
-cert /etc/openvpn/easy-rsa/pki/issued/server.crt
-key /etc/openvpn/easy-rsa/pki/private/server.key
-dh /etc/openvpn/easy-rsa/pki/dh.pem
+# === Certificats (émis par HQDCSRV Sub CA) ===
+ca /etc/openvpn/certs/ca-chain.crt
+cert /etc/openvpn/certs/vpn-server.cer
+key /etc/openvpn/certs/vpn-server.key
+dh /etc/openvpn/certs/dh2048.pem
 tls-auth /etc/openvpn/ta.key 0
 
+# === Réseau VPN ===
 server 10.4.22.0 255.255.255.0
+
+# === Routes poussées aux clients ===
+# Accès au site HQ (10.4.x.x)
 push "route 10.4.0.0 255.255.0.0"
+# Accès au site Remote (10.4.100.x via MAN)
+push "route 10.4.100.0 255.255.255.0"
+# Lien MAN (10.116.4.x)
+push "route 10.116.4.0 255.255.255.0"
+
+# === Options DNS ===
 push "dhcp-option DNS 10.4.10.1"
 push "dhcp-option DOMAIN hq.wsl2025.org"
+push "dhcp-option DOMAIN wsl2025.org"
 
-keepalive 10 120
+# === Authentification LDAP (Active Directory) ===
+plugin /usr/lib/openvpn/openvpn-auth-ldap.so /etc/openvpn/auth-ldap.conf
+verify-client-cert require
+
+# === Sécurité ===
 cipher AES-256-GCM
-user nobody
-group nogroup
+auth SHA256
+tls-version-min 1.2
+
+# === Performance ===
+keepalive 10 120
 persist-key
 persist-tun
+
+# === Permissions ===
+user nobody
+group nogroup
+
+# === Logs ===
 verb 3
+log-append /var/log/openvpn.log
+status /var/log/openvpn-status.log
 EOF
 
-systemctl enable --now openvpn@server
+chmod 600 /etc/openvpn/server.conf
 ```
 
 ### Activer le forwarding IP
 
 ```bash
+# Activer le forwarding IPv4
 echo "net.ipv4.ip_forward=1" >> /etc/sysctl.conf
 sysctl -p
+
+# Ajouter une règle iptables pour le NAT (si nécessaire)
+iptables -t nat -A POSTROUTING -s 10.4.22.0/24 -o ens192 -j MASQUERADE
+
+# Persister les règles iptables
+apt install -y iptables-persistent
+netfilter-persistent save
+```
+
+### Démarrer le service
+
+```bash
+systemctl enable --now openvpn@server
+systemctl status openvpn@server
+```
+
+### Vérification VPN
+
+```bash
+# Vérifier le service
+systemctl status openvpn@server
+
+# Vérifier les logs
+tail -f /var/log/openvpn.log
+
+# Vérifier que le port 4443 écoute
+ss -ulnp | grep 4443
+
+# Vérifier l'interface TUN
+ip addr show tun0
 ```
 
 ---
 
 ## ✅ Vérifications
 
-| Test  | Commande                          |
-| ----- | --------------------------------- |
-| DHCP  | `journalctl -u isc-dhcp-server`   |
-| Samba | `smbclient -L localhost -U jean`  |
-| iSCSI | `tgtadm --mode target --op show`  |
-| VPN   | `systemctl status openvpn@server` |
-| NTP   | `ntpq -p`                         |
+| Test       | Commande                                        | Résultat attendu                    |
+| ---------- | ----------------------------------------------- | ----------------------------------- |
+| DHCP       | `journalctl -u isc-dhcp-server`                 | Service actif, failover OK          |
+| Samba      | `smbclient -L localhost -U jean`                | Partages Public et Private visibles |
+| iSCSI      | `tgtadm --mode target --op show`                | Target LUN1 visible                 |
+| VPN        | `systemctl status openvpn@server`               | Active (running)                    |
+| VPN Port   | `ss -ulnp \| grep 4443`                         | Port 4443/udp en écoute             |
+| VPN Tunnel | `ip addr show tun0`                             | Interface tun0 avec IP 10.4.22.1    |
+| VPN Logs   | `tail /var/log/openvpn.log`                     | Pas d'erreurs                       |
+| NTP        | `ntpq -p`                                       | Synchronisé (stratum 10)            |
+| Forwarding | `sysctl net.ipv4.ip_forward`                    | = 1                                 |
 
 ---
 
 ## 📝 Notes
 
-- Le port VPN 4443 est NATé depuis 191.4.157.33 sur les routeurs EDGE
-- Les certificats VPN peuvent être signés par HQDCSRV (Sub CA)
-- Pour l'authentification AD du VPN, installer `openvpn-auth-ldap`
+### Configuration Réseau
 - **IP ens192 (VLAN 10 Servers)** : 10.4.10.2/24
 - **IP ens224 (VLAN 20 Clients)** : 10.4.20.1/23 - Interface DHCP Primary
 - Le DHCP failover fonctionne avec HQMAILSRV (10.4.20.2) dans le VLAN 20
+
+### Configuration VPN (selon le sujet)
+| Paramètre | Valeur |
+|-----------|--------|
+| Protocole | OpenVPN |
+| Port | **4443/UDP** |
+| Adresse publique | **191.4.157.33** (NAT sur EDGE1/EDGE2) |
+| Réseau tunnel | 10.4.22.0/24 |
+| Authentification | **Certificat (HQDCSRV) + user/password AD** |
+| Accès | Ressources HQ + Remote site |
+
+### NAT VPN sur les routeurs EDGE
+Les routeurs EDGE1/EDGE2 doivent avoir cette règle NAT :
+```
+ip nat inside source static udp 10.4.10.2 4443 191.4.157.33 4443 extendable
+```
+
+### Certificat VPN
+- Le certificat serveur VPN **doit être émis par HQDCSRV** (Sub CA WSFR-SUB-CA)
+- Utiliser le template **WSFR_Services** pour demander le certificat
+- La chaîne de certificats inclut : Root CA (WSFR-ROOT-CA) + Sub CA (WSFR-SUB-CA)
+
+### Authentification Active Directory
+- Le plugin `openvpn-auth-ldap` vérifie les credentials contre AD (hq.wsl2025.org)
+- Les utilisateurs du domaine peuvent se connecter avec leur login/mot de passe AD
+- L'authentification combine : certificat client valide + credentials AD

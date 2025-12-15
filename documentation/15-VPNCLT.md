@@ -1,17 +1,31 @@
 # VPNCLT - Client VPN
 
 > **OS** : Windows 11  
-> **IP** : 8.8.4.3 (Internet) + IP VPN dynamique  
-> **Rôle** : Client VPN simulant un télétravailleur
+> **IP Internet** : 8.8.4.3/29 (Gateway 8.8.4.6, DNS 8.8.4.1)  
+> **IP VPN** : 10.4.22.X (attribuée par le serveur VPN)  
+> **Rôle** : Client VPN simulant un télétravailleur accédant aux ressources corporate depuis Internet
+
+---
+
+## 📋 Exigences du sujet
+
+| Paramètre | Valeur |
+|-----------|--------|
+| Protocole | OpenVPN |
+| Serveur | vpn.wsl2025.org:4443 (= 191.4.157.33:4443) |
+| Authentification | **Certificat + user/password AD** |
+| Membre domaine | **hq.wsl2025.org** |
+| Accès | Ressources HQ + Remote site |
 
 ---
 
 ## 📋 Prérequis
 
 - [ ] Windows 11 installé
-- [ ] Joint au domaine hq.wsl2025.org
-- [ ] HQINFRASRV opérationnel (serveur VPN)
-- [ ] Certificats CA installés
+- [ ] HQINFRASRV opérationnel (serveur VPN sur port 4443)
+- [ ] NAT configuré sur EDGE1/EDGE2 (191.4.157.33:4443 → 10.4.10.2:4443)
+- [ ] Certificat client émis par HQDCSRV (Sub CA)
+- [ ] Certificats Root CA et Sub CA installés
 
 ---
 
@@ -25,12 +39,30 @@ Set-DnsClientServerAddress -InterfaceAlias "Ethernet" -ServerAddresses 8.8.4.1
 
 ---
 
-## 2️⃣ Joindre le domaine (avant VPN)
+## 2️⃣ Joindre le domaine (AVANT de configurer le VPN)
 
-> **Note** : Joindre le domaine en étant connecté au réseau local HQ d'abord, ou via VPN.
+> ⚠️ **IMPORTANT** : Le PC doit être joint au domaine AVANT de pouvoir utiliser le VPN !
+> Pour ce faire, connecter temporairement VPNCLT au réseau local HQ (ou utiliser une autre méthode).
+
+### Option A : Connexion temporaire au LAN HQ
+1. Connecter VPNCLT au réseau VLAN 20 (Clients)
+2. Obtenir une IP via DHCP
+3. Joindre le domaine :
 
 ```powershell
 Add-Computer -DomainName "hq.wsl2025.org" -Credential (Get-Credential) -Restart
+```
+
+### Option B : Joindre le domaine hors-ligne (djoin)
+Sur HQDCSRV :
+```powershell
+djoin /provision /domain hq.wsl2025.org /machine VPNCLT /savefile C:\vpnclt-blob.txt
+```
+
+Sur VPNCLT :
+```powershell
+djoin /requestODJ /loadfile C:\vpnclt-blob.txt /windowspath %SystemRoot% /localos
+Restart-Computer
 ```
 
 ---
@@ -80,11 +112,42 @@ auth-user-pass
 ```
 
 ### Fichiers nécessaires
-Placer dans `C:\Program Files\OpenVPN\config\` :
-- `ca.crt` - Certificat CA (de HQDCSRV ou HQINFRASRV)
-- `client.crt` - Certificat client (signé par SubCA)
-- `client.key` - Clé privée client
-- `ta.key` - Clé TLS-Auth (de HQINFRASRV)
+
+> ⚠️ Les certificats doivent être émis par **HQDCSRV** (Sub CA WSFR-SUB-CA) !
+
+#### Obtenir le certificat client depuis HQDCSRV
+
+1. Sur VPNCLT, demander un certificat via MMC :
+   - `Win+R` → `certlm.msc`
+   - **Personnel** → Clic droit → **Toutes les tâches** → **Demander un nouveau certificat**
+   - Sélectionner le template **WSFR_Services** ou **WSFR_Users**
+   - Exporter le certificat avec la clé privée (format PFX)
+
+2. Convertir le PFX en fichiers séparés :
+```powershell
+# Extraire le certificat
+openssl pkcs12 -in vpnclient.pfx -clcerts -nokeys -out client.crt
+
+# Extraire la clé privée
+openssl pkcs12 -in vpnclient.pfx -nocerts -nodes -out client.key
+```
+
+#### Fichiers à placer dans `C:\Program Files\OpenVPN\config\`
+
+| Fichier | Description | Source |
+|---------|-------------|--------|
+| `ca.crt` | Chaîne de certificats CA (Root + Sub) | HQINFRASRV ou HQDCSRV |
+| `client.crt` | Certificat client | HQDCSRV (template WSFR_Services) |
+| `client.key` | Clé privée client | Généré localement |
+| `ta.key` | Clé TLS-Auth | HQINFRASRV (`/etc/openvpn/ta.key`) |
+
+#### Récupérer les fichiers depuis HQINFRASRV
+
+```powershell
+# Depuis VPNCLT (après avoir joint le domaine et configuré le VPN basique)
+scp root@10.4.10.2:/etc/openvpn/certs/ca-chain.crt "C:\Program Files\OpenVPN\config\ca.crt"
+scp root@10.4.10.2:/etc/openvpn/ta.key "C:\Program Files\OpenVPN\config\ta.key"
+```
 
 ---
 
@@ -200,10 +263,41 @@ redirect-gateway def1
 
 ## 📝 Notes
 
-- **IP Internet** : 8.8.4.3
-- **IP VPN** : 10.4.22.X (attribuée par DHCP du serveur VPN)
-- Le VPN utilise le port **4443/UDP**
-- L'authentification combine certificat + username/password AD
-- Via VPN, l'accès aux ressources HQ et Remote est possible
-- Le NAT est configuré sur EDGE1 (191.4.157.33:4443 → 10.4.10.2:4443)
+### Configuration réseau
+| Paramètre | Valeur |
+|-----------|--------|
+| **IP Internet** | 8.8.4.3/29 |
+| **Gateway Internet** | 8.8.4.6 |
+| **DNS Internet** | 8.8.4.1 (DNSSRV) |
+| **IP VPN** | 10.4.22.X (attribuée par le serveur VPN) |
+
+### Configuration VPN (selon le sujet)
+| Paramètre | Valeur |
+|-----------|--------|
+| Protocole | OpenVPN |
+| Port | **4443/UDP** |
+| Serveur | vpn.wsl2025.org (= 191.4.157.33) |
+| Authentification | Certificat (HQDCSRV) + user/password AD |
+| Accès | Ressources HQ + Remote site |
+
+### Flux réseau VPN
+```
+VPNCLT (8.8.4.3)
+    ↓ OpenVPN UDP:4443
+vpn.wsl2025.org (191.4.157.33)
+    ↓ NAT sur EDGE1/EDGE2
+HQINFRASRV (10.4.10.2:4443)
+    ↓ Tunnel établi
+IP VPN attribuée (10.4.22.X)
+    ↓ Routes poussées
+Accès à 10.4.0.0/16 (HQ) + 10.4.100.0/24 (Remote)
+```
+
+### Checklist de fonctionnement
+- [ ] Certificat client émis par HQDCSRV
+- [ ] Certificats CA (Root + Sub) installés
+- [ ] Fichier ta.key récupéré de HQINFRASRV
+- [ ] NAT configuré sur EDGE (191.4.157.33:4443 → 10.4.10.2:4443)
+- [ ] Enregistrement DNS vpn.wsl2025.org → 191.4.157.33 (sur DNSSRV et DCWSL)
+- [ ] VPNCLT membre du domaine hq.wsl2025.org
 
