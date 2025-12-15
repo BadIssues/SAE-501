@@ -45,6 +45,36 @@
 
 ## 1️⃣ Configuration de base
 
+### 🔴 IMPORTANT : Installation de TOUS les paquets (faire en premier !)
+
+> ⚠️ **Installer tous les paquets MAINTENANT pendant que tu as Internet !**
+
+```bash
+apt update && apt install -y \
+    openssh-server \
+    fail2ban \
+    docker.io \
+    docker-compose \
+    vsftpd \
+    curl \
+    openssl \
+    ca-certificates
+```
+
+### Télécharger les images Docker (pendant que tu as Internet)
+
+```bash
+# Télécharger les images Docker maintenant
+docker pull nginx:alpine
+docker pull php:8-fpm-alpine
+docker pull haproxy:alpine
+
+# Vérifier
+docker images
+```
+
+---
+
 ### Hostname et réseau
 
 ```bash
@@ -63,8 +93,6 @@ EOF
 ### SSH et Fail2Ban
 
 ```bash
-apt update && apt install -y openssh-server fail2ban
-
 cat > /etc/fail2ban/jail.local << 'EOF'
 [DEFAULT]
 bantime = 3600
@@ -83,10 +111,11 @@ systemctl enable --now fail2ban
 
 ---
 
-## 2️⃣ Installation Docker
+## 2️⃣ Docker (déjà installé)
+
+> ✅ Docker a été installé à l'étape 1. Activer le service :
 
 ```bash
-apt install -y docker.io docker-compose
 systemctl enable --now docker
 ```
 
@@ -351,11 +380,7 @@ chmod 600 /etc/ssl/certs/worldskills.pem
 
 ## 5️⃣ Serveur FTP (FTPS)
 
-### Installation vsftpd
-
-```bash
-apt install -y vsftpd
-```
+> ✅ vsftpd a été installé à l'étape 1.
 
 ### Configuration FTPS
 
