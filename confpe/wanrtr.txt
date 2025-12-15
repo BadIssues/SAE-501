@@ -1,0 +1,187 @@
+WANRTR>en                                                                      
+WANRTR#sh run                                                                  
+Building configuration...                                                      
+                                                                               
+                                                                               
+Current configuration : 3058 bytes                                             
+!                                                                              
+! Last configuration change at 00:24:27 UTC Mon Dec 15 2025 by admin           
+!                                                                              
+version 15.8                                                                   
+service timestamps debug datetime msec                                         
+service timestamps log datetime msec                                           
+no service password-encryption                                                 
+!                                                                              
+hostname WANRTR                                                                
+!                                                                              
+boot-start-marker                                                              
+boot-end-marker                                                                
+!                                                                              
+!                                                                              
+logging console notifications                                                  
+!                                                                              
+no aaa new-model                                                               
+!                                                                              
+!                                                                              
+!                                                                              
+!                                                                              
+!                                                                              
+!                                                                              
+!                                                                              
+!                                                                              
+!                                                                              
+!                                                                              
+!                                                                              
+!                                                                              
+!                                                                              
+!                                                                              
+!                                                                              
+!                                                                              
+                                                                               
+                                                                               
+!                                                                              
+ip vrf INET                                                                    
+ rd 6560:20                                                                    
+!                                                                              
+ip vrf MAN                                                                     
+ rd 6060:10                                                                    
+!                                                                              
+!                                                                              
+!                                                                              
+!                                                                              
+ip domain name wsl2025.org                                                     
+ip cef                                                                         
+no ipv6 cef                                                                    
+multilink bundle-name authenticated                                            
+!                                                                              
+!                                                                              
+!                                                                              
+!                                                                              
+license udi pid CISCO1941/K9 sn FCZ1606C3KB                                    
+license boot module c1900 technology-package datak9                            
+!                                                                              
+!                                                                              
+username admin privilege 15 secret 5 $1$hh1f$t0af02.HVKdhHQ.bt/Fqn.            
+!                                                                              
+redundancy                                                                     
+!                                                                              
+!                                                                              
+!                                                                              
+!                                                                              
+!                                                                              
+!                                                                              
+interface Embedded-Service-Engine0/0                                           
+ no ip address                                                                 
+ shutdown                                                                      
+!                                                                              
+interface GigabitEthernet0/0                                                   
+ no ip address                                                                 
+ duplex auto                                                                   
+ speed auto                                                                    
+!                                                                              
+interface GigabitEthernet0/0.13                                                
+ ip ospf cost 10                                                               
+!                                                                              
+interface GigabitEthernet0/0.15                                                
+ description WAN-EDGE2_REMOTE                                                  
+ encapsulation dot1Q 15                                                        
+ ip vrf forwarding MAN                                                         
+ ip address 10.6.254.18 255.255.255.252                                        
+ ip ospf authentication message-digest                                         
+ ip ospf message-digest-key 1 md5 P@ssw0rd                                     
+ ip ospf cost 20                                                               
+!                                                                              
+interface GigabitEthernet0/0.16                                                
+ description WAN-EDGE2_INTERNET                                                
+ encapsulation dot1Q 16                                                        
+ ip vrf forwarding INET                                                        
+ ip address 31.6.126.14 255.255.255.252                                        
+!                                                                              
+interface GigabitEthernet0/1                                                   
+ no ip address                                                                 
+ duplex auto                                                                   
+ speed auto                                                                    
+!                                                                              
+interface GigabitEthernet0/1.13                                                
+ encapsulation dot1Q 13                                                        
+ ip vrf forwarding MAN                                                         
+ ip address 10.6.254.6 255.255.255.252                                         
+ ip ospf authentication message-digest                                         
+ ip ospf message-digest-key 1 md5 P@ssw0rd                                     
+!                                                                              
+interface GigabitEthernet0/1.14                                                
+ encapsulation dot1Q 14                                                        
+ ip vrf forwarding INET                                                        
+ ip address 91.6.222.98 255.255.255.252                                        
+!                                                                              
+interface FastEthernet0/0/0                                                    
+ description WAN-REMFW                                                         
+ ip vrf forwarding MAN                                                         
+ ip address 10.116.6.2 255.255.255.252                                         
+ ip ospf authentication message-digest                                         
+ ip ospf message-digest-key 1 md5 P@ssw0rd                                     
+ duplex auto                                                                   
+ speed auto                                                                    
+!                                                                              
+interface FastEthernet0/1/0                                                    
+ description WAN_INTERNET                                                      
+ ip vrf forwarding INET                                                        
+ ip address 8.8.6.254 255.255.255.0                                            
+ duplex auto                                                                   
+ speed auto                                                                    
+!                                                                              
+router ospf 6 vrf MAN                                                          
+ router-id 3.3.3.3                                                             
+ network 10.6.254.4 0.0.0.3 area 6                                             
+ network 10.6.254.16 0.0.0.3 area 6                                            
+ network 10.116.6.0 0.0.0.3 area 6                                             
+!                                                                              
+router bgp 6560                                                                
+ bgp router-id 3.3.3.3                                                         
+ bgp log-neighbor-changes                                                      
+ !                                                                             
+ address-family ipv4 vrf INET                                                  
+  network 8.8.6.0 mask 255.255.255.0                                           
+  neighbor 31.6.126.13 remote-as 6060                                          
+  neighbor 31.6.126.13 description EBGP_EDGE2                                  
+  neighbor 31.6.126.13 activate                                                
+  neighbor 91.6.222.97 remote-as 6060                                          
+  neighbor 91.6.222.97 description EBGP_EDGE1                                  
+  neighbor 91.6.222.97 activate                                                
+ exit-address-family                                                           
+!                                                                              
+ip forward-protocol nd                                                         
+!                                                                              
+no ip http server                                                              
+no ip http secure-server                                                       
+!                                                                              
+ip route vrf INET 8.8.6.0 255.255.255.0 Null0                                  
+ip ssh version 2                                                               
+!                                                                              
+ipv6 ioam timestamp                                                            
+!                                                                              
+!                                                                              
+!                                                                              
+control-plane                                                                  
+!                                                                              
+!                                                                              
+line con 0                                                                     
+line aux 0                                                                     
+line 2                                                                         
+ no activation-character                                                       
+ no exec                                                                       
+ transport preferred none                                                      
+ transport output lat pad telnet rlogin lapb-ta mop udptn v120 ssh             
+ stopbits 1                                                                    
+line vty 0 4                                                                   
+ login local                                                                   
+ transport input telnet ssh                                                    
+line vty 5 15                                                                  
+ login local                                                                   
+ transport input telnet ssh                                                    
+!                                                                              
+scheduler allocate 20000 1000                                                  
+!                                                                              
+end                                                                            
+                                                                               
+WANRTR#                              
