@@ -335,7 +335,7 @@ systemctl enable smbd nmbd
 
 ---
 
-## 7️⃣ Serveur VPN OpenVPN
+## 7️⃣ Serveur VPN OpenVPN (Mode TAP Bridge)
 
 > ⚠️ **Exigences du sujet** :
 >
@@ -344,12 +344,13 @@ systemctl enable smbd nmbd
 > - Adresse publique NAT : **191.4.157.33:4443**
 > - Authentification : **Certificat + user/password Active Directory**
 > - Certificat : **Émis par HQDCSRV** (Sub CA WSFR-SUB-CA)
+> - **Clients obtiennent une IP du DHCP du réseau Clients** (pas un pool VPN séparé)
 > - Accès : Ressources HQ **ET** Remote site
 
 ### Installation
 
 ```bash
-apt install -y openvpn openvpn-auth-ldap
+apt install -y openvpn openvpn-auth-ldap bridge-utils
 ```
 
 ### Prérequis : Utiliser le certificat Wildcard existant
@@ -407,17 +408,94 @@ openssl dhparam -out dh2048.pem 2048
 openvpn --genkey secret /etc/openvpn/ta.key
 ```
 
+### Configuration du Bridge réseau
+
+> ⚠️ **IMPORTANT** : Le mode TAP Bridge permet aux clients VPN d'obtenir une IP du DHCP du réseau Clients (VLAN 20).
+
+#### Identifier l'interface du VLAN 20 (Clients)
+
+```bash
+# Lister les interfaces
+ip addr show
+
+# L'interface du VLAN 20 est généralement ens224 ou ens192.20
+# Adapter selon votre configuration
+```
+
+#### Configurer le bridge dans /etc/network/interfaces
+
+```bash
+cat >> /etc/network/interfaces << 'EOF'
+
+# Bridge pour OpenVPN TAP
+auto br0
+iface br0 inet manual
+    bridge_ports ens224
+    bridge_stp off
+    bridge_fd 0
+EOF
+```
+
+#### Scripts de bridge pour OpenVPN
+
+```bash
+# Script de démarrage du bridge
+cat > /etc/openvpn/bridge-start.sh << 'EOF'
+#!/bin/bash
+BR="br0"
+TAP="tap0"
+ETH="ens224"
+
+# Créer l'interface TAP
+openvpn --mktun --dev $TAP
+ip link set $TAP up promisc on
+
+# Créer le bridge si nécessaire
+if ! brctl show $BR 2>/dev/null | grep -q $BR; then
+    brctl addbr $BR
+fi
+
+# Ajouter les interfaces au bridge
+brctl addif $BR $ETH 2>/dev/null
+brctl addif $BR $TAP 2>/dev/null
+
+# Activer le bridge
+ip link set $BR up
+
+echo "Bridge $BR configuré avec $ETH et $TAP"
+EOF
+chmod +x /etc/openvpn/bridge-start.sh
+
+# Script d'arrêt du bridge
+cat > /etc/openvpn/bridge-stop.sh << 'EOF'
+#!/bin/bash
+BR="br0"
+TAP="tap0"
+
+# Retirer l'interface TAP du bridge
+brctl delif $BR $TAP 2>/dev/null
+
+# Supprimer l'interface TAP
+openvpn --rmtun --dev $TAP
+
+echo "Interface $TAP supprimée du bridge $BR"
+EOF
+chmod +x /etc/openvpn/bridge-stop.sh
+```
+
 ### Configuration de l'authentification LDAP (Active Directory)
+
+> ⚠️ **IMPORTANT** : Créer un compte de service `service vpn` dans AD pour l'authentification LDAP.
 
 ```bash
 cat > /etc/openvpn/auth-ldap.conf << 'EOF'
 <LDAP>
-    URL             ldap://hqdcsrv.hq.wsl2025.org:389
-    BindDN          "CN=Administrateur,CN=Users,DC=hq,DC=wsl2025,DC=org"
+    URL             ldap://10.4.10.1:389
+    BindDN          "CN=service vpn,CN=Users,DC=hq,DC=wsl2025,DC=org"
     Password        P@ssw0rd
     Timeout         15
     TLSEnable       no
-    FollowReferrals yes
+    FollowReferrals no
 </LDAP>
 
 <Authorization>
@@ -430,14 +508,15 @@ EOF
 chmod 600 /etc/openvpn/auth-ldap.conf
 ```
 
-### Configuration serveur OpenVPN
+### Configuration serveur OpenVPN (Mode TAP Bridge)
 
 ```bash
 cat > /etc/openvpn/server.conf << 'EOF'
-# === Interface et Port ===
+# === Interface TAP + Bridge ===
 port 4443
 proto udp
-dev tun
+dev tap0
+dev-type tap
 
 # === Certificats (wildcard *.wsl2025.org émis par HQDCSRV Sub CA) ===
 ca /etc/openvpn/certs/ca-chain.crt
@@ -446,25 +525,12 @@ key /etc/openvpn/certs/vpn-server.key
 dh /etc/openvpn/certs/dh2048.pem
 tls-auth /etc/openvpn/ta.key 0
 
-# === Réseau VPN ===
-server 10.4.22.0 255.255.255.0
-
-# === Routes poussées aux clients ===
-# Accès au site HQ (10.4.x.x)
-push "route 10.4.0.0 255.255.0.0"
-# Accès au site Remote (10.4.100.x via MAN)
-push "route 10.4.100.0 255.255.255.0"
-# Lien MAN (10.116.4.x)
-push "route 10.116.4.0 255.255.255.0"
-
-# === Options DNS ===
-push "dhcp-option DNS 10.4.10.1"
-push "dhcp-option DOMAIN hq.wsl2025.org"
-push "dhcp-option DOMAIN wsl2025.org"
+# === Mode Bridge ===
+# Pas de directive "server" - Les clients obtiennent leur IP via DHCP du réseau
 
 # === Authentification LDAP (Active Directory) ===
 plugin /usr/lib/openvpn/openvpn-auth-ldap.so /etc/openvpn/auth-ldap.conf
-verify-client-cert require
+verify-client-cert none
 
 # === Sécurité ===
 cipher AES-256-GCM
@@ -476,9 +542,10 @@ keepalive 10 120
 persist-key
 persist-tun
 
-# === Permissions ===
-user nobody
-group nogroup
+# === Scripts Bridge ===
+up /etc/openvpn/bridge-start.sh
+down /etc/openvpn/bridge-stop.sh
+script-security 2
 
 # === Logs ===
 verb 3
@@ -495,18 +562,15 @@ chmod 600 /etc/openvpn/server.conf
 # Activer le forwarding IPv4
 echo "net.ipv4.ip_forward=1" >> /etc/sysctl.conf
 sysctl -p
-
-# Ajouter une règle iptables pour le NAT (si nécessaire)
-iptables -t nat -A POSTROUTING -s 10.4.22.0/24 -o ens192 -j MASQUERADE
-
-# Persister les règles iptables
-apt install -y iptables-persistent
-netfilter-persistent save
 ```
 
 ### Démarrer le service
 
 ```bash
+# Démarrer le bridge d'abord
+/etc/openvpn/bridge-start.sh
+
+# Démarrer OpenVPN
 systemctl enable --now openvpn@server
 systemctl status openvpn@server
 ```
@@ -523,19 +587,23 @@ tail -f /var/log/openvpn.log
 # Vérifier que le port 4443 écoute
 ss -ulnp | grep 4443
 
-# Vérifier l'interface TUN
-ip addr show tun0
+# Vérifier l'interface TAP
+ip addr show tap0
+
+# Vérifier le bridge
+brctl show br0
 ```
 
 ### Créer le fichier client .ovpn
 
 > Ce fichier sera utilisé par les clients VPN (VPNCLT) pour se connecter.
+> Le client utilisera le mode TAP et obtiendra une IP via DHCP.
 
 ```bash
 # Créer le fichier .ovpn avec les certificats embarqués
 cat > /root/wsl2025-client.ovpn << 'OVPNEOF'
 client
-dev tun
+dev tap
 proto udp
 remote vpn.wsl2025.org 4443
 remote 191.4.157.33 4443
