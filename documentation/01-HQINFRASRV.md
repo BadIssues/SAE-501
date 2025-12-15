@@ -527,6 +527,66 @@ ss -ulnp | grep 4443
 ip addr show tun0
 ```
 
+### Créer le fichier client .ovpn
+
+> Ce fichier sera utilisé par les clients VPN (VPNCLT) pour se connecter.
+
+```bash
+# Créer le fichier .ovpn avec les certificats embarqués
+cat > /root/wsl2025-client.ovpn << 'OVPNEOF'
+client
+dev tun
+proto udp
+remote vpn.wsl2025.org 4443
+remote 191.4.157.33 4443
+
+resolv-retry infinite
+nobind
+persist-key
+persist-tun
+
+# Sécurité
+cipher AES-256-GCM
+auth SHA256
+remote-cert-tls server
+
+# Authentification utilisateur AD
+auth-user-pass
+
+# Logs
+verb 3
+
+OVPNEOF
+
+# Ajouter le certificat CA (chaîne complète)
+echo "<ca>" >> /root/wsl2025-client.ovpn
+cat /etc/openvpn/certs/ca-chain.crt >> /root/wsl2025-client.ovpn
+echo "</ca>" >> /root/wsl2025-client.ovpn
+
+# Ajouter la clé TLS-Auth
+echo "" >> /root/wsl2025-client.ovpn
+echo "<tls-auth>" >> /root/wsl2025-client.ovpn
+cat /etc/openvpn/ta.key >> /root/wsl2025-client.ovpn
+echo "</tls-auth>" >> /root/wsl2025-client.ovpn
+echo "key-direction 1" >> /root/wsl2025-client.ovpn
+
+echo "✅ Fichier créé : /root/wsl2025-client.ovpn"
+```
+
+### Transférer le fichier .ovpn vers DNSSRV
+
+> On transfère le fichier vers DNSSRV (8.8.4.1) pour que les clients Internet puissent le télécharger.
+
+```bash
+# Copier le fichier vers DNSSRV via SCP
+scp /root/wsl2025-client.ovpn root@8.8.4.1:/var/www/html/wsl2025.ovpn
+
+# Vérifier que le transfert a fonctionné
+ssh root@8.8.4.1 "ls -la /var/www/html/wsl2025.ovpn"
+```
+
+> 📥 **Téléchargement depuis le client** : `http://8.8.4.1/wsl2025.ovpn`
+
 ---
 
 ## ✅ Vérifications
