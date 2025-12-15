@@ -677,7 +677,8 @@ ssh root@8.8.4.1 "ls -la /var/www/html/wsl2025.ovpn"
 
 ```bash
 apt update
-apt install -y realmd sssd sssd-tools libnss-sss libpam-sss adcli samba-common-bin krb5-user packagekit winbind libpam-winbind libnss-winbind
+# On installe UNIQUEMENT winbind (pas sssd) pour éviter les conflits
+apt install -y realmd adcli samba-common-bin krb5-user packagekit winbind libpam-winbind libnss-winbind
 ```
 
 > ⚠️ Lors de l'installation de `krb5-user`, on te demandera :
@@ -736,15 +737,22 @@ host -t SRV _kerberos._tcp.hq.wsl2025.org
 # Découvrir le domaine
 realm discover hq.wsl2025.org
 
-# Joindre le domaine (utiliser un compte admin AD)
+# Joindre le domaine avec WINBIND uniquement (important : évite les conflits avec sssd)
 # Tu peux utiliser "Administrator" ou "vtim" (du groupe IT)
-realm join --user=Administrator hq.wsl2025.org
+realm join --user=Administrator --client-software=winbind hq.wsl2025.org
 
-# Vérifier que la machine est dans le domaine
+# Vérifier que la machine est dans le domaine (doit afficher UNE SEULE entrée avec winbind)
 realm list
 ```
 
 > 📝 **Mot de passe** : Utilise le mot de passe de l'administrateur AD (P@ssw0rd ou celui configuré)
+
+> ⚠️ **Si tu vois DEUX entrées dans `realm list`** (une winbind, une sssd), fais :
+> ```bash
+> realm leave hq.wsl2025.org
+> systemctl stop sssd && systemctl disable sssd
+> realm join --user=Administrator --client-software=winbind hq.wsl2025.org
+> ```
 
 ### Étape 5 : Configurer Samba pour Active Directory
 
