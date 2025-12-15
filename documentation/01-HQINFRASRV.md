@@ -352,45 +352,46 @@ systemctl enable smbd nmbd
 apt install -y openvpn openvpn-auth-ldap
 ```
 
-### Prérequis : Obtenir le certificat serveur de HQDCSRV
+### Prérequis : Utiliser le certificat Wildcard existant
 
-> ⚠️ **IMPORTANT** : Le certificat VPN doit être émis par HQDCSRV (Sub CA), pas généré localement !
+> ✅ **INFO** : On utilise le certificat wildcard `*.wsl2025.org` déjà émis par HQDCSRV (Sub CA).
+> Ce certificat couvre `vpn.wsl2025.org` et tous les sous-domaines.
 
-#### Étape 1 : Générer une CSR (Certificate Signing Request)
+#### Fichiers disponibles sur HQINFRASRV (dans `~` ou `/root`)
+
+| Fichier | Description |
+|---------|-------------|
+| `wildcard-wsl2025.pfx` | Certificat wildcard avec clé privée (format PKCS#12) |
+| `WSFR-ROOT-CA.cer` | Certificat Root CA |
+| `SubCA.cer` | Certificat Sub CA (HQDCSRV) |
+
+#### Étape 1 : Créer le dossier et convertir le certificat wildcard
 
 ```bash
 mkdir -p /etc/openvpn/certs
 cd /etc/openvpn/certs
 
-# Générer la clé privée du serveur VPN
-openssl genrsa -out vpn-server.key 2048
-chmod 600 vpn-server.key
+# Copier les certificats CA depuis le home
+cp ~/WSFR-ROOT-CA.cer /etc/openvpn/certs/ca-root.crt
+cp ~/SubCA.cer /etc/openvpn/certs/ca-sub.crt
 
-# Générer la CSR
-openssl req -new -key vpn-server.key -out vpn-server.csr \
-    -subj "/CN=vpn.wsl2025.org/O=WSL2025/OU=IT"
+# Convertir le PFX en certificat (.crt) et clé privée (.key)
+# Mot de passe du PFX : P@ssw0rd (ou celui utilisé lors de l'export)
+
+# Extraire le certificat
+openssl pkcs12 -in ~/wildcard-wsl2025.pfx -clcerts -nokeys -out /etc/openvpn/certs/vpn-server.crt
+
+# Extraire la clé privée (sans mot de passe)
+openssl pkcs12 -in ~/wildcard-wsl2025.pfx -nocerts -nodes -out /etc/openvpn/certs/vpn-server.key
+
+# Sécuriser la clé privée
+chmod 600 /etc/openvpn/certs/vpn-server.key
 ```
 
-#### Étape 2 : Sur HQDCSRV, émettre le certificat
-
-1. Copier le fichier `vpn-server.csr` vers HQDCSRV
-2. Sur HQDCSRV (PowerShell) :
-
-```powershell
-# Soumettre la demande à la CA avec le template WSFR_Services
-certreq -submit -attrib "CertificateTemplate:WSFR_Services" C:\vpn-server.csr C:\vpn-server.cer
-```
-
-3. Récupérer le certificat signé (`vpn-server.cer`) sur HQINFRASRV
-
-#### Étape 3 : Récupérer les certificats CA
+#### Étape 2 : Créer la chaîne de certificats CA
 
 ```bash
-# Copier depuis HQDCSRV ou DNSSRV
-scp administrateur@10.4.10.1:/C:/WSFR-ROOT-CA.cer /etc/openvpn/certs/ca-root.crt
-scp administrateur@10.4.10.1:/C:/SubCA.cer /etc/openvpn/certs/ca-sub.crt
-
-# Créer la chaîne de certificats complète
+# Créer la chaîne de certificats complète (Sub CA + Root CA)
 cat /etc/openvpn/certs/ca-sub.crt /etc/openvpn/certs/ca-root.crt > /etc/openvpn/certs/ca-chain.crt
 ```
 
@@ -438,9 +439,9 @@ port 4443
 proto udp
 dev tun
 
-# === Certificats (émis par HQDCSRV Sub CA) ===
+# === Certificats (wildcard *.wsl2025.org émis par HQDCSRV Sub CA) ===
 ca /etc/openvpn/certs/ca-chain.crt
-cert /etc/openvpn/certs/vpn-server.cer
+cert /etc/openvpn/certs/vpn-server.crt
 key /etc/openvpn/certs/vpn-server.key
 dh /etc/openvpn/certs/dh2048.pem
 tls-auth /etc/openvpn/ta.key 0
@@ -573,9 +574,13 @@ ip nat inside source static udp 10.4.10.2 4443 191.4.157.33 4443 extendable
 
 ### Certificat VPN
 
-- Le certificat serveur VPN **doit être émis par HQDCSRV** (Sub CA WSFR-SUB-CA)
-- Utiliser le template **WSFR_Services** pour demander le certificat
+- On utilise le **certificat wildcard `*.wsl2025.org`** déjà émis par HQDCSRV (Sub CA)
+- Le fichier source `wildcard-wsl2025.pfx` est converti en `.crt` et `.key` pour OpenVPN
 - La chaîne de certificats inclut : Root CA (WSFR-ROOT-CA) + Sub CA (WSFR-SUB-CA)
+- Fichiers utilisés :
+  - `/etc/openvpn/certs/vpn-server.crt` (extrait du PFX)
+  - `/etc/openvpn/certs/vpn-server.key` (clé privée extraite du PFX)
+  - `/etc/openvpn/certs/ca-chain.crt` (chaîne CA)
 
 ### Authentification Active Directory
 
