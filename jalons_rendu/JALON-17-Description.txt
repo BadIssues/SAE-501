@@ -25,3 +25,5 @@ IMAGE : J17-internet-ping-loopback.png [MANQUANT]
 DESCRIPTION : Ping depuis Internet vers l'IP publique de service.
 POURQUOI : Prouve que les services sont joignables depuis l'extérieur.
 
+
+

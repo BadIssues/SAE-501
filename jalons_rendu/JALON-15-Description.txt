@@ -33,3 +33,5 @@ IMAGE : J15-EDGE1-nat-after-ping.png
 DESCRIPTION : Table NAT après le ping du PC.
 POURQUOI : Relie l'action utilisateur (ping) à la technique (translation NAT visible).
 
+
+

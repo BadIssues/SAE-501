@@ -73,3 +73,5 @@ esac
 
 echo ">>> Installation terminée pour $MACHINE !"
 
+
+

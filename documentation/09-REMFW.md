@@ -58,41 +58,41 @@ Cette ACL filtre le trafic entrant depuis le WAN (HQ) vers le LAN Remote.
 ip access-list extended FIREWALL-INBOUND
  remark === Allow established connections ===
  permit tcp any any established
-
+ 
  remark === Allow SSH from HQ ===
  permit tcp 10.4.0.0 0.0.255.255 any eq 22
-
+ 
  remark === Allow DNS ===
  permit udp any any eq domain
  permit tcp any any eq domain
-
+ 
  remark === Allow HTTPS ===
  permit tcp any any eq 443
-
+ 
  remark === Allow HTTP ===
  permit tcp any any eq 80
-
+ 
  remark === Allow ICMP ===
  permit icmp any any
-
+ 
  remark === Allow Microsoft Services ===
  permit tcp any any eq 445
  permit udp any any eq 445
  permit tcp any any range 135 139
  permit udp any any range 135 139
-
+ 
  remark === Allow Kerberos ===
  permit tcp any any eq 88
  permit udp any any eq 88
-
+ 
  remark === Allow LDAP ===
  permit tcp any any eq 389
  permit udp any any eq 389
  permit tcp any any eq 636
-
+ 
  remark === Allow NTP ===
  permit udp any any eq ntp
-
+ 
  remark === Deny all other ===
  deny   ip any any log
 ```

@@ -141,20 +141,20 @@ cat > ~/ansible/backup_config.yml << 'EOF'
 - name: Backup switch configurations
   hosts: switches
   gather_facts: no
-
+  
   tasks:
     - name: Get current date
       set_fact:
         backup_date: "{{ lookup('pipe', 'date +%Y%m%d') }}"
       delegate_to: localhost
       run_once: true
-
+      
     - name: Get running configuration
       cisco.ios.ios_command:
         commands:
           - show running-config
       register: config
-
+      
     - name: Save configuration to local file
       copy:
         content: "{{ config.stdout[0] }}"
@@ -173,13 +173,13 @@ cat > ~/ansible/restore_config.yml << 'EOF'
   gather_facts: no
   vars:
     tftp_server: 10.4.99.1
-
+  
   tasks:
     - name: Restore from TFTP
       cisco.ios.ios_command:
         commands:
           - "copy tftp://{{ tftp_server }}/{{ inventory_hostname }}.cfg running-config"
-
+      
     - name: Save to startup
       cisco.ios.ios_config:
         save_when: always
@@ -194,14 +194,14 @@ cat > ~/ansible/get_version.yml << 'EOF'
 - name: Collect OS version from all switches
   hosts: switches
   gather_facts: no
-
+  
   tasks:
     - name: Get version
       cisco.ios.ios_command:
         commands:
           - show version | include Version
       register: version
-
+      
     - name: Display version
       debug:
         msg: "{{ inventory_hostname }}: {{ version.stdout_lines[0] }}"
@@ -216,14 +216,14 @@ cat > ~/ansible/interface_status.yml << 'EOF'
 - name: Display interface status
   hosts: switches
   gather_facts: no
-
+  
   tasks:
     - name: Get interface brief
       cisco.ios.ios_command:
         commands:
           - show ip interface brief
       register: interfaces
-
+      
     - name: Display interfaces
       debug:
         var: interfaces.stdout_lines[0]
@@ -238,7 +238,7 @@ cat > ~/ansible/sync_ntp.yml << 'EOF'
 - name: Synchronize NTP on all switches
   hosts: switches
   gather_facts: no
-
+  
   tasks:
     - name: Configure NTP server
       cisco.ios.ios_config:
@@ -246,13 +246,13 @@ cat > ~/ansible/sync_ntp.yml << 'EOF'
           - ntp server 10.4.10.2 prefer
           - clock timezone CET 1
           - clock summer-time CEST recurring last Sun Mar 2:00 last Sun Oct 3:00
-
+          
     - name: Verify NTP status
       cisco.ios.ios_command:
         commands:
           - show ntp status
       register: ntp
-
+      
     - name: Display NTP status
       debug:
         msg: "{{ inventory_hostname }}: {{ ntp.stdout_lines[0][0] | default('NTP not synced') }}"
@@ -267,7 +267,7 @@ cat > ~/ansible/environment_status.yml << 'EOF'
 - name: Display environment status (3750 switches)
   hosts: switches
   gather_facts: no
-
+  
   tasks:
     - name: Get environment status
       cisco.ios.ios_command:
@@ -275,7 +275,7 @@ cat > ~/ansible/environment_status.yml << 'EOF'
           - show environment all
       register: env
       ignore_errors: yes
-
+      
     - name: Display environment
       debug:
         var: env.stdout_lines[0]

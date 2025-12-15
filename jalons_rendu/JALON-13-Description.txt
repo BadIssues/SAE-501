@@ -29,3 +29,5 @@ IMAGE : J13-failover-ping.png   [MANQUANT]
 DESCRIPTION : Ping continu pendant la coupure.
 POURQUOI : Montre que la perte de paquets est minime ou nulle pour l'utilisateur final.
 
+
+

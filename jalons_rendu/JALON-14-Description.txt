@@ -17,3 +17,5 @@ IMAGE : J14-EDGE2-track.png
 DESCRIPTION : Tracking d'interface sur EDGE2.
 POURQUOI : Vérification complète de la configuration de haute disponibilité en bordure.
 
+
+

@@ -29,3 +29,5 @@ IMAGE : J16-dmz-server-ping.png [MANQUANT]
 DESCRIPTION : Ping depuis un serveur en DMZ vers sa passerelle.
 POURQUOI : Prouve que les serveurs DMZ peuvent sortir du réseau.
 
+
+

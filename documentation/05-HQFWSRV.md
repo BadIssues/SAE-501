@@ -92,48 +92,48 @@ define DMZ_IP = 217.4.160.1
 table inet filter {
     chain input {
         type filter hook input priority 0; policy drop;
-
+        
         # Connexions établies
         ct state established,related accept
-
+        
         # Loopback
         iif "lo" accept
-
+        
         # ICMP (ping)
         ip protocol icmp accept
         ip6 nexthdr icmpv6 accept
-
+        
         # SSH depuis le réseau interne uniquement
         iif $INT_IF tcp dport 22 accept
-
+        
         # Drop tout le reste
         log prefix "NFT-INPUT-DROP: " drop
     }
-
+    
     chain forward {
         type filter hook forward priority 0; policy drop;
-
+        
         # Connexions établies
         ct state established,related accept
-
+        
         # ===== DMZ vers HQWEBSRV =====
         # Web (HTTP/HTTPS)
         iif $DMZ_IF ip daddr $WEBSERVER tcp dport {80, 443} accept
-
+        
         # RDP vers HQWEBSRV
         iif $DMZ_IF ip daddr $WEBSERVER tcp dport 3389 accept
-
+        
         # ===== HQWEBSRV vers Interne (pour AD) =====
         iif $DMZ_IF oif $INT_IF tcp dport {88, 135, 389, 445, 464, 636, 3268, 3269} accept
         iif $DMZ_IF oif $INT_IF udp dport {88, 123, 135, 389, 445, 464} accept
-
+        
         # ===== Interne vers DMZ =====
         iif $INT_IF oif $DMZ_IF accept
-
+        
         # Log et drop
         log prefix "NFT-FORWARD-DROP: " drop
     }
-
+    
     chain output {
         type filter hook output priority 0; policy accept;
     }

@@ -153,6 +153,13 @@ graph TD
 | [15-VPNCLT.md](15-VPNCLT.md)   | VPNCLT  | 8.8.4.3 | Client VPN          |
 | [16-INETCLT.md](16-INETCLT.md) | INETCLT | 8.8.4.4 | Client Internet     |
 
+### 📋 Documents de référence
+
+| Fichier                                                | Description                                       |
+| ------------------------------------------------------ | ------------------------------------------------- |
+| [17-CERTIFICAT-WILDCARD.md](17-CERTIFICAT-WILDCARD.md) | Procédure certificat wildcard                     |
+| [18-RESUME-VERIFICATION.md](18-RESUME-VERIFICATION.md) | **📋 RÉSUMÉ RAPIDE** - Où est quoi ? (pour profs) |
+
 ---
 
 ## 🔐 Informations communes

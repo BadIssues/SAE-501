@@ -360,11 +360,11 @@ apt install -y openvpn openvpn-auth-ldap bridge-utils
 
 #### Fichiers disponibles sur HQINFRASRV (dans `~` ou `/root`)
 
-| Fichier | Description |
-|---------|-------------|
+| Fichier                | Description                                          |
+| ---------------------- | ---------------------------------------------------- |
 | `wildcard-wsl2025.pfx` | Certificat wildcard avec clé privée (format PKCS#12) |
-| `WSFR-ROOT-CA.cer` | Certificat Root CA |
-| `SubCA.cer` | Certificat Sub CA (HQDCSRV) |
+| `WSFR-ROOT-CA.cer`     | Certificat Root CA                                   |
+| `SubCA.cer`            | Certificat Sub CA (HQDCSRV)                          |
 
 #### Étape 1 : Créer le dossier et convertir le certificat wildcard
 
@@ -448,7 +448,6 @@ ETH="ens224"
 
 # Créer l'interface TAP
 openvpn --mktun --dev $TAP
-ip link set $TAP up promisc on
 
 # Créer le bridge si nécessaire
 if ! brctl show $BR 2>/dev/null | grep -q $BR; then
@@ -459,10 +458,12 @@ fi
 brctl addif $BR $ETH 2>/dev/null
 brctl addif $BR $TAP 2>/dev/null
 
-# Activer le bridge
-ip link set $BR up
+# IMPORTANT : Activer le mode promiscuous sur TOUTES les interfaces du bridge
+ip link set $ETH up promisc on
+ip link set $TAP up promisc on
+ip link set $BR up promisc on
 
-echo "Bridge $BR configuré avec $ETH et $TAP"
+echo "Bridge $BR configuré avec $ETH et $TAP (promiscuous mode activé)"
 EOF
 chmod +x /etc/openvpn/bridge-start.sh
 
@@ -662,19 +663,319 @@ ssh root@8.8.4.1 "ls -la /var/www/html/wsl2025.ovpn"
 
 ---
 
+## 8️⃣ BONUS : Authentification Samba avec Active Directory
+
+> 🎯 **Objectif** : Au lieu d'utiliser des utilisateurs locaux (jean, tom, emma), Samba va authentifier les utilisateurs directement via Active Directory (hq.wsl2025.org).
+
+### Prérequis
+
+- [ ] HQDCSRV opérationnel (contrôleur de domaine hq.wsl2025.org)
+- [ ] DNS configuré pour résoudre `hq.wsl2025.org` et `hqdcsrv.hq.wsl2025.org`
+- [ ] Synchronisation NTP fonctionnelle (Kerberos est sensible au décalage horaire)
+
+### Étape 1 : Installer les paquets nécessaires
+
+```bash
+apt update
+apt install -y realmd sssd sssd-tools libnss-sss libpam-sss adcli samba-common-bin krb5-user packagekit winbind libpam-winbind libnss-winbind
+```
+
+> ⚠️ Lors de l'installation de `krb5-user`, on te demandera :
+>
+> - **Default Kerberos realm** : `HQ.WSL2025.ORG` (en MAJUSCULES !)
+> - **Kerberos servers** : `hqdcsrv.hq.wsl2025.org`
+> - **Administrative server** : `hqdcsrv.hq.wsl2025.org`
+
+### Étape 2 : Configurer Kerberos
+
+```bash
+cat > /etc/krb5.conf << 'EOF'
+[libdefaults]
+    default_realm = HQ.WSL2025.ORG
+    dns_lookup_realm = false
+    dns_lookup_kdc = true
+    rdns = false
+    ticket_lifetime = 24h
+    forwardable = true
+
+[realms]
+    HQ.WSL2025.ORG = {
+        kdc = hqdcsrv.hq.wsl2025.org
+        admin_server = hqdcsrv.hq.wsl2025.org
+        default_domain = hq.wsl2025.org
+    }
+    WSL2025.ORG = {
+        kdc = dcwsl.wsl2025.org
+        admin_server = dcwsl.wsl2025.org
+        default_domain = wsl2025.org
+    }
+
+[domain_realm]
+    .hq.wsl2025.org = HQ.WSL2025.ORG
+    hq.wsl2025.org = HQ.WSL2025.ORG
+    .wsl2025.org = WSL2025.ORG
+    wsl2025.org = WSL2025.ORG
+EOF
+```
+
+### Étape 3 : Vérifier la résolution DNS
+
+```bash
+# Tester la résolution du contrôleur de domaine
+nslookup hqdcsrv.hq.wsl2025.org
+ping -c 2 hqdcsrv.hq.wsl2025.org
+
+# Vérifier les enregistrements SRV
+host -t SRV _ldap._tcp.hq.wsl2025.org
+host -t SRV _kerberos._tcp.hq.wsl2025.org
+```
+
+### Étape 4 : Joindre le domaine Active Directory
+
+```bash
+# Découvrir le domaine
+realm discover hq.wsl2025.org
+
+# Joindre le domaine (utiliser un compte admin AD)
+# Tu peux utiliser "Administrator" ou "vtim" (du groupe IT)
+realm join --user=Administrator hq.wsl2025.org
+
+# Vérifier que la machine est dans le domaine
+realm list
+```
+
+> 📝 **Mot de passe** : Utilise le mot de passe de l'administrateur AD (P@ssw0rd ou celui configuré)
+
+### Étape 5 : Configurer Samba pour Active Directory
+
+```bash
+# Sauvegarder l'ancienne configuration
+cp /etc/samba/smb.conf /etc/samba/smb.conf.backup-local
+
+# Créer la nouvelle configuration AD
+cat > /etc/samba/smb.conf << 'EOF'
+[global]
+    workgroup = HQ
+    realm = HQ.WSL2025.ORG
+    server string = HQINFRASRV File Server (AD Auth)
+
+    # Sécurité Active Directory
+    security = ads
+    encrypt passwords = yes
+
+    # Backend Winbind pour l'authentification
+    idmap config * : backend = tdb
+    idmap config * : range = 3000-7999
+    idmap config HQ : backend = rid
+    idmap config HQ : range = 10000-999999
+
+    # Options Winbind
+    winbind use default domain = yes
+    winbind enum users = yes
+    winbind enum groups = yes
+    winbind refresh tickets = yes
+
+    # Mapping des utilisateurs
+    template shell = /bin/bash
+    template homedir = /home/%U
+
+    # Logs
+    log file = /var/log/samba/log.%m
+    max log size = 1000
+    log level = 1
+
+[Public]
+    path = /srv/datastorage/shares/public
+    comment = Partage public lecture seule
+    browseable = yes
+    read only = yes
+    guest ok = yes
+
+[Private]
+    path = /srv/datastorage/shares/private
+    comment = Partage privé (AD Users)
+    browseable = no
+    read only = no
+
+    # Utilisateurs AD autorisés (remplacer par les vrais noms AD)
+    # Tom = vtim, Emma = estique, Jean = jticipe (selon l'annexe du sujet)
+    valid users = @"Domain Users"
+    write list = vtim estique
+    read list = jticipe
+
+    # Sécurité
+    hide dot files = yes
+    veto files = /*.exe/*.zip/
+    hosts allow = 10.4.0.0/16
+EOF
+```
+
+### Étape 6 : Configurer NSS et PAM pour Winbind
+
+```bash
+# Ajouter winbind à NSS
+cat > /etc/nsswitch.conf << 'EOF'
+passwd:         files systemd winbind
+group:          files systemd winbind
+shadow:         files winbind
+gshadow:        files
+
+hosts:          files dns
+networks:       files
+
+protocols:      db files
+services:       db files
+ethers:         db files
+rpc:            db files
+
+netgroup:       nis
+EOF
+```
+
+### Étape 7 : Redémarrer les services
+
+```bash
+# Redémarrer les services dans le bon ordre
+systemctl restart winbind
+systemctl restart smbd nmbd
+
+# Activer au démarrage
+systemctl enable winbind smbd nmbd
+```
+
+### Étape 8 : Vérifier l'intégration AD
+
+```bash
+# Tester l'authentification Kerberos
+kinit Administrator@HQ.WSL2025.ORG
+klist
+
+# Vérifier que Winbind voit les utilisateurs AD
+wbinfo -u    # Liste des utilisateurs
+wbinfo -g    # Liste des groupes
+
+# Vérifier un utilisateur spécifique
+wbinfo -i vtim
+getent passwd vtim
+
+# Tester la connexion Samba avec un utilisateur AD
+smbclient -L localhost -U vtim
+```
+
+### Étape 9 : Créer les répertoires home pour les utilisateurs AD
+
+```bash
+# Créer le répertoire home de base
+mkdir -p /home
+
+# Option : Créer automatiquement les homes à la première connexion
+# Ajouter dans /etc/pam.d/common-session :
+echo "session required pam_mkhomedir.so skel=/etc/skel umask=0077" >> /etc/pam.d/common-session
+```
+
+### Étape 10 : Ajuster les permissions des partages
+
+```bash
+# Définir les permissions pour que les utilisateurs AD puissent écrire
+# On utilise les GID de Winbind
+
+# Public : lecture pour tous
+chmod 755 /srv/datastorage/shares/public
+
+# Private : accès pour les utilisateurs du domaine
+chmod 770 /srv/datastorage/shares/private
+chown root:"domain users" /srv/datastorage/shares/private
+```
+
+---
+
+### ✅ Tests de vérification du bonus
+
+| Test      | Commande                                | Résultat attendu                                  |
+| --------- | --------------------------------------- | ------------------------------------------------- |
+| Domaine   | `realm list`                            | Affiche `hq.wsl2025.org` avec status "configured" |
+| Kerberos  | `klist`                                 | Affiche un ticket valide                          |
+| Users AD  | `wbinfo -u`                             | Liste les utilisateurs AD (vtim, npresso, etc.)   |
+| Groups AD | `wbinfo -g`                             | Liste les groupes AD (Domain Users, IT, etc.)     |
+| Getent    | `getent passwd vtim`                    | Affiche les infos de l'utilisateur vtim           |
+| Samba     | `smbclient //localhost/Private -U vtim` | Connexion réussie avec credentials AD             |
+
+### Test complet Samba AD
+
+```bash
+# Test de connexion au partage Private avec un utilisateur AD
+smbclient //localhost/Private -U vtim%P@ssw0rd -c "ls"
+
+# Créer un fichier test
+smbclient //localhost/Private -U vtim%P@ssw0rd -c "put /etc/hostname testfile.txt"
+
+# Vérifier que le fichier a été créé avec le bon propriétaire
+ls -la /srv/datastorage/shares/private/
+```
+
+---
+
+### 🔧 Dépannage
+
+#### Erreur "NT_STATUS_LOGON_FAILURE"
+
+```bash
+# Vérifier que le compte existe dans AD
+wbinfo -i vtim
+
+# Vérifier Kerberos
+kinit vtim@HQ.WSL2025.ORG
+```
+
+#### Erreur "Could not get domain info"
+
+```bash
+# Rejoindre le domaine
+net ads join -U Administrator
+
+# Vérifier la connexion AD
+net ads testjoin
+```
+
+#### Les utilisateurs AD ne sont pas visibles
+
+```bash
+# Redémarrer winbind
+systemctl restart winbind
+
+# Vider le cache
+net cache flush
+
+# Vérifier les logs
+tail -f /var/log/samba/log.winbindd
+```
+
+#### Erreur de synchronisation horaire
+
+```bash
+# Kerberos est très sensible au décalage horaire (max 5 min)
+ntpq -p
+# Si décalage, forcer la synchro :
+systemctl stop ntpsec
+ntpdate hqdcsrv.hq.wsl2025.org
+systemctl start ntpsec
+```
+
+---
+
 ## ✅ Vérifications
 
-| Test       | Commande                          | Résultat attendu                    |
-| ---------- | --------------------------------- | ----------------------------------- |
-| DHCP       | `journalctl -u isc-dhcp-server`   | Service actif, failover OK          |
-| Samba      | `smbclient -L localhost -U jean`  | Partages Public et Private visibles |
-| iSCSI      | `tgtadm --mode target --op show`  | Target LUN1 visible                 |
-| VPN        | `systemctl status openvpn@server` | Active (running)                    |
-| VPN Port   | `ss -ulnp \| grep 4443`           | Port 4443/udp en écoute             |
-| VPN Tunnel | `ip addr show tun0`               | Interface tun0 avec IP 10.4.22.1    |
-| VPN Logs   | `tail /var/log/openvpn.log`       | Pas d'erreurs                       |
-| NTP        | `ntpq -p`                         | Synchronisé (stratum 10)            |
-| Forwarding | `sysctl net.ipv4.ip_forward`      | = 1                                 |
+| Test       | Commande                          | Résultat attendu                                   |
+| ---------- | --------------------------------- | -------------------------------------------------- |
+| DHCP       | `journalctl -u isc-dhcp-server`   | Service actif, failover OK                         |
+| Samba      | `smbclient -L localhost -U vtim`  | Partages Public et Private visibles (avec user AD) |
+| iSCSI      | `tgtadm --mode target --op show`  | Target LUN1 visible                                |
+| VPN        | `systemctl status openvpn@server` | Active (running)                                   |
+| VPN Port   | `ss -ulnp \| grep 4443`           | Port 4443/udp en écoute                            |
+| VPN Tunnel | `ip addr show tun0`               | Interface tun0 avec IP 10.4.22.1                   |
+| VPN Logs   | `tail /var/log/openvpn.log`       | Pas d'erreurs                                      |
+| NTP        | `ntpq -p`                         | Synchronisé (stratum 10)                           |
+| Forwarding | `sysctl net.ipv4.ip_forward`      | = 1                                                |
 
 ---
 
@@ -736,11 +1037,13 @@ ip nat inside source static udp 10.4.10.2 4443 191.4.157.33 4443 extendable
 ### Test 1 : Vérifier les services
 
 **Étape 1** : Tape cette commande et appuie sur Entrée :
+
 ```bash
 systemctl is-active isc-dhcp-server smbd tgt openvpn@server ntpsec
 ```
 
 **Étape 2** : Regarde le résultat. Tu dois voir :
+
 ```
 active
 active
@@ -757,6 +1060,7 @@ active
 ### Test 2 : Vérifier le DHCP
 
 **Étape 1** : Tape cette commande :
+
 ```bash
 dhcpd -t -cf /etc/dhcp/dhcpd.conf
 ```
@@ -771,11 +1075,13 @@ dhcpd -t -cf /etc/dhcp/dhcpd.conf
 ### Test 3 : Vérifier le stockage LVM
 
 **Étape 1** : Tape cette commande :
+
 ```bash
 lvs
 ```
 
 **Étape 2** : Regarde le résultat. Tu dois voir quelque chose comme :
+
 ```
   LV             VG         Attr       LSize
   lvdatastorage  vgstorage  -wi-ao---- 2.00g
@@ -790,11 +1096,13 @@ lvs
 ### Test 4 : Vérifier iSCSI
 
 **Étape 1** : Tape cette commande :
+
 ```bash
 tgtadm --mode target --op show | head -5
 ```
 
 **Étape 2** : Regarde le résultat. Tu dois voir :
+
 ```
 Target 1: iqn.2025-01.org.wsl2025:storage.lun1
     System information:
@@ -810,11 +1118,13 @@ Target 1: iqn.2025-01.org.wsl2025:storage.lun1
 ### Test 5 : Vérifier Samba
 
 **Étape 1** : Tape cette commande (avec le mot de passe dans la commande) :
+
 ```bash
 smbclient -L localhost -U jean%P@ssw0rd 2>/dev/null | grep -E "Public|Private"
 ```
 
 **Étape 2** : Regarde le résultat :
+
 ```
         Public
 ```
@@ -827,11 +1137,13 @@ smbclient -L localhost -U jean%P@ssw0rd 2>/dev/null | grep -E "Public|Private"
 ### Test 6 : Vérifier le VPN OpenVPN
 
 **Étape 1** : Vérifie que le port 4443 est en écoute :
+
 ```bash
 ss -ulnp | grep 4443
 ```
 
 **Étape 2** : Regarde le résultat. Tu dois voir :
+
 ```
 UNCONN 0  0  0.0.0.0:4443  0.0.0.0:*  users:(("openvpn",pid=XXXX,fd=X))
 ```
@@ -840,11 +1152,13 @@ UNCONN 0  0  0.0.0.0:4443  0.0.0.0:*  users:(("openvpn",pid=XXXX,fd=X))
 ❌ **Problème si** : Rien ne s'affiche → OpenVPN n'écoute pas
 
 **Étape 3** : Vérifie l'interface tunnel :
+
 ```bash
 ip addr show tun0 2>/dev/null | grep "inet "
 ```
 
 **Étape 2** : Tu dois voir :
+
 ```
     inet 10.4.22.1/24 ...
 ```
@@ -857,11 +1171,13 @@ ip addr show tun0 2>/dev/null | grep "inet "
 ### Test 7 : Vérifier NTP
 
 **Étape 1** : Tape cette commande :
+
 ```bash
 ntpq -p
 ```
 
 **Étape 2** : Regarde le résultat. Tu dois voir :
+
 ```
      remote           refid      st t when poll reach   delay   offset  jitter
 ==============================================================================

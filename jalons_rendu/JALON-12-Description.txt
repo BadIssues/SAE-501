@@ -57,3 +57,5 @@ IMAGE : J12-WANRTR-ping.png
 DESCRIPTION : Tests de ping VRF-aware depuis WANRTR.
 POURQUOI : Vérifie que le routeur central peut joindre les deux sites dans leurs contextes respectifs.
 
+
+
