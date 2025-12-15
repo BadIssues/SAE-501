@@ -8,6 +8,20 @@
 
 ---
 
+## 🎯 Contexte (Sujet)
+
+Ce serveur est le contrôleur de domaine principal du site Remote :
+
+| Service | Description |
+|---------|-------------|
+| **Active Directory** | Child domain `rem.wsl2025.org` de la forêt `wsl2025.org`. Global Catalog. |
+| **DNS** | Zone `rem.wsl2025.org` avec DNSSEC. Forwarder vers wsl2025.org. |
+| **DHCP** | Serveur primaire pour le réseau Remote (10.4.100.0/25). Dynamic DNS activé. |
+| **DFS** | DFS Namespace avec REMINFRASRV pour partages `users` et `Department`. |
+| **GPO** | IT = admins locaux, Control Panel bloqué, certificats CA déployés, mapping partages. |
+
+---
+
 ## 📋 Prérequis
 
 - [ ] Windows Server 2022 installé
@@ -1433,3 +1447,58 @@ show access-list FIREWALL-INBOUND
 ! Voir les logs en temps réel
 terminal monitor
 ```
+
+---
+
+## ✅ Vérification Finale
+
+> **Instructions** : Exécuter ces commandes sur REMDCSRV (PowerShell Admin) pour valider le bon fonctionnement.
+
+### 1. Active Directory
+```powershell
+Get-ADDomain | Select-Object Name, DNSRoot, ParentDomain
+```
+✅ Doit afficher `Name=rem`, `DNSRoot=rem.wsl2025.org`, `ParentDomain=wsl2025.org`
+
+### 2. Trust avec le domaine parent
+```powershell
+Get-ADTrust -Filter * | Select-Object Name, Direction
+```
+✅ Doit montrer un trust vers `wsl2025.org`
+
+### 3. DNS - Zone configurée
+```powershell
+Get-DnsServerZone -Name "rem.wsl2025.org"
+```
+✅ Zone `Primary` et `IsSigned=True` (DNSSEC)
+
+### 4. DHCP - Service actif
+```powershell
+Get-Service DHCPServer | Select-Object Status
+Get-DhcpServerv4Scope
+```
+✅ Service `Running`, scope 10.4.100.0 visible
+
+### 5. DFS - Namespace configuré
+```powershell
+Get-DfsnRoot -Path "\\rem.wsl2025.org\*" -ErrorAction SilentlyContinue
+```
+✅ Doit lister les namespaces DFS
+
+### 6. Connectivité vers HQ
+```powershell
+Test-Connection 10.4.10.1 -Count 2
+Test-Connection 10.4.10.4 -Count 2
+```
+✅ HQDCSRV et DCWSL doivent répondre
+
+### Tableau récapitulatif
+
+| Test | Commande | Résultat attendu |
+|------|----------|------------------|
+| Domaine | `(Get-ADDomain).DNSRoot` | `rem.wsl2025.org` |
+| Trust | `Get-ADTrust -Filter *` | Trust vers wsl2025.org |
+| DNS Zone | `Get-DnsServerZone` | rem.wsl2025.org |
+| DHCP | `Get-Service DHCPServer` | Running |
+| Ping DCWSL | `ping 10.4.10.4` | Réponse |
+| Ping HQDCSRV | `ping 10.4.10.1` | Réponse |

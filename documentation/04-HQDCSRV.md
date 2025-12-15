@@ -7,6 +7,22 @@
 
 ---
 
+## 🎯 Contexte (Sujet)
+
+Ce serveur est le contrôleur de domaine principal du site HQ avec de nombreux services :
+
+| Service | Description |
+|---------|-------------|
+| **AD DS** | Child domain `hq.wsl2025.org` de la forêt `wsl2025.org`. Global Catalog. |
+| **DNS** | Zone `hq.wsl2025.org` avec DNSSEC. Forwarder vers DNSSRV. |
+| **ADCS** | Sub CA `WSFR-SUB-CA` (Enterprise Subordinate CA). Templates certificats. |
+| **PKI/IIS** | Site web PKI pour CRL et AIA sur `http://pki.hq.wsl2025.org`. |
+| **File Server** | Partages `users$` (home drives), `Department$`, `Public$`. Quotas 20Mo, blocage .exe. |
+| **GPO** | Déploiement certificats, Edge homepage, Control Panel bloqué, lecteurs réseau. |
+| **Stockage** | RAID-5 avec 3 disques de 1Go, déduplication activée. |
+
+---
+
 ## 📋 Prérequis
 
 - [ ] Windows Server 2022 installé

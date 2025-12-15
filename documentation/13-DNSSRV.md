@@ -6,6 +6,19 @@
 
 ---
 
+## 🎯 Contexte (Sujet)
+
+Ce serveur fournit les services DNS publics et PKI pour l'infrastructure :
+
+| Service | Description |
+|---------|-------------|
+| **DNS** | Zones `worldskills.org` et `wsl2025.org` (vue publique). Enregistrements pour www, ftp, vpn, webmail. |
+| **DNSSEC** | Zones signées pour la sécurité. |
+| **Root CA** | Autorité de certification racine `WSFR-ROOT-CA`. Signe le Sub CA de HQDCSRV. |
+| **CRL** | Publie les listes de révocation de certificats. |
+
+---
+
 ## 📋 Prérequis
 
 - [ ] Debian 13 installé
@@ -519,27 +532,39 @@ systemctl enable apache2
 
 ---
 
-## 📋 Checklist finale
-
-- [ ] Hostname configuré (dnssrv)
-- [ ] IP statique (8.8.4.1/29)
-- [ ] SSH + Fail2Ban configurés
-- [ ] Utilisateur admin créé
-- [ ] BIND9 installé et configuré
-- [ ] Zone worldskills.org créée (inetsrv, www, ftp, wanrtr)
-- [ ] Zone wsl2025.org créée (hqfwsrv, vpn, webmail, www, authentication)
-- [ ] DNSSEC activé sur les deux zones
-- [ ] Root CA WSFR-ROOT-CA créée
-- [ ] Certificat SubCA signé pour HQDCSRV
-- [ ] Apache installé pour CRL
-- [ ] CRL automatisée (cron)
-
 ---
 
-## 📝 Notes
+## ✅ Vérification Finale (Résumé)
 
-- **IP** : 8.8.4.1
-- Ce serveur est le DNS public pour worldskills.org et wsl2025.org (vue externe)
-- Le certificat Root CA (WSFR-ROOT-CA) signe le SubCA de HQDCSRV
-- Le mot de passe de la clé Root CA doit être gardé en sécurité
-- DNSSEC est activé sur les deux zones
+> **Instructions** : Exécuter ces commandes sur DNSSRV pour une validation rapide.
+
+### Tests rapides
+```bash
+# 1. DNS actif
+systemctl is-active bind9
+
+# 2. Résolutions DNS
+dig @localhost www.worldskills.org +short
+dig @localhost vpn.wsl2025.org +short
+dig @localhost www.wsl2025.org +short
+
+# 3. DNSSEC (présence RRSIG)
+dig @localhost www.worldskills.org +dnssec | grep RRSIG
+
+# 4. Root CA
+openssl x509 -in /etc/ssl/CA/certs/ca.crt -noout -subject
+
+# 5. CRL accessible
+curl -s -o /dev/null -w "%{http_code}" http://localhost/pki/ca.crl
+```
+
+### Tableau récapitulatif
+
+| Test | Commande | Résultat attendu |
+|------|----------|------------------|
+| BIND9 | `systemctl is-active bind9` | `active` |
+| www.worldskills.org | `dig @localhost www.worldskills.org +short` | `8.8.4.2` |
+| vpn.wsl2025.org | `dig @localhost vpn.wsl2025.org +short` | `191.4.157.33` |
+| Root CA | `openssl x509 ... -subject` | `CN=WSFR-ROOT-CA` |
+| CRL HTTP | `curl http://localhost/pki/ca.crl` | HTTP 200 |
+| Apache | `systemctl is-active apache2` | `active` |

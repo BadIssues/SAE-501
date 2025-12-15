@@ -6,6 +6,18 @@
 
 ---
 
+## 🎯 Contexte (Sujet)
+
+Ce poste simule un employé du site Remote (MAN) :
+
+| Fonction | Description |
+|----------|-------------|
+| **DHCP** | Obtient son IP automatiquement de REMDCSRV/REMINFRASRV (plage 10.4.100.10-120). |
+| **Domaine** | Membre du domaine `rem.wsl2025.org`. |
+| **Accès** | Doit accéder aux ressources corporate (HQ et Remote) et à Internet via MAN. |
+
+---
+
 ## 📋 Prérequis
 
 - [ ] Windows 11 installé
@@ -149,29 +161,63 @@ certmgr.msc
 
 ---
 
-## ✅ Checklist de validation
+## ✅ Vérification Finale
 
-| Test | Statut |
-|------|--------|
-| ⬜ IP obtenue par DHCP (10.4.100.X) | |
-| ⬜ Jonction au domaine rem.wsl2025.org | |
-| ⬜ Connexion utilisateur AD (estique, rtaha, dpeltier) | |
-| ⬜ GPO appliquées | |
-| ⬜ Lecteurs réseau mappés (U:, S:) | |
-| ⬜ Ping vers serveurs Remote | |
-| ⬜ Ping vers serveurs HQ | |
-| ⬜ Accès Internet | |
-| ⬜ Accès www.wsl2025.org | |
-| ⬜ Accès webmail.wsl2025.org | |
-| ⬜ Certificats CA installés | |
-| ⬜ Panneau de config bloqué (sauf IT) | |
+> **Instructions** : Exécuter ces tests sur REMCLT après connexion avec un utilisateur du domaine.
 
----
+### 1. DHCP - IP obtenue
+```powershell
+ipconfig | Select-String "IPv4"
+```
+✅ Doit afficher une IP dans la plage `10.4.100.X`
 
-## 📝 Notes
+### 2. Domaine
+```powershell
+(Get-WmiObject Win32_ComputerSystem).Domain
+```
+✅ Doit afficher `rem.wsl2025.org`
 
-- L'utilisateur `dpeltier` fait partie du groupe IT (droits admin locaux)
-- Le trafic vers Internet passe par REMFW → WANRTR → EDGE routers
-- Le trafic vers HQ passe par REMFW → WANRTR (VRF MAN) → EDGE routers
-- La latence peut être plus élevée que pour les clients HQ
+### 3. Ping serveurs Remote
+```powershell
+Test-Connection 10.4.100.1 -Count 1  # REMDCSRV
+Test-Connection 10.4.100.2 -Count 1  # REMINFRASRV
+```
+✅ Les deux doivent répondre
+
+### 4. Ping serveurs HQ (via MAN)
+```powershell
+Test-Connection 10.4.10.1 -Count 1  # HQDCSRV
+Test-Connection 10.4.10.4 -Count 1  # DCWSL
+```
+✅ Les deux doivent répondre
+
+### 5. Accès Internet
+```powershell
+Test-NetConnection google.com -Port 443
+```
+✅ `TcpTestSucceeded` doit être `True`
+
+### 6. Accès ressources web
+```powershell
+Test-NetConnection www.wsl2025.org -Port 443
+Test-NetConnection webmail.wsl2025.org -Port 443
+```
+✅ Accessibles
+
+### 7. Certificats CA
+```powershell
+Get-ChildItem Cert:\LocalMachine\Root | Where-Object { $_.Subject -like "*WSFR*" }
+```
+✅ Doit afficher `WSFR-ROOT-CA`
+
+### Tableau récapitulatif
+
+| Test | Commande/Action | Résultat attendu |
+|------|-----------------|------------------|
+| IP DHCP | `ipconfig` | `10.4.100.X` |
+| Domaine | `systeminfo \| find "Domaine"` | `rem.wsl2025.org` |
+| Ping REMDCSRV | `ping 10.4.100.1` | Réponse |
+| Ping HQDCSRV | `ping 10.4.10.1` | Réponse (via MAN) |
+| Internet | `ping google.com` | Réponse |
+| Webmail | Navigateur | Page Roundcube |
 

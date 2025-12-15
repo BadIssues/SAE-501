@@ -573,3 +573,64 @@ Installer le Root CA (`WSFR-ROOT-CA`) sur le client :
 - **Windows** : Importer dans le magasin "Autorités de certification racines de confiance"
 - **Linux** : `cp WSFR-ROOT-CA.crt /usr/local/share/ca-certificates/ && update-ca-certificates`
 - **FileZilla** : Accepter le certificat et cocher "Toujours faire confiance"
+
+---
+
+## ✅ Vérification Finale
+
+> **Instructions** : Exécuter ces commandes sur INETSRV pour valider le bon fonctionnement.
+
+### 1. Docker - Conteneurs actifs
+```bash
+docker ps --format "table {{.Names}}\t{{.Status}}"
+```
+✅ 4 conteneurs : nginx1, nginx2, php, haproxy - tous "Up"
+
+### 2. Web HTTPS
+```bash
+curl -k https://localhost | head -5
+```
+✅ Doit afficher la page avec IP client, navigateur, date
+
+### 3. Redirection HTTP → HTTPS
+```bash
+curl -I http://localhost 2>/dev/null | head -1
+```
+✅ Doit retourner `HTTP/1.1 301` ou `302` (redirection)
+
+### 4. Page bad.html
+```bash
+curl -k https://localhost/bad.html | head -3
+```
+✅ Doit afficher le contenu "dangereux"
+
+### 5. HAProxy Stats
+```bash
+curl -s http://localhost:8080/stats | grep -c "UP"
+```
+✅ Doit retourner 2 ou plus (web1 et web2 UP)
+
+### 6. FTP Service
+```bash
+systemctl is-active vsftpd
+ss -tlnp | grep 21
+```
+✅ Service actif, port 21 en écoute
+
+### 7. Test connexion FTPS (depuis un autre poste)
+```bash
+# Sur INETCLT ou autre :
+lftp -u devops,P@ssw0rd -e "set ssl:verify-certificate no; ls; quit" ftp://ftp.worldskills.org
+```
+✅ Doit lister les fichiers
+
+### Tableau récapitulatif
+
+| Test | Commande | Résultat attendu |
+|------|----------|------------------|
+| Docker | `docker ps` | 4 conteneurs UP |
+| Web HTTPS | `curl -k https://localhost` | Page HTML |
+| HTTP→HTTPS | `curl -I http://localhost` | 301/302 |
+| HAProxy | `curl http://localhost:8080/stats` | Interface stats |
+| vsftpd | `systemctl is-active vsftpd` | `active` |
+| Port 21 | `ss -tlnp \| grep 21` | En écoute |

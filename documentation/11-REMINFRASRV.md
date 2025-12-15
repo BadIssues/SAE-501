@@ -7,6 +7,19 @@
 
 ---
 
+## 🎯 Contexte (Sujet)
+
+Ce serveur assure la tolérance de panne pour les services du site Remote :
+
+| Service | Description |
+|---------|-------------|
+| **AD Member** | Membre du domaine `rem.wsl2025.org` (pas contrôleur). |
+| **DNS Secondary** | Zone secondaire de `rem.wsl2025.org` depuis REMDCSRV. |
+| **DHCP Failover** | Serveur secondaire avec REMDCSRV pour le réseau Remote. |
+| **DFS** | Namespace DFS partagé avec REMDCSRV pour `users` et `Department`. |
+
+---
+
 ## 📋 Prérequis
 
 - [ ] Windows Server 2022 installé
@@ -16,14 +29,6 @@
 - [ ] **Carte réseau "Portail Captif" désactivée** (si présente)
 
 > ⚠️ **IMPORTANT - Carte Portail Captif** : Si une carte réseau "Portail Captif" est activée sur le serveur, **la désactiver** avant de commencer la configuration.
-
-> **Sujet** :
->
-> ```
-> REMINFRASRV is a Active Directory Domain Member
-> This server provide fault tolerance in the Remote Site for different services: DNS, DHCP, DFS
-> Create a DFS Domain root with REMINFRASRV
-> ```
 
 ---
 
@@ -467,3 +472,50 @@ Test-Path "\\rem.wsl2025.org\Department"
 > - REMINFRASRV héberge les **namespaces DFS** (point d'entrée)
 > - REMDCSRV contient les **données réelles** (partages SMB)
 > - Le client accède via `\\rem.wsl2025.org\...` et DFS redirige vers REMDCSRV
+
+---
+
+## ✅ Vérification Finale
+
+> **Instructions** : Exécuter ces commandes sur REMINFRASRV (PowerShell Admin) pour valider le bon fonctionnement.
+
+### 1. Membre du domaine
+```powershell
+(Get-WmiObject Win32_ComputerSystem).Domain
+```
+✅ Doit afficher `rem.wsl2025.org`
+
+### 2. DNS Secondary
+```powershell
+Get-DnsServerZone | Where-Object { $_.ZoneType -eq "Secondary" }
+```
+✅ Doit montrer `rem.wsl2025.org` en type Secondary
+
+### 3. DHCP Failover
+```powershell
+Get-DhcpServerv4Failover
+```
+✅ Doit afficher une relation failover avec REMDCSRV
+
+### 4. DFS Namespaces
+```powershell
+Get-DfsnRoot -Path "\\rem.wsl2025.org\*" | Select-Object Path, State
+```
+✅ Doit lister `users` et `Department` en état `Online`
+
+### 5. Accès DFS
+```powershell
+Test-Path "\\rem.wsl2025.org\users"
+Test-Path "\\rem.wsl2025.org\Department"
+```
+✅ Les deux doivent retourner `True`
+
+### Tableau récapitulatif
+
+| Test | Commande | Résultat attendu |
+|------|----------|------------------|
+| Domaine | `(gwmi Win32_ComputerSystem).Domain` | `rem.wsl2025.org` |
+| DNS Secondary | `Get-DnsServerZone` | Zone secondaire |
+| DHCP Failover | `Get-DhcpServerv4Failover` | Relation active |
+| DFS users | `Test-Path "\\rem.wsl2025.org\users"` | `True` |
+| DFS Department | `Test-Path "\\rem.wsl2025.org\Department"` | `True` |

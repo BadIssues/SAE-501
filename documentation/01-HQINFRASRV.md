@@ -7,6 +7,20 @@
 
 ---
 
+## 🎯 Contexte (Sujet)
+
+Ce serveur fournit plusieurs services d'infrastructure pour le site HQ :
+
+| Service | Description |
+|---------|-------------|
+| **DHCP** | Serveur primaire pour les réseaux Clients (VLAN 20) et Management (VLAN 99). Failover avec HQMAILSRV. Bail de 2h. |
+| **VPN** | Serveur OpenVPN sur port 4443, accessible via 191.4.157.33 (NAT). Auth par certificat HQDCSRV + user/password AD. |
+| **Stockage** | LVM avec 2 disques de 5Go. LV `lvdatastorage` (2Go, ext4) + LV `lviscsi` (2Go) pour target iSCSI. |
+| **Samba** | Partage `Public` (lecture seule) + `Private` (caché, RW Tom/Emma, RO Jean, blocage .exe/.zip). |
+| **NTP** | Serveur de temps pour toute l'infrastructure. Authentification par restriction réseau. |
+
+---
+
 ## 📋 Prérequis
 
 - [ ] Debian 13 installé
@@ -561,3 +575,94 @@ ip nat inside source static udp 10.4.10.2 4443 191.4.157.33 4443 extendable
 - Le plugin `openvpn-auth-ldap` vérifie les credentials contre AD (hq.wsl2025.org)
 - Les utilisateurs du domaine peuvent se connecter avec leur login/mot de passe AD
 - L'authentification combine : certificat client valide + credentials AD
+
+---
+
+## ✅ Vérification Finale
+
+> **Instructions** : Exécuter ces commandes sur HQINFRASRV pour valider le bon fonctionnement.
+
+### 1. Services de base
+```bash
+# Vérifier que tous les services sont actifs
+systemctl status isc-dhcp-server
+systemctl status smbd
+systemctl status tgt
+systemctl status openvpn@server
+systemctl status ntpsec
+```
+✅ Tous les services doivent être `active (running)`
+
+### 2. DHCP
+```bash
+# Vérifier la configuration
+dhcpd -t -cf /etc/dhcp/dhcpd.conf
+
+# Vérifier le failover (logs)
+journalctl -u isc-dhcp-server | grep -i failover | tail -5
+```
+✅ Pas d'erreurs, failover en état "normal"
+
+### 3. Stockage LVM
+```bash
+# Vérifier les volumes logiques
+lvs
+```
+✅ Doit afficher `lvdatastorage` et `lviscsi` de 2Go chacun
+
+```bash
+# Vérifier le montage
+df -h /srv/datastorage
+```
+✅ Doit montrer `/dev/mapper/vgstorage-lvdatastorage` monté sur `/srv/datastorage`
+
+### 4. iSCSI
+```bash
+tgtadm --mode target --op show
+```
+✅ Doit afficher le target `iqn.2025-01.org.wsl2025:storage.lun1`
+
+### 5. Samba
+```bash
+# Lister les partages
+smbclient -L localhost -U jean%P@ssw0rd
+```
+✅ Doit voir `Public` (mais pas `Private` car caché)
+
+```bash
+# Tester l'accès Private avec Tom
+smbclient //localhost/Private -U tom%P@ssw0rd -c "ls"
+```
+✅ Doit lister le contenu
+
+### 6. VPN
+```bash
+# Vérifier le port
+ss -ulnp | grep 4443
+```
+✅ Doit montrer OpenVPN écoutant sur le port 4443
+
+```bash
+# Vérifier l'interface tunnel
+ip addr show tun0
+```
+✅ Doit exister avec l'IP 10.4.22.1
+
+### 7. NTP
+```bash
+ntpq -p
+```
+✅ Doit montrer `*LOCAL(0)` avec stratum 10
+
+### Tableau récapitulatif
+
+| Test | Commande | Résultat attendu |
+|------|----------|------------------|
+| DHCP actif | `systemctl is-active isc-dhcp-server` | `active` |
+| Samba actif | `systemctl is-active smbd` | `active` |
+| iSCSI actif | `systemctl is-active tgt` | `active` |
+| VPN actif | `systemctl is-active openvpn@server` | `active` |
+| NTP actif | `systemctl is-active ntpsec` | `active` |
+| LV datastorage | `lvs \| grep lvdatastorage` | Présent, 2Go |
+| LV iscsi | `lvs \| grep lviscsi` | Présent, 2Go |
+| Port VPN | `ss -ulnp \| grep 4443` | Écoute active |

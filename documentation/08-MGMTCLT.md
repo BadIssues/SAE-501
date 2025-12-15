@@ -6,6 +6,20 @@
 
 ---
 
+## 🎯 Contexte (Sujet)
+
+Ce poste est dédié à l'administration des équipements réseau :
+
+| Fonction | Description |
+|----------|-------------|
+| **Ansible** | Playbooks pour gérer ACCSW1, ACCSW2, CORESW1, CORESW2. |
+| **Backup/Restore** | Sauvegarde et restauration des configs switches via TFTP local. |
+| **Monitoring** | Collecte version OS, état interfaces, paramètres environnementaux (3750). |
+| **NTP** | Synchronisation des switches avec HQINFRASRV. |
+| **Stockage** | Playbooks stockés sur FTP (INETSRV - ftp.worldskills.org). |
+
+---
+
 ## 📋 Prérequis
 
 - [ ] Debian 13 avec interface graphique
@@ -314,14 +328,62 @@ ssh admin@10.4.99.252  # CORESW2
 
 ---
 
-## ✅ Vérifications
+## ✅ Vérification Finale
 
-| Test | Commande |
-|------|----------|
-| Ansible ping | `ansible switches -m ping` |
-| TFTP | `ls /srv/tftp/` |
-| SSH ACCSW1 | `ssh admin@10.4.99.11` |
-| Playbook | `ansible-playbook get_version.yml` |
+> **Instructions** : Exécuter ces commandes sur MGMTCLT pour valider le bon fonctionnement.
+
+### 1. Connectivité réseau
+```bash
+# Ping vers tous les switches
+ping -c 1 10.4.99.11 && echo "ACCSW1 OK"
+ping -c 1 10.4.99.12 && echo "ACCSW2 OK"
+ping -c 1 10.4.99.253 && echo "CORESW1 OK"
+ping -c 1 10.4.99.252 && echo "CORESW2 OK"
+```
+✅ Tous les switches doivent répondre
+
+### 2. SSH - Accès aux switches
+```bash
+ssh -o BatchMode=yes -o ConnectTimeout=5 admin@10.4.99.11 "show version | include uptime"
+```
+✅ Doit afficher l'uptime du switch (bannière visible avant)
+
+### 3. Ansible - Test de connectivité
+```bash
+cd ~/ansible
+ansible switches -m ping
+```
+✅ Tous les switches doivent retourner `SUCCESS`
+
+### 4. TFTP - Service actif
+```bash
+systemctl is-active tftpd-hpa
+ls /srv/tftp/
+```
+✅ Service `active`, dossier accessible
+
+### 5. Playbook - Version des équipements
+```bash
+cd ~/ansible
+ansible-playbook get_version.yml
+```
+✅ Doit afficher la version IOS de chaque switch
+
+### 6. FTP - Accès à INETSRV
+```bash
+curl -u devops:P@ssw0rd ftp://ftp.worldskills.org/ 2>/dev/null | head
+```
+✅ Doit lister le contenu du serveur FTP
+
+### Tableau récapitulatif
+
+| Test | Commande | Résultat attendu |
+|------|----------|------------------|
+| Ping ACCSW1 | `ping -c 1 10.4.99.11` | Réponse |
+| SSH ACCSW1 | `ssh admin@10.4.99.11` | Connexion + bannière |
+| Ansible | `ansible switches -m ping` | SUCCESS x4 |
+| TFTP | `systemctl is-active tftpd-hpa` | `active` |
+| FTP INETSRV | `curl ftp://ftp.worldskills.org/` | Liste fichiers |
 
 ---
 

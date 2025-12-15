@@ -6,6 +6,19 @@
 
 ---
 
+## 🎯 Contexte (Sujet)
+
+Ce poste simule un employé du siège HQ :
+
+| Fonction | Description |
+|----------|-------------|
+| **DHCP** | Obtient son IP automatiquement de HQINFRASRV (plage 10.4.20.10-10.4.21.200). |
+| **Domaine** | Membre du domaine `hq.wsl2025.org`. |
+| **GPO** | Reçoit les GPO (certificats, Edge homepage, lecteurs réseau U:/S:/P:). |
+| **Accès** | Doit pouvoir accéder aux ressources corporate et à Internet. |
+
+---
+
 ## 📋 Prérequis
 
 - [ ] Windows 11 installé
@@ -160,30 +173,70 @@ certmgr.msc
 
 ---
 
-## ✅ Checklist de validation
+## ✅ Vérification Finale
 
-| Test | Statut |
-|------|--------|
-| ⬜ IP obtenue par DHCP (10.4.20.X) | |
-| ⬜ Jonction au domaine hq.wsl2025.org | |
-| ⬜ Connexion utilisateur AD (vtim, rola, etc.) | |
-| ⬜ GPO appliquées | |
-| ⬜ Lecteurs réseau mappés (U:, S:, P:) | |
-| ⬜ Accès Internet | |
-| ⬜ Accès www.wsl2025.org | |
-| ⬜ Accès webmail.wsl2025.org | |
-| ⬜ Client mail configuré | |
-| ⬜ Accès RDS/RemoteApp | |
-| ⬜ Partages Samba accessibles | |
-| ⬜ Certificats CA installés | |
-| ⬜ Edge affiche www.wsl2025.org par défaut | |
-| ⬜ Panneau de config bloqué (sauf IT) | |
+> **Instructions** : Exécuter ces tests sur HQCLT après connexion avec un utilisateur du domaine.
 
----
+### 1. DHCP - IP obtenue
+```powershell
+ipconfig | Select-String "IPv4"
+```
+✅ Doit afficher une IP dans la plage `10.4.20.X` ou `10.4.21.X`
 
-## 📝 Notes
+### 2. Domaine - Jonction vérifiée
+```powershell
+(Get-WmiObject Win32_ComputerSystem).Domain
+```
+✅ Doit afficher `hq.wsl2025.org`
 
-- L'utilisateur `vtim` fait partie du groupe IT (droits admin locaux)
-- L'utilisateur `rola` peut accéder à `authentication.wsl2025.org` (groupe Sales)
-- Le panneau de configuration doit être bloqué sauf pour le groupe IT
-- Edge doit afficher www.wsl2025.org comme page d'accueil (GPO)
+### 3. GPO - Forcer l'application
+```powershell
+gpupdate /force
+gpresult /r | Select-String "Objets"
+```
+✅ Doit lister les GPO appliquées
+
+### 4. Lecteurs réseau
+```powershell
+Get-PSDrive | Where-Object { $_.Name -in @("U","S","P") }
+```
+✅ Les lecteurs U:, S:, P: doivent être présents
+
+### 5. Certificats CA déployés
+```powershell
+Get-ChildItem Cert:\LocalMachine\Root | Where-Object { $_.Subject -like "*WSFR*" }
+```
+✅ Doit afficher `WSFR-ROOT-CA`
+
+### 6. Accès Internet
+```powershell
+Test-NetConnection -ComputerName google.com -Port 443
+```
+✅ `TcpTestSucceeded` doit être `True`
+
+### 7. Accès ressources internes
+```powershell
+Test-NetConnection -ComputerName www.wsl2025.org -Port 443
+Test-NetConnection -ComputerName webmail.wsl2025.org -Port 443
+```
+✅ Les deux doivent être accessibles
+
+### 8. Edge - Page d'accueil (GPO)
+- Ouvrir Microsoft Edge
+- ✅ La page d'accueil doit être `www.wsl2025.org` ou l'intranet
+
+### 9. Panneau de configuration (GPO)
+- Se connecter avec `rola` (non-IT)
+- Appuyer sur `Win+I`
+- ✅ L'accès aux paramètres doit être bloqué
+
+### Tableau récapitulatif
+
+| Test | Commande/Action | Résultat attendu |
+|------|-----------------|------------------|
+| IP DHCP | `ipconfig` | `10.4.20.X` ou `10.4.21.X` |
+| Domaine | `systeminfo \| find "Domaine"` | `hq.wsl2025.org` |
+| Lecteur U: | `net use U:` | Connecté |
+| Cert Root | `certmgr.msc` | WSFR-ROOT-CA présent |
+| Internet | `ping google.com` | Réponse |
+| Webmail | Navigateur | Page Roundcube |

@@ -7,6 +7,19 @@
 
 ---
 
+## 🎯 Contexte (Sujet)
+
+Ce routeur/firewall connecte le site Remote au réseau MAN (vers HQ) :
+
+| Fonction | Description |
+|----------|-------------|
+| **OSPF** | Adjacence avec WANRTR (VRF MAN), authentification MD5. |
+| **ACL Firewall** | Filtrage du trafic entrant depuis HQ. Seuls les services autorisés passent (SSH, DNS, HTTPS, Microsoft). |
+| **Gateway** | Passerelle par défaut (10.4.100.126) pour le réseau Remote (10.4.100.0/25). |
+| **Route par défaut** | Trafic inconnu routé vers WANRTR. |
+
+---
+
 ## 📋 Prérequis
 
 - [ ] VM Cisco CSR1000V déployée
@@ -121,14 +134,56 @@ router ospf 1
 
 ---
 
-## ✅ Vérifications
+## ✅ Vérification Finale
 
-| Test | Commande |
-|------|----------|
-| OSPF | `show ip ospf neighbor` |
-| Routes | `show ip route` |
-| ACLs Hits | `show ip access-lists FIREWALL-INBOUND` |
-| Logs | `show logging` |
+> **Instructions** : Exécuter ces commandes sur REMFW (console ou SSH) pour valider le bon fonctionnement.
+
+### 1. Interfaces UP
+```
+show ip interface brief
+```
+✅ Gi1 (10.116.4.1) et Gi2 (10.4.100.126) doivent être `up/up`
+
+### 2. OSPF - Voisinage avec WANRTR
+```
+show ip ospf neighbor
+```
+✅ Doit montrer un voisin (WANRTR) en état `FULL`
+
+### 3. Routes OSPF reçues
+```
+show ip route ospf
+```
+✅ Doit afficher les routes vers HQ (10.4.0.0/16) et autres réseaux
+
+### 4. ACL Firewall active
+```
+show ip access-lists FIREWALL-INBOUND
+```
+✅ L'ACL doit être présente avec des compteurs (hits)
+
+### 5. Ping vers HQ (via OSPF)
+```
+ping 10.4.10.1
+```
+✅ HQDCSRV doit répondre
+
+### 6. Ping vers Internet (via route par défaut)
+```
+ping 8.8.4.1
+```
+✅ DNSSRV doit répondre (si route par défaut configurée)
+
+### Tableau récapitulatif
+
+| Test | Commande | Résultat attendu |
+|------|----------|------------------|
+| Gi1 UP | `show ip int brief \| i Gi1` | `up/up` |
+| Gi2 UP | `show ip int brief \| i Gi2` | `up/up` |
+| OSPF neighbor | `show ip ospf neighbor` | 1 voisin `FULL` |
+| Route HQ | `show ip route \| i 10.4.0.0` | Présente |
+| ACL | `show ip access-lists` | FIREWALL-INBOUND |
+| Ping HQDCSRV | `ping 10.4.10.1` | Réponse |
 
 ---
 

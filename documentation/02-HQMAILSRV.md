@@ -7,6 +7,20 @@
 
 ---
 
+## 🎯 Contexte (Sujet)
+
+Ce serveur héberge les services de messagerie et de stockage pour le site HQ :
+
+| Service | Description |
+|---------|-------------|
+| **ZFS** | Pool RAID-5 avec 3 disques de 1Go, chiffré. Volume `data` monté sur `/data`. Homes utilisateurs sur `/data/home`. |
+| **Backup** | Sauvegarde automatique de `/data/home` tous les jours à 22h via rsync vers iSCSI (HQINFRASRV). |
+| **Mail** | SMTP (Postfix) + IMAP (Dovecot) sécurisés avec certificats de HQDCSRV. Protocoles non sécurisés désactivés. |
+| **Webmail** | Roundcube accessible sur `https://webmail.wsl2025.org` (interne et externe via NAT 191.4.157.33). |
+| **DHCP Failover** | Serveur secondaire (fille) avec HQINFRASRV (primaire). Partage 50/50 des adresses. |
+
+---
+
 ## 📋 Prérequis
 
 - [ ] Debian 13 installé
@@ -429,25 +443,73 @@ systemctl restart bind9
 
 ---
 
-## ✅ Vérifications
+## ✅ Vérification Finale
 
-| Test      | Commande                                  |
-| --------- | ----------------------------------------- |
-| ZFS       | `zpool status && zfs list`                |
-| iSCSI     | `iscsiadm -m session`                     |
-| Postfix   | `systemctl status postfix`                |
-| Dovecot   | `systemctl status dovecot`                |
-| Webmail   | `curl -k https://localhost`               |
-| SMTP Test | `openssl s_client -connect localhost:465` |
-| IMAP Test | `openssl s_client -connect localhost:993` |
+> **Instructions** : Exécuter ces commandes sur HQMAILSRV pour valider le bon fonctionnement.
 
----
+### 1. ZFS
+```bash
+# Vérifier l'état du pool
+zpool status
+```
+✅ Doit montrer `zfspool` en état `ONLINE` avec 3 disques en raidz1
 
-## 📝 Notes
+```bash
+# Vérifier les volumes
+zfs list
+```
+✅ Doit montrer `zfspool/data` monté sur `/data`
 
-- **IP ens192 (VLAN 10 Servers)** : 10.4.10.3/24
-- **IP ens224 (VLAN 20 Clients)** : 10.4.20.2/24 - Interface DHCP Secondary (Fille)
-- Les certificats SSL doivent être demandés à HQDCSRV (Sub CA)
-- Le webmail est accessible depuis l'externe via NAT sur **191.4.157.33** ports 80/443
-- Configurer DNSSEC avec le certificat de HQDCSRV
-- Le DHCP failover fonctionne avec HQINFRASRV (10.4.20.1) dans le VLAN 20
+### 2. iSCSI (connexion à HQINFRASRV)
+```bash
+iscsiadm -m session
+```
+✅ Doit montrer une session active vers `10.4.10.2`
+
+### 3. Mail (Postfix + Dovecot)
+```bash
+systemctl status postfix dovecot
+```
+✅ Les deux services doivent être `active (running)`
+
+```bash
+# Test SMTPS (port 465)
+echo | openssl s_client -connect localhost:465 2>/dev/null | grep "subject"
+```
+✅ Doit afficher le certificat du serveur
+
+```bash
+# Test IMAPS (port 993)
+echo | openssl s_client -connect localhost:993 2>/dev/null | grep "subject"
+```
+✅ Doit afficher le certificat du serveur
+
+### 4. Webmail
+```bash
+curl -k -s https://localhost | grep -i roundcube
+```
+✅ Doit contenir "Roundcube" dans la réponse
+
+### 5. DHCP Failover
+```bash
+journalctl -u isc-dhcp-server | grep -i "failover" | tail -3
+```
+✅ Doit montrer `peer moves from ... to normal` ou état similaire
+
+### 6. Backup (cron rsync)
+```bash
+crontab -l | grep rsync
+```
+✅ Doit montrer une ligne avec rsync vers le disque iSCSI à 22h
+
+### Tableau récapitulatif
+
+| Test | Commande | Résultat attendu |
+|------|----------|------------------|
+| ZFS pool | `zpool status \| grep state` | `ONLINE` |
+| ZFS data | `zfs list \| grep data` | Présent |
+| iSCSI | `iscsiadm -m session` | Session active |
+| Postfix | `systemctl is-active postfix` | `active` |
+| Dovecot | `systemctl is-active dovecot` | `active` |
+| DHCP | `systemctl is-active isc-dhcp-server` | `active` |
+| Webmail | `curl -k -s https://localhost` | Contenu HTML |

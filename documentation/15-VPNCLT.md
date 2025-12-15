@@ -244,20 +244,54 @@ redirect-gateway def1
 
 ---
 
-## ✅ Checklist de validation
+## ✅ Vérification Finale
 
-| Test | Statut |
-|------|--------|
-| ⬜ OpenVPN installé | |
-| ⬜ Certificats en place | |
-| ⬜ Connexion VPN établie | |
-| ⬜ IP VPN obtenue (10.4.22.X) | |
-| ⬜ Ping vers HQDCSRV (10.4.10.1) | |
-| ⬜ Ping vers REMDCSRV (10.4.100.1) | |
-| ⬜ Résolution DNS interne | |
-| ⬜ Accès partages réseau | |
-| ⬜ Accès webmail | |
-| ⬜ Accès www.wsl2025.org | |
+> **Instructions** : Exécuter ces tests sur VPNCLT après connexion VPN établie.
+
+### 1. Connexion VPN établie
+- Icône OpenVPN verte dans la barre des tâches
+- ✅ Statut "Connected"
+
+### 2. IP VPN obtenue
+```powershell
+ipconfig | Select-String "10.4.22"
+```
+✅ Doit afficher une IP dans la plage `10.4.22.X`
+
+### 3. Ping serveurs HQ (via VPN)
+```powershell
+Test-Connection 10.4.10.1 -Count 1  # HQDCSRV
+Test-Connection 10.4.10.2 -Count 1  # HQINFRASRV
+```
+✅ Les deux doivent répondre
+
+### 4. Ping serveur Remote (via VPN + MAN)
+```powershell
+Test-Connection 10.4.100.1 -Count 1  # REMDCSRV
+```
+✅ Doit répondre
+
+### 5. Résolution DNS interne
+```powershell
+Resolve-DnsName hqdcsrv.hq.wsl2025.org
+Resolve-DnsName www.wsl2025.org
+```
+✅ Doivent résoudre
+
+### 6. Accès ressources (navigateur)
+- `https://www.wsl2025.org` → Site web corporate
+- `https://webmail.wsl2025.org` → Roundcube
+
+### Tableau récapitulatif
+
+| Test | Commande/Action | Résultat attendu |
+|------|-----------------|------------------|
+| VPN connecté | Icône OpenVPN | Verte |
+| IP VPN | `ipconfig` | `10.4.22.X` |
+| Ping HQDCSRV | `ping 10.4.10.1` | Réponse |
+| Ping REMDCSRV | `ping 10.4.100.1` | Réponse |
+| DNS interne | `nslookup hqdcsrv.hq.wsl2025.org` | Résolution OK |
+| Webmail | Navigateur | Page Roundcube |
 
 ---
 

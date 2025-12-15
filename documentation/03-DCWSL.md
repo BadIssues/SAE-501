@@ -6,6 +6,19 @@
 
 ---
 
+## 🎯 Contexte (Sujet)
+
+Ce serveur est la **racine de la forêt Active Directory** `wsl2025.org` :
+
+| Service | Description |
+|---------|-------------|
+| **Active Directory** | Forest root, Global Catalog. Domaine parent de `hq.wsl2025.org` et `rem.wsl2025.org`. |
+| **DNS** | Zone `wsl2025.org` avec tous les enregistrements de l'infrastructure (serveurs, switches, routeurs, VPN). |
+| **DNSSEC** | Zone signée avec certificat. |
+| **Forwarder** | Requêtes externes redirigées vers DNSSRV (8.8.4.1). |
+
+---
+
 ## 📋 Prérequis
 
 - [ ] Windows Server 2022 installé
@@ -180,20 +193,67 @@ Resolve-DnsName vpn.wsl2025.org
 
 ---
 
-## 📋 Checklist finale
-
-- [ ] Serveur renommé DCWSL
-- [ ] IP statique configurée (10.4.10.4/24, Gateway 10.4.10.254)
-- [ ] Forêt wsl2025.org créée
-- [ ] DNS zone wsl2025.org configurée
-- [ ] 15 enregistrements DNS créés
-- [ ] Forwarder vers DNSSRV (8.8.4.1)
-- [ ] DNSSEC activé (zone signée)
-
 ---
 
-## 📝 Notes
+## ✅ Vérification Finale
 
-- **IP** : 10.4.10.4
-- C'est le serveur DNS faisant autorité pour tout le domaine racine.
-- Les sous-domaines `hq.wsl2025.org` (HQDCSRV) et `rem.wsl2025.org` (REMDCSRV) seront délégués ou gérés directement par leurs contrôleurs respectifs qui forwarderont vers DCWSL.
+> **Instructions** : Exécuter ces commandes sur DCWSL (PowerShell Admin) pour valider le bon fonctionnement.
+
+### 1. Active Directory
+```powershell
+# Vérifier le domaine
+Get-ADDomain | Select-Object Name, DNSRoot, Forest
+```
+✅ Doit afficher `Name=wsl2025`, `DNSRoot=wsl2025.org`, `Forest=wsl2025.org`
+
+```powershell
+# Vérifier que c'est un Global Catalog
+Get-ADDomainController | Select-Object Name, IsGlobalCatalog
+```
+✅ `IsGlobalCatalog` doit être `True`
+
+### 2. DNS - Zone et Enregistrements
+```powershell
+# Vérifier la zone
+Get-DnsServerZone -Name "wsl2025.org" | Select-Object ZoneName, ZoneType, IsSigned
+```
+✅ `ZoneType=Primary`, `IsSigned=True`
+
+```powershell
+# Compter les enregistrements
+(Get-DnsServerResourceRecord -ZoneName "wsl2025.org").Count
+```
+✅ Doit être supérieur à 15 (enregistrements infrastructure)
+
+### 3. DNS - Résolution
+```powershell
+# Test enregistrements internes
+Resolve-DnsName hqinfrasrv.wsl2025.org
+Resolve-DnsName vpn.wsl2025.org
+Resolve-DnsName www.wsl2025.org
+```
+✅ Doivent résoudre vers les bonnes IPs
+
+### 4. DNS - Forwarder
+```powershell
+# Vérifier le forwarder
+Get-DnsServerForwarder
+```
+✅ Doit inclure `8.8.4.1` (DNSSRV)
+
+```powershell
+# Test résolution externe
+Resolve-DnsName google.com
+```
+✅ Doit résoudre via le forwarder
+
+### Tableau récapitulatif
+
+| Test | Commande | Résultat attendu |
+|------|----------|------------------|
+| Domaine | `(Get-ADDomain).DNSRoot` | `wsl2025.org` |
+| Global Catalog | `(Get-ADDomainController).IsGlobalCatalog` | `True` |
+| Zone DNS | `(Get-DnsServerZone "wsl2025.org").ZoneType` | `Primary` |
+| DNSSEC | `(Get-DnsServerZone "wsl2025.org").IsSigned` | `True` |
+| Forwarder | `Get-DnsServerForwarder` | Contient `8.8.4.1` |
+| VPN DNS | `Resolve-DnsName vpn.wsl2025.org` | `191.4.157.33` |

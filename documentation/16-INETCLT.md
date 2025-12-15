@@ -6,6 +6,18 @@
 
 ---
 
+## 🎯 Contexte (Sujet)
+
+Ce poste simule un utilisateur externe sur Internet :
+
+| Fonction | Description |
+|----------|-------------|
+| **Accès public** | Doit pouvoir accéder aux services publics : www.wsl2025.org, www.worldskills.org. |
+| **DNS** | Utilise DNSSRV (8.8.4.1) comme serveur DNS. |
+| **Tests** | Permet de valider l'accessibilité des services depuis l'extérieur. |
+
+---
+
 ## 📋 Prérequis
 
 - [ ] Debian 13 avec interface graphique
@@ -177,26 +189,57 @@ L'accès à la page de login doit fonctionner, mais la connexion nécessite un c
 
 ---
 
-## ✅ Checklist de validation
+## ✅ Vérification Finale
 
-| Test | Statut |
-|------|--------|
-| ⬜ Résolution DNS www.worldskills.org | |
-| ⬜ Résolution DNS www.wsl2025.org | |
-| ⬜ Accès https://www.worldskills.org | |
-| ⬜ Accès https://www.wsl2025.org | |
-| ⬜ Accès https://webmail.wsl2025.org | |
-| ⬜ Accès FTP ftp.worldskills.org | |
-| ⬜ Port VPN 4443 ouvert sur 191.4.157.33 | |
-| ⬜ Pas d'accès aux réseaux privés (10.4.X.X) | |
+> **Instructions** : Exécuter ces commandes sur INETCLT pour valider l'accès aux services publics.
 
----
+### 1. Résolution DNS
+```bash
+dig @8.8.4.1 www.worldskills.org +short
+dig @8.8.4.1 www.wsl2025.org +short
+dig @8.8.4.1 vpn.wsl2025.org +short
+```
+✅ Doivent résoudre : 8.8.4.2, 217.4.160.1, 191.4.157.33
 
-## 📝 Notes
+### 2. Accès site www.worldskills.org
+```bash
+curl -k -s https://www.worldskills.org | head -5
+```
+✅ Doit afficher du contenu HTML
 
-- **IP** : 8.8.4.4
-- Ce client simule un utilisateur Internet standard
-- Il ne doit avoir accès qu'aux services publics exposés
-- Les réseaux privés (10.4.0.0/16) ne sont pas accessibles directement
-- L'accès VPN nécessite le client OpenVPN et des credentials AD
+### 3. Accès site www.wsl2025.org
+```bash
+curl -k -s https://www.wsl2025.org | head -5
+```
+✅ Doit afficher du contenu HTML
+
+### 4. Accès webmail
+```bash
+curl -k -s -o /dev/null -w "%{http_code}" https://webmail.wsl2025.org
+```
+✅ Doit retourner `200`
+
+### 5. Port VPN ouvert
+```bash
+nc -zvu 191.4.157.33 4443 2>&1 | head -1
+```
+✅ Doit indiquer le port ouvert/accessible
+
+### 6. Pas d'accès aux réseaux privés
+```bash
+ping -c 1 -W 2 10.4.10.1 2>/dev/null && echo "ERREUR: Accessible!" || echo "OK: Non accessible"
+```
+✅ Doit afficher "OK: Non accessible"
+
+### Tableau récapitulatif
+
+| Test | Commande | Résultat attendu |
+|------|----------|------------------|
+| DNS worldskills | `dig www.worldskills.org +short` | `8.8.4.2` |
+| DNS wsl2025 | `dig www.wsl2025.org +short` | `217.4.160.1` |
+| Web worldskills | `curl -k https://www.worldskills.org` | HTML |
+| Web wsl2025 | `curl -k https://www.wsl2025.org` | HTML |
+| Webmail | `curl -k https://webmail.wsl2025.org` | HTTP 200 |
+| VPN port | `nc -zvu 191.4.157.33 4443` | Ouvert |
+| Privé bloqué | `ping 10.4.10.1` | Timeout |
 

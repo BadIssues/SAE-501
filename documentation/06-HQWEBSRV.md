@@ -6,6 +6,19 @@
 
 ---
 
+## 🎯 Contexte (Sujet)
+
+Ce serveur héberge les services web et RDS accessibles depuis Internet :
+
+| Service | Description |
+|---------|-------------|
+| **IIS Web** | Site `www.wsl2025.org` accessible en HTTP/HTTPS (redirection auto HTTP→HTTPS). IP publique 217.4.160.X. |
+| **RDS** | RemoteApp pour Excel et Word, accessible via navigateur web pour tous les utilisateurs. |
+| **Authentification** | Site `https://authentication.wsl2025.org` avec auth AD, accès réservé au groupe Sales. |
+| **Certificat** | SSL émis par HQDCSRV (Sub CA WSFR-SUB-CA). |
+
+---
+
 ## 📋 Prérequis
 
 - [ ] Windows Server 2022 installé
@@ -175,21 +188,51 @@ Le portail RD Web Access est accessible sur :
 
 ---
 
-## ✅ Vérifications
+## ✅ Vérification Finale
 
-| Test | Action |
-|------|--------|
-| Site Web | `curl https://www.wsl2025.org` |
-| Auth Site | Naviguer vers `https://authentication.wsl2025.org` avec user Sales |
-| RD Web | Naviguer vers `https://217.4.160.2/RDWeb` |
-| IIS Status | `Get-Website` |
+> **Instructions** : Exécuter ces commandes sur HQWEBSRV (PowerShell Admin) pour valider le bon fonctionnement.
 
----
+### 1. IIS - Sites web actifs
+```powershell
+Get-Website | Select-Object Name, State, PhysicalPath
+```
+✅ Les sites doivent être en état `Started`
 
-## 📝 Notes
+### 2. Test site www.wsl2025.org (depuis HQWEBSRV)
+```powershell
+Invoke-WebRequest -Uri "http://localhost" -UseBasicParsing | Select-Object StatusCode
+```
+✅ Doit retourner `StatusCode: 200` (ou 301 si redirection HTTPS)
 
-- **IP** : 217.4.160.2 (VLAN 30 - DMZ)
-- **Gateway** : 217.4.160.254 (VIP HSRP EDGE1/EDGE2)
-- Les certificats doivent être demandés à HQDCSRV (template WSFR_Services)
-- L'accès à `authentication.wsl2025.org` est limité au groupe AD "Sales" (rola)
-- RD Web Access permet l'accès aux applications Word/Excel via navigateur
+### 3. Certificat SSL
+```powershell
+Get-ChildItem Cert:\LocalMachine\My | Where-Object { $_.Subject -like "*wsl2025*" }
+```
+✅ Doit afficher un certificat avec le subject contenant wsl2025
+
+### 4. RDS - Rôles installés
+```powershell
+Get-WindowsFeature | Where-Object { $_.Name -like "RDS*" -and $_.Installed }
+```
+✅ Doit montrer RDS-RD-Server, RDS-Web-Access installés
+
+### 5. RDS - RemoteApps publiées
+```powershell
+Get-RDRemoteApp -CollectionName "Office Apps" -ErrorAction SilentlyContinue
+```
+✅ Doit lister Word et Excel (si configurés)
+
+### 6. Test depuis un navigateur externe
+- `https://www.wsl2025.org` → Page d'accueil WSL2025
+- `https://authentication.wsl2025.org` → Demande d'authentification AD
+- `https://217.4.160.2/RDWeb` → Portail RD Web Access
+
+### Tableau récapitulatif
+
+| Test | Commande/Action | Résultat attendu |
+|------|-----------------|------------------|
+| IIS actif | `(Get-Website).State` | `Started` |
+| Cert SSL | `Get-ChildItem Cert:\LocalMachine\My` | Certificat wsl2025 |
+| RDS installé | `Get-WindowsFeature RDS*` | Installé |
+| Site HTTP | `curl http://localhost` | Réponse 200/301 |
+| RD Web | Navigateur `/RDWeb` | Page de connexion |

@@ -7,6 +7,21 @@
 
 ---
 
+## 🎯 Contexte (Sujet)
+
+Ce serveur sécurise les communications entre Internet (DMZ) et le réseau interne :
+
+| Service | Description |
+|---------|-------------|
+| **Firewall nftables** | Règles de filtrage pour protéger les ressources internes. |
+| **NAT/DNAT** | Redirection HTTP/HTTPS vers HQWEBSRV (217.4.160.2). |
+| **RDS Forward** | Redirection MS RDS (3389) vers HQWEBSRV. |
+| **Ports fermés** | Tous les ports non utilisés sont bloqués. |
+
+> ⚠️ Le VLAN 10 est utilisé uniquement pour l'authentification AD.
+
+---
+
 ## 📋 Prérequis
 
 - [ ] Debian 13 installé
@@ -188,14 +203,49 @@ nft list ruleset > /etc/nftables.conf.backup
 
 ---
 
-## ✅ Vérifications
+## ✅ Vérification Finale
 
-| Test | Commande/Action |
-|------|-----------------|
-| Règles actives | `nft list ruleset` |
-| Test HTTP | `curl -I http://217.4.160.2` (depuis DMZ) |
-| Test RDP | Connexion RDP vers 217.4.160.2 |
-| Logs | `journalctl -f \| grep nft` |
+> **Instructions** : Exécuter ces commandes sur HQFWSRV pour valider le bon fonctionnement.
+
+### 1. Forwarding IP activé
+```bash
+sysctl net.ipv4.ip_forward
+```
+✅ Doit retourner `net.ipv4.ip_forward = 1`
+
+### 2. Règles nftables chargées
+```bash
+nft list ruleset | head -20
+```
+✅ Doit afficher les tables et chaînes configurées
+
+### 3. Test de redirection HTTP (depuis HQFWSRV)
+```bash
+curl -I http://217.4.160.2
+```
+✅ Doit retourner `HTTP/1.1 200 OK` ou une redirection vers HTTPS
+
+### 4. Test connectivité vers HQWEBSRV
+```bash
+ping -c 2 217.4.160.2
+```
+✅ Doit répondre
+
+### 5. Test connectivité vers réseau interne
+```bash
+ping -c 2 10.4.10.1
+```
+✅ Doit répondre (HQDCSRV)
+
+### Tableau récapitulatif
+
+| Test | Commande | Résultat attendu |
+|------|----------|------------------|
+| IP Forward | `sysctl net.ipv4.ip_forward` | `= 1` |
+| nftables | `systemctl is-active nftables` | `active` |
+| Ping HQWEBSRV | `ping -c 1 217.4.160.2` | Réponse |
+| Ping interne | `ping -c 1 10.4.10.1` | Réponse |
+| Règles | `nft list tables` | Tables visibles |
 
 ---
 
