@@ -137,6 +137,7 @@ ip nat inside source static tcp 10.4.10.3 443 191.4.157.33 443 extendable
 !
 ip access-list extended NAT-ACL
  permit ip 10.4.0.0 0.0.255.255 any
+ permit ip 10.116.4.0 0.0.0.3 any
 !
 ip access-list extended SSH-ACCESS
  permit tcp 10.4.99.0 0.0.0.255 any eq 22
