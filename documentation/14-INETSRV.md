@@ -1,22 +1,52 @@
 # INETSRV - Serveur Web et FTP Internet
 
 > **OS** : Debian 13 CLI  
-> **IP** : 8.8.4.2 (Internet)  
-> **Rôles** : Web Server (Docker HA), FTP Server
+> **IP** : 8.8.4.2/29 (Internet - réseau 8.8.4.0/29)  
+> **Gateway** : 8.8.4.6 (WANRTR)  
+> **DNS** : 8.8.4.1 (DNSSRV)  
+> **Rôles** : Web Server (Docker HA), FTP Server (FTPS)
+
+---
+
+> **Sujet** :
+>
+> ```
+> INETSRV hosts web services such as websites HTTPS, HTTPS (HTTP is automatically
+> redirected to HTTPS) and FTP Services are respectively accessible by using
+> www.worldskills.org and ftp.worldskills.org.
+> All certificates are provided by DNSSRV
+>
+> Web server: Configure a redundant Web server with High Availability and load
+> balancing running in two docker containers. PHP support is enabled.
+> Configure a start page which displays the IP address of the client and the type
+> and version of web browser used by the client and the actual date and time.
+> Configure a page named bad.html with a dangerous content.
+> As a basic security measure, make sure that no sensitive information is displayed
+> in the HTTP headers and the footer.
+>
+> FTP: This server is used for scripts and Ansible Playbooks Storage
+> Configure a secured FTPS server. Create user named devops.
+> Allow uploading / downloading file from FTP.
+> ```
 
 ---
 
 ## 📋 Prérequis
 
-- [ ] Debian 13 installé
-- [ ] DNSSRV opérationnel (8.8.4.1)
-- [ ] Certificats SSL de DNSSRV (Root CA)
+- [ ] Debian 13 CLI installé
+- [ ] DNSSRV opérationnel (8.8.4.1) avec Root CA configuré
+- [ ] Enregistrements DNS sur DNSSRV :
+  - `A inetsrv.worldskills.org` → 8.8.4.2
+  - `CNAME www.worldskills.org` → inetsrv.worldskills.org
+  - `CNAME ftp.worldskills.org` → inetsrv.worldskills.org
+- [ ] Connectivité réseau vers DNSSRV
 
 ---
 
 ## 1️⃣ Configuration de base
 
 ### Hostname et réseau
+
 ```bash
 hostnamectl set-hostname inetsrv
 
@@ -31,6 +61,7 @@ EOF
 ```
 
 ### SSH et Fail2Ban
+
 ```bash
 apt update && apt install -y openssh-server fail2ban
 
@@ -64,11 +95,13 @@ systemctl enable --now docker
 ## 3️⃣ Serveur Web HA avec HAProxy + Nginx
 
 ### Structure des fichiers
+
 ```bash
 mkdir -p /opt/webserver/{nginx1,nginx2,haproxy,html}
 ```
 
 ### Page d'accueil PHP
+
 ```bash
 cat > /opt/webserver/html/index.php << 'EOF'
 <!DOCTYPE html>
@@ -95,6 +128,7 @@ EOF
 ```
 
 ### Page bad.html (contenu dangereux simulé)
+
 ```bash
 cat > /opt/webserver/html/bad.html << 'EOF'
 <!DOCTYPE html>
@@ -115,6 +149,7 @@ EOF
 ```
 
 ### Configuration Nginx (sans info sensible)
+
 ```bash
 cat > /opt/webserver/nginx1/nginx.conf << 'EOF'
 server {
@@ -122,20 +157,20 @@ server {
     server_name www.worldskills.org;
     root /var/www/html;
     index index.php index.html;
-    
+
     # Masquer les informations serveur
     server_tokens off;
-    
+
     location / {
         try_files $uri $uri/ =404;
     }
-    
+
     location ~ \.php$ {
         fastcgi_pass php:9000;
         fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
         include fastcgi_params;
     }
-    
+
     # Masquer les headers sensibles
     add_header X-Content-Type-Options nosniff;
     add_header X-Frame-Options DENY;
@@ -147,6 +182,7 @@ cp /opt/webserver/nginx1/nginx.conf /opt/webserver/nginx2/nginx.conf
 ```
 
 ### Configuration HAProxy
+
 ```bash
 cat > /opt/webserver/haproxy/haproxy.cfg << 'EOF'
 global
@@ -180,6 +216,7 @@ EOF
 ```
 
 ### Docker Compose
+
 ```bash
 cat > /opt/webserver/docker-compose.yml << 'EOF'
 version: '3.8'
@@ -234,6 +271,7 @@ EOF
 ```
 
 ### Démarrer les conteneurs
+
 ```bash
 cd /opt/webserver
 docker-compose up -d
@@ -241,31 +279,86 @@ docker-compose up -d
 
 ---
 
-## 4️⃣ Certificat SSL
+## 4️⃣ Certificat SSL Wildcard (signé par DNSSRV)
 
-### Demander le certificat à DNSSRV
+> **Sujet** : "All certificates are provided by DNSSRV"
+>
+> 💡 On utilise un **certificat wildcard `*.worldskills.org`** pour couvrir tous les sous-domaines :
+>
+> - www.worldskills.org
+> - ftp.worldskills.org
+> - Tout autre sous-domaine futur
+
+### Étape 1 : Générer la clé et la demande de certificat wildcard
+
 ```bash
-# Générer la clé et la demande
-openssl req -new -nodes -keyout /etc/ssl/private/worldskills.key -out /tmp/worldskills.csr \
-    -subj "/C=FR/ST=Auvergne Rhone-Alpes/L=Lyon/O=Worldskills France/CN=www.worldskills.org"
+# Créer le dossier si nécessaire
+mkdir -p /etc/ssl/private
 
-# Envoyer worldskills.csr à DNSSRV pour signature
-# Récupérer le certificat signé
-
-# Combiner clé + certificat pour HAProxy
-cat /etc/ssl/private/worldskills.key /etc/ssl/certs/worldskills.crt > /etc/ssl/certs/worldskills.pem
+# Générer la clé privée et la demande CSR wildcard
+openssl req -new -nodes \
+    -keyout /etc/ssl/private/worldskills.key \
+    -out /tmp/worldskills.csr \
+    -subj "/C=FR/ST=Auvergne Rhone-Alpes/L=Lyon/O=Worldskills France/CN=*.worldskills.org"
 ```
+
+### Étape 2 : Envoyer la demande à DNSSRV
+
+```bash
+# Copier le CSR vers DNSSRV
+scp /tmp/worldskills.csr root@8.8.4.1:/tmp/
+```
+
+### Étape 3 : Sur DNSSRV - Signer le certificat wildcard
+
+```bash
+# À exécuter sur DNSSRV
+openssl x509 -req -in /tmp/worldskills.csr \
+    -CA /etc/ssl/certs/WSFR-ROOT-CA.crt \
+    -CAkey /etc/ssl/private/WSFR-ROOT-CA.key \
+    -CAcreateserial \
+    -out /tmp/worldskills.crt \
+    -days 365 \
+    -extfile <(printf "subjectAltName=DNS:*.worldskills.org,DNS:worldskills.org")
+```
+
+> ⚠️ **Note** : Le SAN inclut `*.worldskills.org` ET `worldskills.org` car le wildcard ne couvre pas le domaine racine.
+
+### Étape 4 : Récupérer le certificat signé
+
+```bash
+# Sur INETSRV - Récupérer le certificat
+scp root@8.8.4.1:/tmp/worldskills.crt /etc/ssl/certs/
+
+# Récupérer aussi le Root CA pour la chaîne
+scp root@8.8.4.1:/etc/ssl/certs/WSFR-ROOT-CA.crt /etc/ssl/certs/
+```
+
+### Étape 5 : Créer le bundle pour HAProxy
+
+```bash
+# HAProxy nécessite un fichier PEM avec : clé + certificat + CA
+cat /etc/ssl/private/worldskills.key \
+    /etc/ssl/certs/worldskills.crt \
+    /etc/ssl/certs/WSFR-ROOT-CA.crt > /etc/ssl/certs/worldskills.pem
+
+chmod 600 /etc/ssl/certs/worldskills.pem
+```
+
+> ✅ **Ce certificat wildcard sera utilisé pour le Web ET le FTP !**
 
 ---
 
 ## 5️⃣ Serveur FTP (FTPS)
 
 ### Installation vsftpd
+
 ```bash
 apt install -y vsftpd
 ```
 
 ### Configuration FTPS
+
 ```bash
 cat > /etc/vsftpd.conf << 'EOF'
 listen=YES
@@ -301,6 +394,7 @@ EOF
 ```
 
 ### Créer l'utilisateur devops
+
 ```bash
 useradd -m -s /bin/bash devops
 echo "devops:P@ssw0rd" | chpasswd
@@ -310,15 +404,21 @@ mkdir -p /home/devops/playbooks
 chown devops:devops /home/devops/playbooks
 ```
 
-### Générer le certificat FTP
+### Certificat FTP (utilise le wildcard)
+
+> 💡 **On réutilise le certificat wildcard `*.worldskills.org`** créé à l'étape 4 !
+> Pas besoin de créer un certificat séparé pour FTP.
+
 ```bash
-openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-    -keyout /etc/ssl/private/ftp.key \
-    -out /etc/ssl/certs/ftp.crt \
-    -subj "/C=FR/ST=Auvergne Rhone-Alpes/L=Lyon/O=Worldskills France/CN=ftp.worldskills.org"
+# Créer des liens symboliques pour vsftpd (qui attend ftp.crt et ftp.key)
+ln -sf /etc/ssl/certs/worldskills.crt /etc/ssl/certs/ftp.crt
+ln -sf /etc/ssl/private/worldskills.key /etc/ssl/private/ftp.key
 ```
 
+> ✅ Le certificat wildcard `*.worldskills.org` couvre automatiquement `ftp.worldskills.org`
+
 ### Démarrer vsftpd
+
 ```bash
 systemctl restart vsftpd
 systemctl enable vsftpd
@@ -328,13 +428,13 @@ systemctl enable vsftpd
 
 ## ✅ Vérifications
 
-| Test | Commande |
-|------|----------|
-| Web HTTP | `curl -I http://8.8.4.2` |
-| Web HTTPS | `curl -Ik https://www.worldskills.org` |
-| HAProxy Stats | `curl http://8.8.4.2:8080/stats` |
-| Docker | `docker ps` |
-| FTP | `lftp -u devops,P@ssw0rd ftps://8.8.4.2` |
+| Test          | Commande                                 |
+| ------------- | ---------------------------------------- |
+| Web HTTP      | `curl -I http://8.8.4.2`                 |
+| Web HTTPS     | `curl -Ik https://www.worldskills.org`   |
+| HAProxy Stats | `curl http://8.8.4.2:8080/stats`         |
+| Docker        | `docker ps`                              |
+| FTP           | `lftp -u devops,P@ssw0rd ftps://8.8.4.2` |
 
 ---
 
@@ -346,4 +446,3 @@ systemctl enable vsftpd
 - Les headers sensibles (Server, X-Powered-By) sont masqués
 - Le FTP utilise FTPS (FTP over TLS) sur les ports 21 et 40000-40100
 - Les playbooks Ansible de MGMTCLT sont stockés dans /home/devops/playbooks
-

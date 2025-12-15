@@ -424,15 +424,15 @@ Test-Path "\\rem.wsl2025.org\Department"
 # Attendu : True
 ```
 
-| Élément          | Attendu                        | Commande                                            |
-| ---------------- | ------------------------------ | --------------------------------------------------- |
-| Domaine          | rem.wsl2025.org                | `(Get-WmiObject Win32_ComputerSystem).Domain`       |
-| DNS Zones        | Secondaire rem.wsl2025.org     | `Get-DnsServerZone`                                 |
-| DHCP Failover    | Actif avec REMDCSRV            | `Get-DhcpServerv4Failover`                          |
-| DFS Namespace 1  | `\\rem.wsl2025.org\users`      | `Get-DfsnRoot`                                      |
-| DFS Namespace 2  | `\\rem.wsl2025.org\Department` | `Get-DfsnRoot`                                      |
-| Accès users      | True                           | `Test-Path "\\rem.wsl2025.org\users"`               |
-| Accès Department | True                           | `Test-Path "\\rem.wsl2025.org\Department"`          |
+| Élément          | Attendu                        | Commande                                      |
+| ---------------- | ------------------------------ | --------------------------------------------- |
+| Domaine          | rem.wsl2025.org                | `(Get-WmiObject Win32_ComputerSystem).Domain` |
+| DNS Zones        | Secondaire rem.wsl2025.org     | `Get-DnsServerZone`                           |
+| DHCP Failover    | Actif avec REMDCSRV            | `Get-DhcpServerv4Failover`                    |
+| DFS Namespace 1  | `\\rem.wsl2025.org\users`      | `Get-DfsnRoot`                                |
+| DFS Namespace 2  | `\\rem.wsl2025.org\Department` | `Get-DfsnRoot`                                |
+| Accès users      | True                           | `Test-Path "\\rem.wsl2025.org\users"`         |
+| Accès Department | True                           | `Test-Path "\\rem.wsl2025.org\Department"`    |
 
 ---
 
@@ -457,12 +457,13 @@ Test-Path "\\rem.wsl2025.org\Department"
 
 ## 🎯 Résumé des chemins DFS
 
-| Chemin DFS (namespace)         | Cible(s) réelle(s)                                                                  |
-| ------------------------------ | ----------------------------------------------------------------------------------- |
-| `\\rem.wsl2025.org\users`      | `\\reminfrasrv.rem.wsl2025.org\users` + `\\remdcsrv.rem.wsl2025.org\users`          |
-| `\\rem.wsl2025.org\Department` | `\\reminfrasrv.rem.wsl2025.org\Department` + `\\remdcsrv.rem.wsl2025.org\Department`|
+| Chemin DFS (namespace)         | Cible(s) réelle(s)                                                                   |
+| ------------------------------ | ------------------------------------------------------------------------------------ |
+| `\\rem.wsl2025.org\users`      | `\\reminfrasrv.rem.wsl2025.org\users` + `\\remdcsrv.rem.wsl2025.org\users`           |
+| `\\rem.wsl2025.org\Department` | `\\reminfrasrv.rem.wsl2025.org\Department` + `\\remdcsrv.rem.wsl2025.org\Department` |
 
 > 💡 **Architecture DFS** :
+>
 > - REMINFRASRV héberge les **namespaces DFS** (point d'entrée)
 > - REMDCSRV contient les **données réelles** (partages SMB)
 > - Le client accède via `\\rem.wsl2025.org\...` et DFS redirige vers REMDCSRV
