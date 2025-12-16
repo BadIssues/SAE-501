@@ -748,6 +748,7 @@ realm list
 > 📝 **Mot de passe** : Utilise le mot de passe de l'administrateur AD (P@ssw0rd ou celui configuré)
 
 > ⚠️ **Si tu vois DEUX entrées dans `realm list`** (une winbind, une sssd), fais :
+>
 > ```bash
 > realm leave hq.wsl2025.org
 > systemctl stop sssd && systemctl disable sssd
