@@ -45,7 +45,7 @@ Ce projet est réalisé dans le cadre de la **SAE 501** en 3ème année de **BUT
 | ---------------------- | --------------------------------------------------------------- |
 | 🏢 **Client fictif**   | WorldSkills Lyon 2025 (WSL2025) - Organisation des compétitions |
 | 🤝 **Partenaire**      | WorldSkills France (WSFR) - Site distant connecté via MAN       |
-| 👥 **Effectif simulé** | ~120 employés répartis sur 2 sites                              |
+| 👥 **Effectif simulé** | ~300 clients + 30 serveurs (site HQ)                            |
 | 🎯 **Objectif**        | Infrastructure réseau complète, sécurisée et redondante         |
 
 ### 🏆 Compétences Développées
