@@ -124,7 +124,6 @@ exit
 !
 ip access-list extended NAT-ACL
 permit ip 10.4.0.0 0.0.255.255 any
-permit ip 10.116.4.0 0.0.0.3 any
 exit
 !
 ip nat inside source list NAT-ACL interface GigabitEthernet0/0.16 overload
