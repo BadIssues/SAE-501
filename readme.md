@@ -547,7 +547,6 @@ ping 10.4.100.1 source 10.4.10.1
 ```
 📁 configreseau/
 ├── 📄 readme.md                 # Ce fichier
-├── 📄 RETEX_SAE501.md           # Retour d'expérience
 ├── 📄 login_portailcaptif.sh    # Script authentification portail
 │
 ├── 📁 sujet/                    # 📋 Sujet de la SAE
