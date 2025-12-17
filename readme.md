@@ -464,7 +464,7 @@ graph TD
 **Static NAT :**
 | Service | IP Publique | IP Privée | Port |
 |---|---|---|---|
-| VPN OpenVPN | `191.4.157.33:4443` | `10.4.10.2:443` | TCP |
+| VPN OpenVPN | `191.4.157.33:4443` | `10.4.10.2:4443` | TCP |
 | Webmail HTTP | `191.4.157.33:80` | `10.4.10.3:80` | TCP |
 | Webmail HTTPS | `191.4.157.33:443` | `10.4.10.3:443` | TCP |
 
@@ -547,17 +547,20 @@ ping 10.4.100.1 source 10.4.10.1
 ```
 📁 configreseau/
 ├── 📄 readme.md                 # Ce fichier
-├── 📄 sujet1.md                 # Sujet technique complet (EN)
-├── 📄 sujet2.md                 # Présentation SAE 501 (FR)
-├── 🖼️ SAE501-2025-*.jpg         # Schémas d'architecture (4 fichiers)
+├── 📄 RETEX_SAE501.md           # Retour d'expérience
+├── 📄 login_portailcaptif.sh    # Script authentification portail
+│
+├── 📁 sujet/                    # 📋 Sujet de la SAE
+│   ├── sujet1.md                # Sujet technique complet (EN)
+│   ├── sujet2.md                # Présentation SAE 501 (FR)
+│   └── SAE501-2025-*.jpg        # Schémas d'architecture (4 fichiers)
 │
 ├── 📁 documentation/            # 📘 Guides d'installation détaillés
 │   ├── 00-INDEX.md              # Table des matières
-│   └── [01-16]-*.md             # Procédures par machine
+│   └── [01-18]-*.md             # Procédures par machine
 │
 ├── 📁 realconf/                 # ⚙️ Configurations réelles (Cisco IOS)
 │   ├── PLAN-ADRESSAGE-IP.txt    # Plan d'adressage complet
-│   ├── JALONS-PREUVES.txt       # Preuves de validation
 │   ├── edge1.txt / edge2.txt    # Configs routeurs bordure
 │   ├── coresw1.txt / coresw2.txt # Configs switches cœur
 │   ├── accsw1.txt / accsw2.txt  # Configs switches accès
