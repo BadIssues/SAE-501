@@ -580,12 +580,12 @@ ping 10.4.100.1 source 10.4.10.1
 <td align="center" width="25%">
 <img src="https://img.shields.io/badge/🔐-Antonin_MICHON-DC143C?style=for-the-badge" alt="Antonin MICHON"/><br/>
 <sub><b>Parcours Cyber</b></sub><br/>
-<sub>PKI • Firewall • VPN</sub>
+<sub>DNS • Firewall • Sécurité</sub>
 </td>
 <td align="center" width="25%">
 <img src="https://img.shields.io/badge/🔐-Curtis_LEMIEUX-DC143C?style=for-the-badge" alt="Curtis LEMIEUX"/><br/>
 <sub><b>Parcours Cyber</b></sub><br/>
-<sub>AD • DNS • Sécurité</sub>
+<sub>PKI • VPN • AD</sub>
 </td>
 <td align="center" width="25%">
 <img src="https://img.shields.io/badge/📊-Damien_LETALLEUR-FF8C00?style=for-the-badge" alt="Damien LETALLEUR"/><br/>
